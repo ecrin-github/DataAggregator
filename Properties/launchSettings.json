@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DataAggregator": {
+      "commandName": "Project",
+      "commandLineArgs": "b"
+    }
+  }
+}
