@@ -208,5 +208,5 @@ namespace DataAggregator
 		public int record_status_id { get; set; }
 	}
 
-	Object languages too!
+	//Object languages too!
 }

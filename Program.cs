@@ -3,12 +3,12 @@ using static System.Console;
 
 namespace DataAggregator
 {
-    class Program
-    {
+	class Program
+	{
 		static void Main(string[] args)
 		{
 			string source;
-			bool create_tables = false;
+			bool create_study_links = false;
 
 			if (args.Length == 0 || args.Length > 2)
 			{
@@ -34,44 +34,31 @@ namespace DataAggregator
 						string table_create = args[1];
 						if (table_create == "1")
 						{
-							create_tables = true; // recreate tables
+							create_study_links = true; // recreate tables
 						}
 					}
 
-                    // proceed with one or two valid aprameters
-			        DataLayer repo = new DataLayer();
-					int source_id;
-					switch (source)
+					// proceed with one or two valid aprameters
+					DataLayer repo = new DataLayer();
+					int source_id = 0;
+
+					if (source == "b") source_id = 100900;
+					if (source == "y") source_id = 100901;
+
+					Controller controller = new Controller(repo, source_id);
+					if (create_study_links)
 					{
-						case "b":
-							{
-								source_id = 100900;
-								Controller biolincc_controller = new Controller(repo, source_id);
-								//biolincc_controller.UpdateStudyLinkList();
-								biolincc_controller.EstablishStudyIds(source_id);
-								biolincc_controller.LoadStudyData(source_id);
-								biolincc_controller.EstablishObjectIds(source_id);
-								biolincc_controller.LoadObjectData(source_id);
-								biolincc_controller.DropTempTables();
-								break;
-							}
-						case "y":
-							{
-								source_id = 100901;
-								Controller yoda_controller = new Controller(repo, source_id);
-								//yoda_controller.UpdateStudyLinkList();
-								yoda_controller.EstablishStudyIds(source_id);
-								break;
-						}
+						controller.UpdateStudyLinkList();
 					}
-
-
-
+					StudyDataTransfer study_trans = new StudyDataTransfer();
+					controller.EstablishStudyIds(study_trans, source_id);
+					controller.LoadStudyData(study_trans, source_id);
+					ObjectDataTransfer object_trans = new ObjectDataTransfer();
+					controller.EstablishObjectIds(object_trans, source_id);
+					controller.LoadObjectData(object_trans, source_id);
+					controller.DropTempTables(study_trans, object_trans);
 				}
 			}
-
-
-			
-			}
 		}
+	}
 }
