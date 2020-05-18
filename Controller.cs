@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace DataAggregator
@@ -8,70 +9,82 @@ namespace DataAggregator
     {
         int source_id;
 		DataLayer repo;
+		string mdr_connString;
+		StudyDataTransferrer study_trans;
+		ObjectDataTransferrer object_trans;
 
 		public Controller(DataLayer _repo, int _source_id)
         {
 			repo = _repo;
 			source_id = _source_id;
-
-        }
+			mdr_connString = repo.GetMDRConnString();
+			StudyDataTransferrer study_trans = new StudyDataTransferrer(repo);
+			ObjectDataTransferrer object_trans = new ObjectDataTransferrer(repo);
+		}
 
 		public int UpdateStudyLinkList()
 		{
 			// examines the study_reference data in the trial registry databases
 			// to try and identify the PubMed data that needs to be downloaded through the API
+			StudyLinksGenerator links = new StudyLinksGenerator(repo);
 
-			repo.SetUpTempLinksBySourceTable();
-			repo.SetUpTempLinkCollectorTable();
+			links.SetUpTempLinksBySourceTable();
+			links.SetUpTempLinkCollectorTable();
 			IEnumerable<StudyLink> references;
 
 			// get study reference data from ClinicalTrials.gov
-			repo.TruncateLinksBySourceTable();
-			references = repo.FetchLinks(100120);
-			repo.StoreLinks(IdCopyHelpers.links_helper, references);
-			repo.TransferLinksToCollectorTable(100120);
-				
+			links.TruncateLinksBySourceTable();
+			references = links.FetchLinks(100120);
+			links.StoreLinks(IdCopyHelpers.links_helper, references);
+			links.TransferLinksToCollectorTable();
+
 			// get study reference data from EUCTR
-			repo.TruncateLinksBySourceTable();
-			references = repo.FetchLinks(100123);
-			repo.StoreLinks(IdCopyHelpers.links_helper, references);
-			repo.TransferLinksToCollectorTable(100123);
+			links.TruncateLinksBySourceTable();
+			references = links.FetchLinks(100123);
+			links.StoreLinks(IdCopyHelpers.links_helper, references);
+			links.TransferLinksToCollectorTable();
 
 			// get study reference data from ISRCTN
-			repo.TruncateLinksBySourceTable();
-			references = repo.FetchLinks(100126);
-			repo.StoreLinks(IdCopyHelpers.links_helper, references);
-			repo.TransferLinksToCollectorTable(100126);
+			links.TruncateLinksBySourceTable();
+			references = links.FetchLinks(100126);
+			links.StoreLinks(IdCopyHelpers.links_helper, references);
+			links.TransferLinksToCollectorTable();
 
-            // get study reference data from BioLINCC
-			repo.TruncateLinksBySourceTable();
-			references = repo.FetchLinks(100900);
-			repo.StoreLinks(IdCopyHelpers.links_helper, references);
-			repo.TransferLinksToCollectorTable(100900);
+			// get study reference data from BioLINCC
+			links.TruncateLinksBySourceTable();
+			references = links.FetchLinks(100900);
+			links.StoreLinks(IdCopyHelpers.links_helper, references);
+			links.TransferLinksToCollectorTable();
 
 			// get study reference data from Yoda
-			repo.TruncateLinksBySourceTable();
-			references = repo.FetchLinks(100901);
-			repo.StoreLinks(IdCopyHelpers.links_helper, references);
-			repo.TransferLinksToCollectorTable(100901);
+			links.TruncateLinksBySourceTable();
+			references = links.FetchLinks(100901);
+			links.StoreLinks(IdCopyHelpers.links_helper, references);
+			links.TransferLinksToCollectorTable();
 
 			// get study reference data from WHO
-			repo.TruncateLinksBySourceTable();
-			references = repo.FetchLinks(100115);
-			repo.StoreLinks(IdCopyHelpers.links_helper, references);
-			repo.TransferLinksToCollectorTable(100115);
+			links.TruncateLinksBySourceTable();
+			references = links.FetchLinks(100115);
+			links.StoreLinks(IdCopyHelpers.links_helper, references);
+			links.TransferLinksToCollectorTable();
 
 			// store the contents in the data objects source file as required...
-			int total = repo.ObtainTotalOfNewLinks();
-			repo.TransferNewLinksToDataTable();
+			int total = links.ObtainTotalOfNewLinks();
+			links.TransferNewLinksToDataTable();
 
-			repo.DropTempLinksBySourceTable();
-			repo.DropTempLinkCollectorTable();
+			links.DropTempLinksBySourceTable();
+			links.DropTempLinkCollectorTable();
 
 			return total;
 		}
+		
+		
+		public void SetUpTempSchema(string db_name)
+		{
+			study_trans.SetUpTempFTW(db_name);
+		}
 
-		public void EstablishStudyIds(StudyDataTransfer study_trans, int source_id)
+		public void EstablishStudyIds(int source_id)
 		{
 			IEnumerable<StudyIds> study_ids;
 
@@ -96,7 +109,7 @@ namespace DataAggregator
 		}
 
 
-		public void EstablishObjectIds(ObjectDataTransfer object_trans, int source_id)
+		public void EstablishObjectIds(int source_id)
 		{
 			IEnumerable<ObjectIds> object_ids;
 
@@ -114,34 +127,59 @@ namespace DataAggregator
 			//repo.UpdateAllObjectIdsTable(source_id);
 		}
 
-		public void LoadStudyData(StudyDataTransfer study_trans, int source_id)
+
+		public void LoadStudyData(string schema_name)
 		{
-			study_trans.LoadStudyData(source_id);
-			study_trans.LoadStudyIdentifiers(source_id);
-			study_trans.LoadStudyTitles(source_id);
-			study_trans.LoadStudyRelationShips(source_id);
-			study_trans.LoadStudyContributors(source_id);
-			study_trans.LoadStudyTopics(source_id);
-			study_trans.LoadStudyFeatures(source_id);
+			// Add new records where status indicates they are new
+			study_trans.LoadStudyData(schema_name);
+			study_trans.LoadStudyIdentifiers(schema_name);
+			study_trans.LoadStudyTitles(schema_name);
+			study_trans.LoadStudyRelationShips(schema_name);
+			study_trans.LoadStudyContributors(schema_name);
+			study_trans.LoadStudyTopics(schema_name);
+			study_trans.LoadStudyFeatures(schema_name);
+
+			// Update records where status indicates they have changed
+
+
+			// Update date of data fetch if that is all that has changed
+
+
 		}
 
-		public void LoadObjectData(ObjectDataTransfer object_trans, int source_id)
+		public void LoadObjectData(string schema_name)
 		{
-			object_trans.LoadObjectData(source_id);
-			object_trans.LoadObjectDatasets(source_id);
-			object_trans.LoadObjectInstances(source_id);
-			object_trans.LoadObjectTitles(source_id);
-			object_trans.LoadObjectDates(source_id);
-			object_trans.LoadObjectContributors(source_id);
-			object_trans.LoadObjectTopics(source_id);
-			object_trans.LoadObjectRelationships(source_id);
+			// Add new records where status indicates they are new
+			object_trans.LoadObjectData(schema_name);
+			object_trans.LoadObjectDatasets(schema_name);
+			object_trans.LoadObjectInstances(schema_name);
+			object_trans.LoadObjectTitles(schema_name);
+			object_trans.LoadObjectDates(schema_name);
+			object_trans.LoadObjectContributors(schema_name);
+			object_trans.LoadObjectTopics(schema_name);
+			object_trans.LoadObjectRelationships(schema_name);
+
+			// Update records where status indicates they have changed
+
+
+
+
+			// Update date of data fetch if that is all that has changed
+
+
 		}
 
-		public void DropTempTables(StudyDataTransfer study_trans, ObjectDataTransfer object_trans)
+		public void DropTempTables()
 		{
 			study_trans.DropTempStudyIdsTable();
 			object_trans.DropTempObjectIdsTable();
 		}
 
-    }
+		public void DropTempSchema(string db_name)
+		{
+			study_trans.DropTempFTW(db_name);
+		}
+
+
+	}
 }
