@@ -18,8 +18,8 @@ namespace DataAggregator
 			repo = _repo;
 			source_id = _source_id;
 			mdr_connString = repo.GetMDRConnString();
-			StudyDataTransferrer study_trans = new StudyDataTransferrer(repo);
-			ObjectDataTransferrer object_trans = new ObjectDataTransferrer(repo);
+			study_trans = new StudyDataTransferrer(repo);
+			object_trans = new ObjectDataTransferrer(repo);
 		}
 
 		public int UpdateStudyLinkList()
@@ -68,12 +68,17 @@ namespace DataAggregator
 			links.StoreLinks(IdCopyHelpers.links_helper, references);
 			links.TransferLinksToCollectorTable();
 
+			// cascade preferred other study ids
+			links.MakeLinksDistinct();
+			links.CascadeLinksTable();
+
+			links.FindMultipleRelationships();
+
 			// store the contents in the data objects source file as required...
 			int total = links.ObtainTotalOfNewLinks();
 			links.TransferNewLinksToDataTable();
 
-			links.DropTempLinksBySourceTable();
-			links.DropTempLinkCollectorTable();
+			links.DropTempTables();
 
 			return total;
 		}

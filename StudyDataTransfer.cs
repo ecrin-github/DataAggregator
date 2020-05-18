@@ -8,12 +8,12 @@ using System.Text;
 
 namespace DataAggregator
 {
-    public class StudyDataTransferrerrer
+    public class StudyDataTransferrer
     {
 		DataLayer repo;
 		string mdr_connString;
 
-		public StudyDataTransferrerrer(DataLayer _repo)
+		public StudyDataTransferrer(DataLayer _repo)
 		{
 			repo = _repo;
 			mdr_connString = repo.GetMDRConnString();
@@ -67,29 +67,18 @@ namespace DataAggregator
 		{
 			using (var conn = new NpgsqlConnection(mdr_connString))
 			{
-				// does it match where it is in the left hand column?
+				// does it match a study in the link table
+				// that is the left hand column - which is 
+				// the one to be replaced if necessaary
 				string sql_string = @"UPDATE nk.temp_study_ids
 		                   SET study_id = s.study_id, is_new = false
                            FROM nk.temp_study_ids t
                            INNER JOIN nk.study_study_links k
-                           WHERE t.study_sd_id = k.studya_sd_id
-                           AND t.study_source_id =  k.studya_source_id
+                           WHERE t.study_sd_id = k.sd_id
+                           AND t.study_source_id =  k.source_id
                            INNER JOIN nk.all_ids_studies s
-                           ON k.studyb_sd_id = s.sd_id
-                           AND k.studyb_source_id = s.source_id;";
-
-				conn.Execute(sql_string);
-
-				// does it match where it is in the right hand column?
-				sql_string = @"UPDATE nk.temp_study_ids
-		                   SET study_id = s.study_id, is_new = false
-                           FROM nk.temp_study_ids t
-                           INNER JOIN nk.study_study_links k
-                           WHERE t.study_sd_id = k.studyb_sd_id
-                           AND t.study_source_id =  k.studyb_source_id
-                           INNER JOIN nk.all_ids_studies s
-                           ON k.studya_sd_id = s.sd_id
-                           AND k.studya_source_id = s.source_id;";
+                           ON k.preferred_sd_id = s.sd_id
+                           AND k.preferred_source_id = s.source_id;";
 
 				conn.Execute(sql_string);
 			}

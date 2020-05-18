@@ -69,11 +69,12 @@ namespace DataAggregator
 		{
 			using (var conn = new NpgsqlConnection(mdr_connString))
 			{
-				string sql_string = @"CREATE TABLE IF NOT EXISTS nk.temp_study_links_collector(
-				        source_1 int
-                      , sd_id_1 varchar
-                      , sd_id_2 varchar
-                      , source_2 int) ";
+				string sql_string = @"DROP TABLE IF EXISTS nk.temp_study_links_collector;
+                        CREATE TABLE nk.temp_study_links_collector(
+				        source_id int
+                      , sd_id varchar
+                      , preferred_sd_id varchar
+                      , preferred_source_id int) ";
 				conn.Execute(sql_string);
 			}
 		}
@@ -85,33 +86,98 @@ namespace DataAggregator
 				// needs to be done twice to keep the ordering of aouerces correct
 
 				string sql_string = @"INSERT INTO nk.temp_study_links_collector(
-				          source_1, sd_id_1, sd_id_2, source_2) 
-                          SELECT source_1, sd_id_1, sd_id_2, source_2
+				          source_id, sd_id, preferred_sd_id, preferred_source_id) 
+                          SELECT t.source_1, t.sd_id_1, t.sd_id_2, t.source_2
 						  FROM nk.temp_study_links_by_source t
-                          WHERE source_1 > source_2";
+                          inner join nk.source_preference_ratings r1
+                          on t.source_1 = r1.source_id
+                          inner join nk.source_preference_ratings r2
+                          on t.source_2 = r2.source_id
+                          WHERE r1.rating > r2.rating";
 
 				conn.Execute(sql_string);
 
 				sql_string = @"INSERT INTO nk.temp_study_links_collector(
-				          source_1, sd_id_1, sd_id_2, source_2) 
-                          SELECT source_2, sd_id_2, sd_id_1, source_1
+				          source_id, sd_id, preferred_sd_id, preferred_source_id) 
+                          SELECT t.source_2, t.sd_id_2, t.sd_id_1, t.source_1
 						  FROM nk.temp_study_links_by_source t
-                          WHERE source_1 < source_2";
+                          inner join nk.source_preference_ratings r1
+                          on t.source_1 = r1.source_id
+                          inner join nk.source_preference_ratings r2
+                          on t.source_2 = r2.source_id
+                          WHERE r1.rating < r2.rating";
 
 				conn.Execute(sql_string);
 			}
 		}
 
 
+		public void MakeLinksDistinct()
+		{
+			using (var conn = new NpgsqlConnection(mdr_connString))
+			{
+				// needs to be done twice to keep the ordering of aouerces correct
+
+				string sql_string = @"DROP TABLE IF EXISTS nk.distinct_links;
+                           CREATE TABLE nk.distinct_links 
+                           as SELECT distinct source_id, sd_id, preferred_sd_id, preferred_source_id
+						   FROM nk.temp_study_links_collector";
+
+				conn.Execute(sql_string);
+			}
+		}
+
+
+		public void CascadeLinksTable()
+		{
+			using (var conn = new NpgsqlConnection(mdr_connString))
+			{
+				// needs to be done twice to keep the ordering of aouerces correct
+
+				int match_number = 500;  // arbitrary start number
+				while (match_number > 0)
+				{
+					// get match number as numbver of link records where the rhs sd_id
+					// appears elsewhere on the left...
+
+					string sql_string = @"SELECT count(*) 
+						  FROM nk.distinct_links t1
+                          inner join nk.distinct_links t2
+                          on t1.preferred_source_id = t2.source_id
+                          and t1.preferred_sd_id = t2.sd_id";
+
+					match_number = conn.ExecuteScalar<int>(sql_string);
+
+					if (match_number > 0)
+					{
+						// do the update
+						sql_string = @"UPDATE nk.distinct_links t1
+                          SET preferred_source_id = t2.preferred_source_id,
+                          preferred_sd_id = t2.preferred_sd_id
+						  FROM nk.distinct_links t2
+                          WHERE t1.preferred_source_id = t2.source_id
+                          AND t1.preferred_sd_id = t2.sd_id";
+
+						conn.Execute(sql_string);
+					}
+				}
+			}
+		}
+
+
+		public void FindMultipleRelationships()
+		{
+
+
+		}
+
 		public void TransferNewLinksToDataTable()
 		{
 			using (var conn = new NpgsqlConnection(mdr_connString))
 			{
-				string sql_string = @"TRUNCATE TABLE nk.study_study_links;
-                          INSERT INTO nk.study_study_links(
-				          studya_source_id, studya_sd_id, studyb_sd_id, studyb_source_id) 
-                          SELECT distinct source_1, sd_id_1, sd_id_2, source_2
-						  FROM nk.temp_study_links_collector";
+				string sql_string = @"DROP TABLE IF EXISTS nk.study_study_links;
+                          CREATE TABLE nk.study_study_links 
+                          as TABLE nk.distinct_links";
 
 				conn.Execute(sql_string);
 			}
@@ -128,23 +194,21 @@ namespace DataAggregator
 		}
 
 
-		public void DropTempLinksBySourceTable()
+		public void DropTempTables()
 		{
 			using (var conn = new NpgsqlConnection(mdr_connString))
 			{
 				string sql_string = "DROP TABLE IF EXISTS nk.temp_study_links_by_source";
 				conn.Execute(sql_string);
-			}
-		}
 
-		public void DropTempLinkCollectorTable()
-		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
-			{
-				string sql_string = "DROP TABLE IF EXISTS nk.temp_study_links_collector";
+				sql_string = "DROP TABLE IF EXISTS nk.temp_study_links_collector";
+				conn.Execute(sql_string);
+
+				sql_string = "DROP TABLE IF EXISTS nk.distinct_links";
 				conn.Execute(sql_string);
 			}
 		}
+
 
 		public ulong StoreLinks(PostgreSQLCopyHelper<StudyLink> copyHelper, IEnumerable<StudyLink> entities)
 		{
