@@ -72,7 +72,8 @@ namespace DataAggregator
 			links.MakeLinksDistinct();
 			links.CascadeLinksTable();
 
-			links.FindMultipleRelationships();
+			links.ManageLinkedPreferredSources();
+			links.ManageLinkedNonPreferredSources();
 
 			// store the contents in the data objects source file as required...
 			int total = links.ObtainTotalOfNewLinks();
