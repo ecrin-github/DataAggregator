@@ -32,7 +32,7 @@ namespace DataAggregator
                       , object_hash_id varchar
                       , datetime_of_data_fetch timestamptz
                       , parent_study_id int
-                      , is_new boolean
+                      , is_preferred boolean
                       , is_study_new boolean
                       ); ";
 				conn.Execute(sql_string);

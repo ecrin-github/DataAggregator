@@ -22,7 +22,7 @@ namespace DataAggregator
 			object_trans = new ObjectDataTransferrer(repo);
 		}
 
-		public int UpdateStudyLinkList()
+		public void UpdateStudyLinkList()
 		{
 			// examines the study_reference data in the trial registry databases
 			// to try and identify the PubMed data that needs to be downloaded through the API
@@ -72,16 +72,19 @@ namespace DataAggregator
 			links.MakeLinksDistinct();
 			links.CascadeLinksTable();
 
+			// identify and remove grouped studies
 			links.ManageLinkedPreferredSources();
 			links.ManageLinkedNonPreferredSources();
 
-			// store the contents in the data objects source file as required...
-			int total = links.ObtainTotalOfNewLinks();
+			// identify and process 'missing link' studies
+			links.ManageIncompleteLinks();
+			links.CascadeLinksTable();
+
+			// store the contents in a new links table
+			// (Later to be replaced by insertion of new
+			// links into a permanent table
 			links.TransferNewLinksToDataTable();
-
 			links.DropTempTables();
-
-			return total;
 		}
 		
 		
@@ -95,26 +98,46 @@ namespace DataAggregator
 			IEnumerable<StudyIds> study_ids;
 
 			// Get the new study data as a set of study records
-			// using the ad database as the source
+			// using the ad database as the source.
 
 			// set up a temporary table that holds the ad_id, sd_id, 
 			// hash_id for all studies
-			// It will need to have the study_id in it 
+			// It will need to have the study_id in it.
+
 			study_trans.SetUpTempStudyIdsTable();
 			study_ids = study_trans.FetchStudyIds(source_id);
 			study_trans.StoreStudyIds(IdCopyHelpers.study_ids_helper, study_ids);
 
-			// do the check of the temp table ids against the study_study links
+			// Do the check of the temp table ids against the study_study links.
 
 			study_trans.CheckStudyLinks();
 
-			// Use sql to load that table once the check is done
-			// Use sql to back load the ids into the temporary table
+			// Use sql to load that table once the check is done.
+			// Use sql to back load the ids into the temporary table.
 
 			study_trans.UpdateAllStudyIdsTable(source_id);
 		}
 
+		public void LoadStudyData(string schema_name)
+		{
+			// Add new records where status indicates they are new
+			study_trans.LoadNewStudyData(schema_name);
+			study_trans.LoadNewStudyIdentifiers(schema_name);
+			study_trans.LoadNewStudyTitles(schema_name);
+			study_trans.LoadNewStudyRelationShips(schema_name);
+			study_trans.LoadNewStudyContributors(schema_name);
+			study_trans.LoadNewStudyTopics(schema_name);
+			study_trans.LoadNewStudyFeatures(schema_name);
 
+			// Update records where status indicates they have changed
+
+
+			// Update date of data fetch if that is all that has changed
+
+
+		}
+		
+		
 		public void EstablishObjectIds(int source_id)
 		{
 			IEnumerable<ObjectIds> object_ids;
@@ -133,25 +156,6 @@ namespace DataAggregator
 			//repo.UpdateAllObjectIdsTable(source_id);
 		}
 
-
-		public void LoadStudyData(string schema_name)
-		{
-			// Add new records where status indicates they are new
-			study_trans.LoadStudyData(schema_name);
-			study_trans.LoadStudyIdentifiers(schema_name);
-			study_trans.LoadStudyTitles(schema_name);
-			study_trans.LoadStudyRelationShips(schema_name);
-			study_trans.LoadStudyContributors(schema_name);
-			study_trans.LoadStudyTopics(schema_name);
-			study_trans.LoadStudyFeatures(schema_name);
-
-			// Update records where status indicates they have changed
-
-
-			// Update date of data fetch if that is all that has changed
-
-
-		}
 
 		public void LoadObjectData(string schema_name)
 		{
