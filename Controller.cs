@@ -88,9 +88,9 @@ namespace DataAggregator
 		}
 		
 		
-		public void SetUpTempSchema(string db_name)
+		public string  SetUpTempSchema(string db_name)
 		{
-			study_trans.SetUpTempFTW(db_name);
+			return study_trans.SetUpTempFTW(db_name);
 		}
 
 		public void EstablishStudyIds(int source_id)
@@ -121,8 +121,8 @@ namespace DataAggregator
 		public void LoadStudyData(string schema_name)
 		{
 			// Add new records where status indicates they are new
-			study_trans.LoadNewStudyData(schema_name);
-			study_trans.LoadNewStudyIdentifiers(schema_name);
+			//study_trans.LoadNewStudyData(schema_name);
+			//study_trans.LoadNewStudyIdentifiers(schema_name);
 			study_trans.LoadNewStudyTitles(schema_name);
 			study_trans.LoadNewStudyRelationShips(schema_name);
 			study_trans.LoadNewStudyContributors(schema_name);

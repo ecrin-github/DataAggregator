@@ -89,13 +89,13 @@ namespace DataAggregator
 						controller.UpdateStudyLinkList();
 					}
 
-					controller.SetUpTempSchema(database_name);
-					controller.EstablishStudyIds(source_id);
-					controller.LoadStudyData(database_name);
+					string schema_name = controller.SetUpTempSchema(database_name);
+					//controller.EstablishStudyIds(source_id);
+					controller.LoadStudyData(schema_name);
 					controller.EstablishObjectIds(source_id);
-					controller.LoadObjectData(database_name);
+					controller.LoadObjectData(schema_name);
 					controller.DropTempTables();
-					controller.DropTempSchema(database_name);
+					controller.DropTempSchema(schema_name);
 				}
 			}
 		}

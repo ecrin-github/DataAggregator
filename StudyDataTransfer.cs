@@ -24,7 +24,8 @@ namespace DataAggregator
 		{
 			using (var conn = new NpgsqlConnection(mdr_connString))
 			{
-				string sql_string = @"CREATE TABLE IF NOT EXISTS nk.temp_study_ids(
+				string sql_string = @"DROP TABLE IF EXISTS nk.temp_study_ids;
+                        CREATE TABLE nk.temp_study_ids(
 				        study_id int
                       , study_ad_id int
                       , study_source_id int
@@ -70,16 +71,14 @@ namespace DataAggregator
 				// does it match a study in the link table
 				// that is the left hand column - which is 
 				// the one to be replaced if necessaary
-				string sql_string = @"UPDATE nk.temp_study_ids
+				string sql_string = @"UPDATE nk.temp_study_ids t
 		                   SET study_id = s.study_id, is_preferred = false
-                           FROM nk.temp_study_ids t
-                           INNER JOIN nk.study_study_links k
+                           FROM nk.study_study_links k
+                                INNER JOIN nk.all_ids_studies s
+                                ON k.preferred_sd_id = s.study_sd_id
+                                AND k.preferred_source_id = s.study_source_id
                            WHERE t.study_sd_id = k.sd_id
-                           AND t.study_source_id =  k.source_id
-                           INNER JOIN nk.all_ids_studies s
-                           ON k.preferred_sd_id = s.sd_id
-                           AND k.preferred_source_id = s.source_id;";
-
+                           AND t.study_source_id =  k.source_id;";
 				conn.Execute(sql_string);
 			}
 		}
@@ -113,10 +112,10 @@ namespace DataAggregator
 				// now all should be done...
 
 				sql_string = @"UPDATE nk.temp_study_ids t
-		                   SET study_id = as.study_id, is_preferred = true
-                           FROM nk.all_ids_studies as
-                           WHERE t.study_source_id = as.study_source_id
-                           AND t.study_ad_id = as.study_ad_id
+		                   SET study_id = a.study_id, is_preferred = true
+                           FROM nk.all_ids_studies a
+                           WHERE t.study_source_id = a.study_source_id
+                           AND t.study_ad_id = a.study_ad_id
                            AND t.study_id is null;";
 
 				conn.Execute(sql_string);
@@ -128,11 +127,7 @@ namespace DataAggregator
 		{
 			using (var conn = new NpgsqlConnection(mdr_connString))
 			{
-				string schema_name = database_name + "_ad";
-				string sql_string = @"CREATE SCHEMA IF NOT EXISTS " + schema_name;
-				conn.Execute(sql_string);
-
-				sql_string = @"CREATE SERVER IF NOT EXISTS " + database_name
+				string sql_string = @"CREATE SERVER IF NOT EXISTS " + database_name
 						   + @" FOREIGN DATA WRAPPER postgres_fdw
                              OPTIONS (host 'localhost', dbname '" + database_name + "');";
                 conn.Execute(sql_string);
@@ -142,7 +137,10 @@ namespace DataAggregator
 					 + @" OPTIONS (user '" + repo.GetUserName() + "', password '" + repo.GetPassword() + "');";
 				conn.Execute(sql_string);
 
-				sql_string = @"IMPORT FOREIGN SCHEMA ad
+				string schema_name = database_name + "_ad";
+				sql_string = @"DROP SCHEMA IF EXISTS " + schema_name + @" cascade;
+                     CREATE SCHEMA " + schema_name + @";
+                     IMPORT FOREIGN SCHEMA ad
                      FROM SERVER " + database_name + 
 					 @" INTO " + schema_name + ";";
 				conn.Execute(sql_string);
@@ -160,14 +158,14 @@ namespace DataAggregator
                         study_start_year, study_start_month, study_type_id, study_status_id,
                         study_enrolment, study_gender_elig_id, min_age, min_age_units_id,
                         max_age, max_age_units_id, date_of_data, record_status_id)
-                        SELECT t.id
+                        SELECT t.study_id,
                         s.display_title, s.title_lang_code, s.brief_description, s.data_sharing_statement,
                         s.study_start_year, s.study_start_month, s.study_type_id, s.study_status_id,
                         s.study_enrolment, s.study_gender_elig_id, s.min_age, s.min_age_units_id,
-                        s.max_age, s.max_age_units_id, " + DateTime.Now + @", s.record_status_id
-						FROM ad.temp_study_ids t
+                        s.max_age, s.max_age_units_id, current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
                         INNER JOIN " + schema_name + @".studies s
-                        on t.ad_id = s.ad_id
+                        on t.study_sd_id = s.sd_id
                         WHERE s.record_status_id = 1
                         AND t.is_preferred = true;";
 
@@ -198,16 +196,15 @@ namespace DataAggregator
                         identifier_type_id, identifier_org_id, identifier_org, 
                         identifier_value, identifier_date, identifier_link,
                         date_of_data, record_status_id)
-
-                        SELECT t.id
+                        SELECT t.study_id,
                         s.identifier_type_id, s.identifier_org_id, s.identifier_org, 
                         s.identifier_value, s.identifier_date, s.identifier_link,
-                        " + DateTime.Now + @", s.record_status_id
-						FROM ad.temp_study_ids t
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
                         INNER JOIN " + schema_name + @".study_identifiers s
-                        on t.ad_id = s.study_ad_id
+                        on t.study_sd_id = s.sd_id
                         WHERE s.record_status_id = 1
-                        AND t.is_preferred= true;";
+                        AND t.is_preferred = true;";
 
 				conn.Execute(sql_string);
 
@@ -215,16 +212,15 @@ namespace DataAggregator
                         identifier_type_id, identifier_org_id, identifier_org, 
                         identifier_value, identifier_date, identifier_link,
                         date_of_data, record_status_id)
-
-                        SELECT t.id
+                        SELECT t.study_id,
                         s.identifier_type_id, s.identifier_org_id, s.identifier_org, 
                         s.identifier_value, s.identifier_date, s.identifier_link,
-                        " + DateTime.Now + @", s.record_status_id
-						FROM ad.temp_study_ids t
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
                         INNER JOIN " + schema_name + @".study_identifiers s
-                        on t.ad_id = s.study_ad_id
+                        on t.study_sd_id = s.sd_id
                         LEFT JOIN st.study_identifiers s2
-                        ON s.study_id = t.study_id
+                        ON s2.study_id = t.study_id
                         AND s.identifier_type_id = s2.identifier_type_id
                         AND s.identifier_value = s2.identifier_value
                         WHERE s.record_status_id = 1
@@ -246,32 +242,298 @@ namespace DataAggregator
 
 		public void LoadNewStudyTitles(string schema_name)
 		{
+			using (var conn = new NpgsqlConnection(mdr_connString))
+			{
+				// action should depend on whether study id / source is the 'preferred ' for this study
+				string sql_string = @"INSERT INTO st.study_titles(study_id, 
+                        title_type_id, title_text, title_lang_code, 
+                        lang_usage_id, is_default, contains_html,
+                        comparison_text, comments, date_of_data, record_status_id)
+                        SELECT t.study_id,
+                        s.title_type_id, s.title_text, s.title_lang_code, 
+                        s.lang_usage_id, s.is_default, s.contains_html,
+                        s.comparison_text, s.comments, 
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
+                        INNER JOIN " + schema_name + @".study_titles s
+                        on t.study_sd_id = s.sd_id
+                        WHERE s.record_status_id = 1
+                        AND t.is_preferred = true;";
 
+				conn.Execute(sql_string);
+
+				// with non-preferred sources all titles should be non default
+				// only titles not already in the system need to be added
+
+				sql_string = @"INSERT INTO st.study_titles(study_id, 
+                        title_type_id, title_text, title_lang_code, 
+                        lang_usage_id, is_default, contains_html,
+                        comparison_text, comments, date_of_data, record_status_id)
+                        SELECT t.study_id,
+                        s.title_type_id, s.title_text, s.title_lang_code, 
+                        s.lang_usage_id, false, s.contains_html,
+                        s.comparison_text, s.comments, 
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
+                        INNER JOIN " + schema_name + @".study_titles s
+                        on t.study_sd_id = s.sd_id
+                        LEFT JOIN st.study_titles s2
+                        ON s2.study_id = t.study_id
+                        AND s.title_type_id = s2.title_type_id
+                        AND s.title_text = s2.title_text
+                        WHERE s.record_status_id = 1
+                        AND t.is_preferred = false 
+                        AND s2.study_id is null;";
+
+				conn.Execute(sql_string);
+
+				// Update status of records
+
+				sql_string = @"UPDATE " + schema_name + @".study_titles s
+                        SET record_status_id = 5
+                        WHERE s.record_status_id = 1;";
+
+				conn.Execute(sql_string);
+			}
 		}
 
 
 		public void LoadNewStudyRelationShips(string schema_name)
 		{
+			using (var conn = new NpgsqlConnection(mdr_connString))
+			{
+				// action should depend on whether study id / source is the 'preferred ' for this study
 
+				string sql_string = @"INSERT INTO st.study_relationships(study_id, 
+                        sd_id, relationship_id, target_sd_id, comments,
+                        date_of_data, record_status_id)
+                        SELECT t.study_id,
+                        s.sd_id, s.relationship_id, s.target_sd_id, s.comments,
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
+                        INNER JOIN " + schema_name + @".study_titles s
+                        on t.study_sd_id = s.sd_id
+                        WHERE s.record_status_id = 1
+                        AND t.is_preferred = true;";
+
+				conn.Execute(sql_string);
+
+				// with non-preferred sources relationshipsd are added
+				// only if they do not already exist
+
+				sql_string = @"INSERT INTO st.study_relationships(study_id, 
+                        sd_id, relationship_id, target_sd_id, comments,
+                        date_of_data, record_status_id)
+                        SELECT t.study_id,
+                        s.sd_id, s.relationship_id, s.target_sd_id, s.comments,
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
+                        INNER JOIN " + schema_name + @".study_relationships s
+                        on t.study_sd_id = s.sd_id
+                        LEFT JOIN st.study_titles s2
+                        ON s2.study_id = t.study_id
+                        AND s.relationship_id = s2.relationship_id
+                        AND s.target_sd_id = s2.target_sd_id
+                        WHERE s.record_status_id = 1
+                        AND t.is_preferred = false 
+                        AND s2.study_id is null;";
+
+				conn.Execute(sql_string);
+
+                // insert target study id, using sd_id to find it in the temp studies table
+                // N.B. These relationships are defined within the same source...
+                // (Cross source relationships are defined in the links (nk) schema
+
+                sql_string = @"UPDATE st.study_relationships s
+                        SET target_id = t.study_id
+                        FROM nk.temp_study_ids t
+                        WHERE s.target_sd_id = t.study_sd_id;";
+
+                conn.Execute(sql_string);
+
+                // Update status of records
+
+                sql_string = @"UPDATE " + schema_name + @".study_relationships s
+                        SET record_status_id = 5
+                        WHERE s.record_status_id = 1;";
+
+				conn.Execute(sql_string);
+			}
 		}
 
 
 		public void LoadNewStudyContributors(string schema_name)
 		{
+			using (var conn = new NpgsqlConnection(mdr_connString))
+			{
+				// action should depend on whether study id / source is the 'preferred ' for this study
+				string sql_string = @"INSERT INTO st.study_contributors(study_id, 
+                        title_type_id, title_text, title_lang_code, 
+                        lang_usage_id, is_default, contains_html,
+                        comparison_text, comments, date_of_data, record_status_id)
+                        SELECT t.study_id,
+                        s.title_type_id, s.title_text, s.title_lang_code, 
+                        s.lang_usage_id, s.is_default, s.contains_html,
+                        s.comparison_text, s.comments, 
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
+                        INNER JOIN " + schema_name + @".study_titles s
+                        on t.study_sd_id = s.sd_id
+                        WHERE s.record_status_id = 1
+                        AND t.is_preferred = true;";
 
+				conn.Execute(sql_string);
+
+				// with non-preferred sources all titles should be non default
+				// only titles not already in the system need to be added
+
+				sql_string = @"INSERT INTO st.study_contributors(study_id, 
+                        title_type_id, title_text, title_lang_code, 
+                        lang_usage_id, is_default, contains_html,
+                        comparison_text, comments, date_of_data, record_status_id)
+                        SELECT t.study_id,
+                        s.title_type_id, s.title_text, s.title_lang_code, 
+                        s.lang_usage_id, false, s.contains_html,
+                        s.comparison_text, s.comments, 
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
+                        INNER JOIN " + schema_name + @".study_titles s
+                        on t.study_sd_id = s.sd_id
+                        LEFT JOIN st.study_titles s2
+                        ON s2.study_id = t.study_id
+                        AND s.title_type_id = s2.title_type_id
+                        AND s.title_text = s2.title_text
+                        WHERE s.record_status_id = 1
+                        AND t.is_preferred = false 
+                        AND s2.study_id is null;";
+
+				conn.Execute(sql_string);
+
+				// Update status of records
+
+				sql_string = @"UPDATE " + schema_name + @".study_contributors s
+                        SET record_status_id = 5
+                        WHERE s.record_status_id = 1;";
+
+				conn.Execute(sql_string);
+			}
 		}
 
 
 		public void LoadNewStudyTopics(string schema_name)
 		{
+            using (var conn = new NpgsqlConnection(mdr_connString))
+            {
+                // action should depend on whether study id / source is the 'preferred ' for this study
+                string sql_string = @"INSERT INTO st.study_topics(study_id, 
+                        title_type_id, title_text, title_lang_code, 
+                        lang_usage_id, is_default, contains_html,
+                        comparison_text, comments, date_of_data, record_status_id)
+                        SELECT t.study_id,
+                        s.title_type_id, s.title_text, s.title_lang_code, 
+                        s.lang_usage_id, s.is_default, s.contains_html,
+                        s.comparison_text, s.comments, 
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
+                        INNER JOIN " + schema_name + @".study_titles s
+                        on t.study_sd_id = s.sd_id
+                        WHERE s.record_status_id = 1
+                        AND t.is_preferred = true;";
 
-		}
+                conn.Execute(sql_string);
+
+                // with non-preferred sources all titles should be non default
+                // only titles not already in the system need to be added
+
+                sql_string = @"INSERT INTO st.study_topics(study_id, 
+                        title_type_id, title_text, title_lang_code, 
+                        lang_usage_id, is_default, contains_html,
+                        comparison_text, comments, date_of_data, record_status_id)
+                        SELECT t.study_id,
+                        s.title_type_id, s.title_text, s.title_lang_code, 
+                        s.lang_usage_id, false, s.contains_html,
+                        s.comparison_text, s.comments, 
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
+                        INNER JOIN " + schema_name + @".study_titles s
+                        on t.study_sd_id = s.sd_id
+                        LEFT JOIN st.study_titles s2
+                        ON s2.study_id = t.study_id
+                        AND s.title_type_id = s2.title_type_id
+                        AND s.title_text = s2.title_text
+                        WHERE s.record_status_id = 1
+                        AND t.is_preferred = false 
+                        AND s2.study_id is null;";
+
+                conn.Execute(sql_string);
+
+                // Update status of records
+
+                sql_string = @"UPDATE " + schema_name + @".study_topics s
+                        SET record_status_id = 5
+                        WHERE s.record_status_id = 1;";
+
+                conn.Execute(sql_string);
+            }
+        }
 
 
 		public void LoadNewStudyFeatures(string schema_name)
 		{
+            using (var conn = new NpgsqlConnection(mdr_connString))
+            {
+                // action should depend on whether study id / source is the 'preferred ' for this study
+                string sql_string = @"INSERT INTO st.study_features(study_id, 
+                        title_type_id, title_text, title_lang_code, 
+                        lang_usage_id, is_default, contains_html,
+                        comparison_text, comments, date_of_data, record_status_id)
+                        SELECT t.study_id,
+                        s.title_type_id, s.title_text, s.title_lang_code, 
+                        s.lang_usage_id, s.is_default, s.contains_html,
+                        s.comparison_text, s.comments, 
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
+                        INNER JOIN " + schema_name + @".study_titles s
+                        on t.study_sd_id = s.sd_id
+                        WHERE s.record_status_id = 1
+                        AND t.is_preferred = true;";
 
-		}
+                conn.Execute(sql_string);
+
+                // with non-preferred sources all titles should be non default
+                // only titles not already in the system need to be added
+
+                sql_string = @"INSERT INTO st.study_features(study_id, 
+                        title_type_id, title_text, title_lang_code, 
+                        lang_usage_id, is_default, contains_html,
+                        comparison_text, comments, date_of_data, record_status_id)
+                        SELECT t.study_id,
+                        s.title_type_id, s.title_text, s.title_lang_code, 
+                        s.lang_usage_id, false, s.contains_html,
+                        s.comparison_text, s.comments, 
+                        current_timestamp, s.record_status_id
+						FROM nk.temp_study_ids t
+                        INNER JOIN " + schema_name + @".study_titles s
+                        on t.study_sd_id = s.sd_id
+                        LEFT JOIN st.study_titles s2
+                        ON s2.study_id = t.study_id
+                        AND s.title_type_id = s2.title_type_id
+                        AND s.title_text = s2.title_text
+                        WHERE s.record_status_id = 1
+                        AND t.is_preferred = false 
+                        AND s2.study_id is null;";
+
+                conn.Execute(sql_string);
+
+                // Update status of records
+
+                sql_string = @"UPDATE " + schema_name + @".study_features s
+                        SET record_status_id = 5
+                        WHERE s.record_status_id = 1;";
+
+                conn.Execute(sql_string);
+            }
+        }
 
 
 		public void DropTempStudyIdsTable()
