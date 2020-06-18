@@ -5,6 +5,8 @@ The program takes the new or revised data within the ad tables and transfers it 
 
 The aggregation process is a mixture of calls to SQL code (for the simpler transfer operations, e.g. addition of new data) and code based processing (when relatively complex comparison of entities is required, e.g. for revised data).
 
+Status codes on the data in the ad tables of the source data are used to indicate which records should be subject to the aggregation process. In additon records are date-time stamped to indicate when they were created within the system, and Study and Data Object records include a date time that indicates when their source data was last downloaded.
+
 ### Parameters
 There are no parameters - the aggregation process acts on the whole MDR system, i.e. it takes the data from each source database in turn and brings new or revised data into the core database tables.
 
