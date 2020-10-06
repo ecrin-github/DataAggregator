@@ -11,11 +11,12 @@ namespace DataAggregator
     {
 		DataLayer repo;
 		string mdr_connString;
+		LoggingDataLayer loggingRepo;
 
 		public StudyLinksGenerator(DataLayer _repo)
 		{
 			repo = _repo;
-			mdr_connString = repo.GetMDRConnString();
+			mdr_connString = repo.ConnString;
 		}
 
 		public void SetUpTempLinksBySourceTable()
@@ -42,21 +43,21 @@ namespace DataAggregator
 		}
 		
 		
-		public IEnumerable<StudyLink> FetchLinks(int org_id)
+		public IEnumerable<StudyLink> FetchLinks(int source_id)
 		{
-			string conn_string = repo.GetConnString(org_id);
+			string conn_string = repo.GetConnString(source_id);
 			using (var conn = new NpgsqlConnection(conn_string))
 			{
 				string sql_string;
-				if (org_id != 100115)
+				if (source_id != 100115)
 				{ 
-				     sql_string = @"select " + org_id.ToString() + @" as source_1, sd_id as sd_id_1, 
+				     sql_string = @"select " + source_id.ToString() + @" as source_1, sd_id as sd_id_1, 
                           identifier_value as sd_id_2, identifier_org_id as source_2
                           from ad.study_identifiers
                           where identifier_type_id = 11
                           and identifier_org_id <> 100115
                           and identifier_org_id < 100133 
-                          and identifier_org_id <> " + org_id.ToString();
+                          and identifier_org_id <> " + source_id.ToString();
 				}
 				else
 				{

@@ -16,7 +16,7 @@ namespace DataAggregator
 		public StudyDataTransferrer(DataLayer _repo)
 		{
 			repo = _repo;
-			mdr_connString = repo.GetMDRConnString();
+			mdr_connString = repo.ConnString;
 		}
 
 
@@ -38,19 +38,19 @@ namespace DataAggregator
 			}
 		}
 
-
-		public IEnumerable<StudyIds> FetchStudyIds(int org_id)
-		{
-			string conn_string = repo.GetConnString(org_id);
-			using (var conn = new NpgsqlConnection(conn_string))
-			{
-				string sql_string = @"select ad_id as study_ad_id, " + org_id.ToString() + @" as study_source_id, 
-                          sd_id as study_sd_id, hash_id as study_hash_id, datetime_of_data_fetch
+        public IEnumerable<StudyIds> FetchStudyIds(int source_id)
+        {
+            string conn_string = repo.GetConnString(source_id);
+            using (var conn = new NpgsqlConnection(conn_string))
+            {
+                string sql_string = @"select ad_id as study_ad_id, " + source_id.ToString() + @" as study_source_id, 
+                          sd_id as study_sd_id, study_hash_id, datetime_of_data_fetch
                           from ad.studies
                           where record_status_id = 1";
-				return conn.Query<StudyIds>(sql_string);
-			}
-		}
+
+                return conn.Query<StudyIds>(sql_string);
+            }
+        }
 
 
         public ulong StoreStudyIds(PostgreSQLCopyHelper<StudyIds> copyHelper, IEnumerable<StudyIds> entities)
@@ -134,7 +134,7 @@ namespace DataAggregator
 
 				sql_string = @"CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER
                      SERVER " + database_name
-					 + @" OPTIONS (user '" + repo.GetUserName() + "', password '" + repo.GetPassword() + "');";
+					 + @" OPTIONS (user '" + repo.Username + "', password '" + repo.Password + "');";
 				conn.Execute(sql_string);
 
 				string schema_name = database_name + "_ad";

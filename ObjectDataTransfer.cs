@@ -17,7 +17,7 @@ namespace DataAggregator
 		public ObjectDataTransferrer(DataLayer _repo)
 		{
 			repo = _repo;
-			mdr_connString = repo.GetMDRConnString();
+			mdr_connString = repo.ConnString;
 		}
 
 		public void SetUpTempObjectIdsTable()
@@ -41,12 +41,12 @@ namespace DataAggregator
 
 
 
-		public IEnumerable<ObjectIds> FetchObjectIds(int org_id)
+		public IEnumerable<ObjectIds> FetchObjectIds(int source_id)
 		{
-			string conn_string = repo.GetConnString(org_id);
+			string conn_string = repo.GetConnString(source_id);
 			using (var conn = new NpgsqlConnection(conn_string))
 			{
-				string sql_string = @"select ad_id as object_ad_id, " + org_id.ToString() + @" as object_source_id, 
+				string sql_string = @"select ad_id as object_ad_id, " + source_id.ToString() + @" as object_source_id, 
                           sd_id as object_sd_id, object_hash_id, datetime_of_data_fetch
                           from ad.data_objects
                           where record_status_id = 1";

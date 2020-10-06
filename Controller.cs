@@ -17,77 +17,11 @@ namespace DataAggregator
         {
 			repo = _repo;
 			source_id = _source_id;
-			mdr_connString = repo.GetMDRConnString();
+			mdr_connString = repo.ConnString;
 			study_trans = new StudyDataTransferrer(repo);
 			object_trans = new ObjectDataTransferrer(repo);
 		}
 
-		public void UpdateStudyLinkList()
-		{
-			// examines the study_reference data in the trial registry databases
-			// to try and identify the PubMed data that needs to be downloaded through the API
-			StudyLinksGenerator links = new StudyLinksGenerator(repo);
-
-			links.SetUpTempLinksBySourceTable();
-			links.SetUpTempLinkCollectorTable();
-			IEnumerable<StudyLink> references;
-
-			// get study reference data from ClinicalTrials.gov
-			links.TruncateLinksBySourceTable();
-			references = links.FetchLinks(100120);
-			links.StoreLinks(IdCopyHelpers.links_helper, references);
-			links.TransferLinksToCollectorTable();
-
-			// get study reference data from EUCTR
-			links.TruncateLinksBySourceTable();
-			references = links.FetchLinks(100123);
-			links.StoreLinks(IdCopyHelpers.links_helper, references);
-			links.TransferLinksToCollectorTable();
-
-			// get study reference data from ISRCTN
-			links.TruncateLinksBySourceTable();
-			references = links.FetchLinks(100126);
-			links.StoreLinks(IdCopyHelpers.links_helper, references);
-			links.TransferLinksToCollectorTable();
-
-			// get study reference data from BioLINCC
-			links.TruncateLinksBySourceTable();
-			references = links.FetchLinks(100900);
-			links.StoreLinks(IdCopyHelpers.links_helper, references);
-			links.TransferLinksToCollectorTable();
-
-			// get study reference data from Yoda
-			links.TruncateLinksBySourceTable();
-			references = links.FetchLinks(100901);
-			links.StoreLinks(IdCopyHelpers.links_helper, references);
-			links.TransferLinksToCollectorTable();
-
-			// get study reference data from WHO
-			links.TruncateLinksBySourceTable();
-			references = links.FetchLinks(100115);
-			links.StoreLinks(IdCopyHelpers.links_helper, references);
-			links.TransferLinksToCollectorTable();
-
-			// cascade preferred other study ids
-			links.MakeLinksDistinct();
-			links.CascadeLinksTable();
-
-			// identify and remove grouped studies
-			links.ManageLinkedPreferredSources();
-			links.ManageLinkedNonPreferredSources();
-
-			// identify and process 'missing link' studies
-			links.ManageIncompleteLinks();
-			links.CascadeLinksTable();
-
-			// store the contents in a new links table
-			// (Later to be replaced by insertion of new
-			// links into a permanent table
-			links.TransferNewLinksToDataTable();
-			links.DropTempTables();
-		}
-		
-		
 		public string  SetUpTempSchema(string db_name)
 		{
 			return study_trans.SetUpTempFTW(db_name);
@@ -117,6 +51,7 @@ namespace DataAggregator
 
 			study_trans.UpdateAllStudyIdsTable(source_id);
 		}
+
 
 		public void LoadStudyData(string schema_name)
 		{
