@@ -23,23 +23,19 @@ namespace DataAggregator
 		}
 
 
-        public void create_table_all_ids_data_objects()
+        public void create_table_all_ids_studies()
         {
-            string sql_string = @"CREATE TABLE nk.all_ids_data_objects(
-                id                       INT             NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 10000001 INCREMENT BY 1) PRIMARY KEY
-              , object_id                INT             NULL
-              , object_ad_id             INT             NULL
-              , object_source_id         INT             NOT NULL
-              , object_sd_id             VARCHAR         NULL
+            string sql_string = @"CREATE TABLE nk.all_ids_studies(
+                id                       INT             NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 3000001 INCREMENT BY 1) PRIMARY KEY
+              , study_id                 INT             NULL
+              , source_id                INT             NULL
+              , sd_sid                   VARCHAR         NULL
               , datetime_of_data_fetch   TIMESTAMPTZ     NULL
-              , parent_study_id          INT             NULL
               , is_preferred             BOOLEAN         NULL
-              , is_study_preferred       BOOLEAN         NULL
               , datetime_of_link         TIMESTAMPTZ     NULL
              );
-            CREATE INDEX object_all_ids_adidsource ON nk.all_ids_data_objects USING btree(object_source_id, object_ad_id);
-            CREATE INDEX object_all_ids_objectid ON nk.all_ids_data_objects USING btree(object_id);
-            CREATE INDEX object_all_ids_sdidsource ON nk.all_ids_data_objects USING btree(object_source_id, object_sd_id);";
+            CREATE INDEX study_all_ids_studyid ON nk.all_ids_studies(study_id);
+            CREATE INDEX study_all_ids_sdsidsource ON nk.all_ids_studies(source_id, sd_sid);";
 
             using (var conn = new NpgsqlConnection(db_conn))
             {
@@ -48,22 +44,21 @@ namespace DataAggregator
         }
 
 
-        public void create_table_all_ids_studies()
+        public void create_table_all_ids_data_objects()
         {
-
-            string sql_string = @"CREATE TABLE nk.all_ids_studies(
-                id                       INT             NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 3000001 INCREMENT BY 1) PRIMARY KEY
-              , study_id                 INT             NULL
-              , study_ad_id              INT             NULL
-              , study_source_id          INT             NULL
-              , study_sd_id              VARCHAR         NULL
+            string sql_string = @"CREATE TABLE nk.all_ids_data_objects(
+                id                       INT             NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 10000001 INCREMENT BY 1) PRIMARY KEY
+              , object_id                INT             NULL
+              , source_id                INT             NOT NULL
+              , sd_oid                   VARCHAR         NULL
               , datetime_of_data_fetch   TIMESTAMPTZ     NULL
+              , parent_study_id          INT             NULL
               , is_preferred             BOOLEAN         NULL
+              , is_study_preferred       BOOLEAN         NULL
               , datetime_of_link         TIMESTAMPTZ     NULL
              );
-            CREATE INDEX study_all_ids_adidsource ON nk.all_ids_studies USING btree(study_source_id, study_ad_id);
-            CREATE INDEX study_all_ids_sdidsource ON nk.all_ids_studies USING btree(study_source_id, study_sd_id);
-            CREATE INDEX study_all_ids_studyid ON nk.all_ids_studies USING btree(study_id);";
+            CREATE INDEX object_all_ids_objectid ON nk.all_ids_data_objects(object_id);
+            CREATE INDEX object_all_ids_sdidsource ON nk.all_ids_data_objects(source_id, sd_oid);";
 
             using (var conn = new NpgsqlConnection(db_conn))
             {
@@ -78,18 +73,14 @@ namespace DataAggregator
                 id                       INT             NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 10000001 INCREMENT BY 1) PRIMARY KEY
               , study_id                 INT             NULL
               , study_source_id          INT             NOT NULL
-              , study_ad_id              INT             NOT NULL
-              , study_sd_id              VARCHAR         NOT NULL
+              , study_sd_sid             VARCHAR         NOT NULL
               , use_link                 INT             NOT NULL DEFAULT 1
-              , object_sd_id             VARCHAR         NOT NULL
-              , object_ad_id             INT             NOT NULL
-              , object_source_id         INT             NOT NULLger NOT NULL
+              , object_sd_oid            VARCHAR         NOT NULL
+              , object_source_id         INT             NOT NULL
               , object_id                INT             NULL
               );
-           CREATE INDEX all_links_objectadid ON nk.all_links USING btree(object_ad_id);
-           CREATE INDEX all_links_objectid ON nk.all_links USING btree(object_id);
-           CREATE INDEX all_links_studyadid ON nk.all_links USING btree(study_ad_id);
-           CREATE INDEX all_links_studyid ON nk.all_links USING btree(study_id);";
+           CREATE INDEX all_links_objectid ON nk.all_links(object_id);
+           CREATE INDEX all_links_studyid ON nk.all_links(study_id);";
 
             using (var conn = new NpgsqlConnection(db_conn))
             {
@@ -102,9 +93,9 @@ namespace DataAggregator
         {
             string sql_string = @"CREATE TABLE nk.linked_study_groups(
                 source_id                INT             NULL
-              , source_sd_id             VARCHAR         NULL
+              , source_sd_sid            VARCHAR         NULL
               , relationship_id          INT             NULL
-              , target_sd_id             VARCHAR         NULL
+              , target_sd_sid            VARCHAR         NULL
               , target_source_id         INT             NULL
             );";
 
@@ -122,8 +113,8 @@ namespace DataAggregator
               , study_id                 INT             NOT NULL
               , object_id                INT             NOT NULL
         );
-        CREATE INDEX study_object_links_objectid ON nk.study_object_links USING btree(object_id);
-        CREATE INDEX study_object_links_studyid ON nk.study_object_links USING btree(study_id);";
+        CREATE INDEX study_object_links_objectid ON nk.study_object_links(object_id);
+        CREATE INDEX study_object_links_studyid ON nk.study_object_links(study_id);";
 
             using (var conn = new NpgsqlConnection(db_conn))
             {
@@ -136,8 +127,8 @@ namespace DataAggregator
         {
             string sql_string = @"CREATE TABLE nk.study_study_links(
                 source_id                INT             NULL
-              , sd_id                    VARCHAR         NULL
-              , preferred_sd_id          VARCHAR         NULL
+              , sd_sid                   VARCHAR         NULL
+              , preferred_sd_sid         VARCHAR         NULL
               , preferred_source_id      INT             NULL
               );";
 
@@ -147,12 +138,13 @@ namespace DataAggregator
             }
         }
 
+
         public void create_table_temp_study_ids()
         {
             string sql_string = @"CREATE TABLE nk.temp_study_ids(
                 study_id                 INT             NULL
               , source_id                INT             NULL
-              , sd_id                    VARCHAR         NULL
+              , sd_sid                   VARCHAR         NULL
               , datetime_of_data_fetch   TIMESTAMPTZ     NULL
               , is_preferred             BOOLEAN         NULL
               , status                   INT             NULL

@@ -7,10 +7,12 @@ namespace DataAggregator
 	public class StudyLink
 	{
 		public int source_1 { get; set; }
-		public string sd_id_1 { get; set; }
-		public string sd_id_2 { get; set; }
+		public string sd_sid_1 { get; set; }
+		public string sd_sid_2 { get; set; }
 		public int source_2 { get; set; }
 	}
+
+
 
 
 	public class StudyIds

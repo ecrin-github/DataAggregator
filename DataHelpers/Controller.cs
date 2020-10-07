@@ -9,7 +9,7 @@ namespace DataAggregator
     {
         int source_id;
 		DataLayer repo;
-		string mdr_connString;
+		string connString;
 		StudyDataTransferrer study_trans;
 		ObjectDataTransferrer object_trans;
 
@@ -17,7 +17,7 @@ namespace DataAggregator
         {
 			repo = _repo;
 			source_id = _source_id;
-			mdr_connString = repo.ConnString;
+			connString = repo.ConnString;
 			study_trans = new StudyDataTransferrer(repo);
 			object_trans = new ObjectDataTransferrer(repo);
 		}
@@ -26,6 +26,7 @@ namespace DataAggregator
 		{
 			return study_trans.SetUpTempFTW(db_name);
 		}
+
 
 		public void EstablishStudyIds(int source_id)
 		{

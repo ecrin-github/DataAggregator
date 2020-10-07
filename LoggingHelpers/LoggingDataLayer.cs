@@ -57,15 +57,15 @@ namespace DataAggregator
 			}
 		}
 
+
 		public int GetNextAggEventId()
 		{
 			using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
 			{
 				string sql_string = "select max(id) from sf.aggregation_events ";
-				int last_id = Conn.ExecuteScalar<int>(sql_string);
-				return last_id + 1;
+				int? last_id = Conn.ExecuteScalar<int?>(sql_string);
+				return (last_id == null) ? 100001 : (int)last_id + 1;
 			}
-
 		}
 
 
@@ -76,6 +76,21 @@ namespace DataAggregator
 				return (int)conn.Insert<AggregationEvent>(aggregation);
 			}
 		
+		}
+
+
+		public IEnumerable<DataSource> RetrieveDataSources()
+		{
+			string sql_string = @"select id, preference_rating, database_name 
+                                from sf.source_parameters
+                                where has_study_tables = true
+                                and id > 100115
+                                order by preference_rating;";
+
+			using (var conn = new NpgsqlConnection(connString))
+			{
+				return conn.Query<DataSource>(sql_string);
+			}
 		}
 
 

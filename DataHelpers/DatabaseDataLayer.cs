@@ -61,6 +61,12 @@ namespace DataAggregator
 				db_name = conn.Query<string>(sql_string).FirstOrDefault();
 			}
 
+			return GetConnString(db_name);
+		}
+
+
+		public string GetConnString(string db_name)
+		{
 			NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder();
 			builder.Host = host;
 			builder.Username = username;

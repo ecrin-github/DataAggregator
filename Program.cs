@@ -24,7 +24,7 @@ namespace DataAggregator
 			// and re-aggregates all the data from scratch.
 			
 			Aggregator ag = new Aggregator();
-			ag.AggregateData();
+			ag.AggregateData(opts.transfer_data, opts.create_core, opts.create_json);
             return 0;
 			
 			/*
@@ -53,8 +53,15 @@ namespace DataAggregator
 	public class Options
 	{
 		// Lists the command line arguments and options
-		[Option('t', "harvest_type_id", Required = false, HelpText = "Integer representing (possible future) type of aggregation activity" + " (1 = full, 2 =url access dates only etc.).")]
-		public int harvest_type_id { get; set; }
+		[Option('D', "transfer data", Required = false, HelpText = "Indicates thast data should be imported from source systems and aggregate st, ob, nk tables constructed ")]
+		public bool transfer_data { get; set; }
+		
+		[Option('C', "harvest_type_id", Required = false, HelpText = "Indicates that the core tables should be crated and filled from the aggregate tables.")]
+		public bool create_core { get; set; }
+
+		[Option('J', "create json", Required = false, HelpText = "Indicates json fields and files should be constructed from the core table data.")]
+		public bool create_json { get; set; }
+
 	}
 
 }

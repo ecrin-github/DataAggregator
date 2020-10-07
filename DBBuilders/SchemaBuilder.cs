@@ -35,11 +35,8 @@ namespace DataAggregator
 			study_tablebuilder.drop_table("study_topics");
 			study_tablebuilder.drop_table("study_features");
 			study_tablebuilder.drop_table("study_relationships");
-			study_tablebuilder.drop_table("study_references");
-			study_tablebuilder.drop_table("study_links");
-			study_tablebuilder.drop_table("study_ipd_available");
-			study_tablebuilder.drop_table("study_hashes");
 		}
+
 
 		public void DeleteObjectTables()
 		{
@@ -52,40 +49,32 @@ namespace DataAggregator
 			object_tablebuilder.drop_table("object_titles");
 			object_tablebuilder.drop_table("object_contributors");
 			object_tablebuilder.drop_table("object_topics");
-			object_tablebuilder.drop_table("object_comments");
 			object_tablebuilder.drop_table("object_descriptions");
 			object_tablebuilder.drop_table("object_identifiers");
-			object_tablebuilder.drop_table("object_db_links");
-			object_tablebuilder.drop_table("object_publication_types");
 			object_tablebuilder.drop_table("object_relationships");
 			object_tablebuilder.drop_table("object_rights");
-			object_tablebuilder.drop_table("citation_objects");
-			object_tablebuilder.drop_table("object_hashes");
 		}
 
 		public void DeleteLinkTables()
-		{
-
-
+        {
+			link_tablebuilder.drop_table("all_ids_data_objects");
+			link_tablebuilder.drop_table("all_ids_studies");
+			link_tablebuilder.drop_table("all_links");
+			link_tablebuilder.drop_table("linked_study_groups");
+			link_tablebuilder.drop_table("study_object_links");
+			link_tablebuilder.drop_table("study_study_links");
+			link_tablebuilder.drop_table("temp_study_ids");
 		}
-
+		
 		public void BuildNewStudyTables()
 		{
-			// these common to all databases
-
 			study_tablebuilder.create_table_studies();
 			study_tablebuilder.create_table_study_identifiers();
 			study_tablebuilder.create_table_study_titles();
-			study_tablebuilder.create_table_study_hashes();
-
 			study_tablebuilder.create_table_study_topics();
 			study_tablebuilder.create_table_study_features();
 			study_tablebuilder.create_table_study_contributors();
-			study_tablebuilder.create_table_study_references();
 			study_tablebuilder.create_table_study_relationships();
-			study_tablebuilder.create_table_study_links();
-			study_tablebuilder.create_table_ipd_available();
-
 		}
 
 
@@ -96,7 +85,6 @@ namespace DataAggregator
 			object_tablebuilder.create_table_data_objects();
 			object_tablebuilder.create_table_object_instances();
 			object_tablebuilder.create_table_object_titles();
-			object_tablebuilder.create_table_object_hashes();
 
 			// these are database dependent		
 
@@ -105,21 +93,22 @@ namespace DataAggregator
 			object_tablebuilder.create_table_object_relationships();
 			object_tablebuilder.create_table_object_rights();
 
-			object_tablebuilder.create_table_citation_objects();
-			object_tablebuilder.create_table_object_contributors();
+    		object_tablebuilder.create_table_object_contributors();
 			object_tablebuilder.create_table_object_topics();
-			object_tablebuilder.create_table_object_comments();
 			object_tablebuilder.create_table_object_descriptions();
 			object_tablebuilder.create_table_object_identifiers();
-			object_tablebuilder.create_table_object_db_links();
-			object_tablebuilder.create_table_object_publication_types();
 		}
 
 
 		public void BuildNewLinkTables()
 		{
-
-
+			link_tablebuilder.create_table_all_ids_data_objects();
+			link_tablebuilder.create_table_all_ids_studies();
+			link_tablebuilder.create_table_all_links();
+			link_tablebuilder.create_table_linked_study_groups();
+			link_tablebuilder.create_table_study_object_links();
+			link_tablebuilder.create_table_study_study_links();
+			link_tablebuilder.create_table_temp_study_ids();
 		}
 
 	}

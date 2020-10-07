@@ -44,7 +44,7 @@ namespace DataAggregator
 		public string note { get; set; }
 
 		public ExtractionNote(int _source_id, string _sd_id, string _event_type,
-			                  int _event_type_id, int? _note_type_id, string _note)
+							  int _event_type_id, int? _note_type_id, string _note)
 		{
 			source_id = _source_id;
 			sd_id = _sd_id;
@@ -63,11 +63,28 @@ namespace DataAggregator
 		public int id { get; set; }
 		public DateTime? time_started { get; set; }
 		public DateTime? time_ended { get; set; }
-		public int? num_records_available { get; set; }
-		public int? num_records_harvested { get; set; }
+		public int? num_studies_imported { get; set; }
+		public int? num_objects_imported { get; set; }
+		public int? num_total_studies { get; set; }
+		public int? num_total_objects { get; set; }
+		public int? num_total_study_object_links { get; set; }
 		public string comments { get; set; }
 
+		public AggregationEvent(int _id)
+		{
+			id = _id;
+			time_started = DateTime.Now;
+		}
+
 		public AggregationEvent() { }
+	}
+
+
+	public class DataSource
+	{
+		public int id { get; set; }
+		public int? preference_rating { get; set; }
+		public string database_name { get; set; }
 	}
 
 }

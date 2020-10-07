@@ -11,9 +11,16 @@ namespace DataAggregator
 		public static PostgreSQLCopyHelper<StudyLink> links_helper =
 			 new PostgreSQLCopyHelper<StudyLink>("nk", "temp_study_links_by_source")
 				 .MapInteger("source_1", x => x.source_1)
-				 .MapVarchar("sd_id_1", x => x.sd_id_1)
-				 .MapVarchar("sd_id_2", x => x.sd_id_2)
+				 .MapVarchar("sd_sid_1", x => x.sd_sid_1)
+				 .MapVarchar("sd_sid_2", x => x.sd_sid_2)
 				 .MapInteger("source_2", x => x.source_2);
+
+		public static PostgreSQLCopyHelper<DataSource> prefs_helper =
+			 new PostgreSQLCopyHelper<DataSource>("nk", "temp_preferences")
+				 .MapInteger("id", x => x.id)
+				 .MapInteger("preference_rating", x => x.preference_rating)
+				 .MapVarchar("database_name", x => x.database_name);
+
 
 		public static PostgreSQLCopyHelper<StudyIds> study_ids_helper =
 			 new PostgreSQLCopyHelper<StudyIds>("nk", "temp_study_ids")

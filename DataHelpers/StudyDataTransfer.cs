@@ -11,26 +11,24 @@ namespace DataAggregator
     public class StudyDataTransferrer
     {
 		DataLayer repo;
-		string mdr_connString;
+		string connString;
 
 		public StudyDataTransferrer(DataLayer _repo)
 		{
 			repo = _repo;
-			mdr_connString = repo.ConnString;
+			connString = repo.ConnString;
 		}
 
 
 		public void SetUpTempStudyIdsTable()
 		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				string sql_string = @"DROP TABLE IF EXISTS nk.temp_study_ids;
                         CREATE TABLE nk.temp_study_ids(
 				        study_id int
-                      , study_ad_id int
-                      , study_source_id int
-                      , study_sd_id varchar
-                      , study_hash_id varchar
+                      , source_id int
+                      , sd_sid varchar
                       , datetime_of_data_fetch timestamptz
                       , is_preferred boolean
                       ); ";
@@ -43,10 +41,9 @@ namespace DataAggregator
             string conn_string = repo.GetConnString(source_id);
             using (var conn = new NpgsqlConnection(conn_string))
             {
-                string sql_string = @"select ad_id as study_ad_id, " + source_id.ToString() + @" as study_source_id, 
-                          sd_id as study_sd_id, study_hash_id, datetime_of_data_fetch
-                          from ad.studies
-                          where record_status_id = 1";
+                string sql_string = @"select " + source_id.ToString() + @" as source_id, 
+                          sd_id as study_sd_id, datetime_of_data_fetch
+                          from ad.studies";
 
                 return conn.Query<StudyIds>(sql_string);
             }
@@ -56,7 +53,7 @@ namespace DataAggregator
         public ulong StoreStudyIds(PostgreSQLCopyHelper<StudyIds> copyHelper, IEnumerable<StudyIds> entities)
 		{
 			// stores the study id data in a temporary table
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				conn.Open();
 				return copyHelper.SaveAll(conn, entities);
@@ -66,7 +63,7 @@ namespace DataAggregator
 
 		public void CheckStudyLinks()
 		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				// does it match a study in the link table
 				// that is the left hand column - which is 
@@ -86,7 +83,7 @@ namespace DataAggregator
 
 		public void UpdateAllStudyIdsTable(int org_id)
 		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				// Add the new study id records to the all Ids table
 				string sql_string = @"INSERT INTO nk.all_ids_studies
@@ -125,7 +122,7 @@ namespace DataAggregator
 
 		public string SetUpTempFTW(string database_name)
 		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				string sql_string = @"CREATE SERVER IF NOT EXISTS " + database_name
 						   + @" FOREIGN DATA WRAPPER postgres_fdw
@@ -151,7 +148,7 @@ namespace DataAggregator
 		
 		public void LoadNewStudyData(string schema_name)
 		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				string sql_string = @"INSERT INTO st.studies(id, 
                         display_title, title_lang_code, brief_description, data_sharing_statement,
@@ -186,7 +183,7 @@ namespace DataAggregator
 
 		public void LoadNewStudyIdentifiers(string schema_name)
 		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				// Note may apply to new identifiers of existing studies as well as 
 				// identifiers attached to new studies
@@ -242,7 +239,7 @@ namespace DataAggregator
 
 		public void LoadNewStudyTitles(string schema_name)
 		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				// action should depend on whether study id / source is the 'preferred ' for this study
 				string sql_string = @"INSERT INTO st.study_titles(study_id, 
@@ -300,7 +297,7 @@ namespace DataAggregator
 
 		public void LoadNewStudyRelationShips(string schema_name)
 		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				// action should depend on whether study id / source is the 'preferred ' for this study
 
@@ -364,7 +361,7 @@ namespace DataAggregator
 
 		public void LoadNewStudyContributors(string schema_name)
 		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				// action should depend on whether study id / source is the 'preferred ' for this study
 				string sql_string = @"INSERT INTO st.study_contributors(study_id, 
@@ -422,7 +419,7 @@ namespace DataAggregator
 
 		public void LoadNewStudyTopics(string schema_name)
 		{
-            using (var conn = new NpgsqlConnection(mdr_connString))
+            using (var conn = new NpgsqlConnection(connString))
             {
                 // action should depend on whether study id / source is the 'preferred ' for this study
                 string sql_string = @"INSERT INTO st.study_topics(study_id, 
@@ -480,7 +477,7 @@ namespace DataAggregator
 
 		public void LoadNewStudyFeatures(string schema_name)
 		{
-            using (var conn = new NpgsqlConnection(mdr_connString))
+            using (var conn = new NpgsqlConnection(connString))
             {
                 // action should depend on whether study id / source is the 'preferred ' for this study
                 string sql_string = @"INSERT INTO st.study_features(study_id, 
@@ -538,7 +535,7 @@ namespace DataAggregator
 
 		public void DropTempStudyIdsTable()
 		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				string sql_string = "DROP TABLE IF EXISTS nk.temp_study_ids";
 				conn.Execute(sql_string);
@@ -548,7 +545,7 @@ namespace DataAggregator
 
 		public void DropTempFTW(string database_name)
 		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				string schema_name = database_name + "_ad";
 
