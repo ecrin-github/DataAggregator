@@ -25,7 +25,7 @@ namespace DataAggregator
 		public void create_table_studies()
 		{
 			string sql_string = @"CREATE TABLE st.studies(
-                id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 30000001 INCREMENT BY 1) PRIMARY KEY
+                id                     INT             NOT NULL
 			  , display_title          VARCHAR         NULL
               , title_lang_code        VARCHAR         NULL
 			  , brief_description      VARCHAR         NULL
@@ -42,9 +42,7 @@ namespace DataAggregator
 			  , min_age_units_id       INT             NULL
 			  , max_age                INT             NULL
 			  , max_age_units_id       INT             NULL
-			  , datetime_of_data_fetch TIMESTAMPTZ     NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);";
 
 			using (var conn = new NpgsqlConnection(db_conn))
@@ -59,13 +57,13 @@ namespace DataAggregator
 			string sql_string = @"CREATE TABLE st.study_identifiers(
                 id                     INT             GENERATED ALWAYS AS IDENTITY PRIMARY KEY
 			  , study_id               INT             NOT NULL
-			  , identifier_value       VARCHAR         NULL
 			  , identifier_type_id     INT             NULL
+			  , identifier_value       VARCHAR         NULL
 			  , identifier_org_id      INT             NULL
 			  , identifier_org         VARCHAR         NULL
 			  , identifier_date        VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
+              , identifier_link        VARCHAR         NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX study_identifiers_study_id ON st.study_identifiers(study_id);";
 
@@ -83,8 +81,7 @@ namespace DataAggregator
 			  , study_id               INT             NOT NULL
 			  , relationship_type_id   INT             NULL
 			  , target_study_id        VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX study_relationships_study_id ON st.study_relationships(study_id);
 			CREATE INDEX study_relationships_target_study_id ON st.study_relationships(target_study_id);"; 
@@ -107,8 +104,7 @@ namespace DataAggregator
 			  , lang_usage_id          INT             NULL
 			  , is_default             BOOLEAN         NULL
 			  , comments               VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX study_titles_study_id ON st.study_titles(study_id);";
 
@@ -137,8 +133,7 @@ namespace DataAggregator
 			  , person_affiliation     VARCHAR         NULL
 			  , affil_org_id           VARCHAR         NULL
 			  , affil_org_id_type      VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX study_contributors_study_id ON st.study_contributors(study_id);";
 
@@ -164,8 +159,7 @@ namespace DataAggregator
               , original_ct_code       VARCHAR         NULL
 			  , original_value         VARCHAR         NULL
 			  , comments               VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX study_topics_study_id ON st.study_topics(study_id);";
 
@@ -183,8 +177,7 @@ namespace DataAggregator
 			  , study_id               INT             NOT NULL
 			  , feature_type_id        INT             NULL
 			  , feature_value_id       INT             NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX study_features_study_id ON st.study_features(study_id);";
 

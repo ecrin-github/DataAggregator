@@ -30,9 +30,8 @@ namespace DataAggregator
               , study_id                 INT             NULL
               , source_id                INT             NULL
               , sd_sid                   VARCHAR         NULL
-              , datetime_of_data_fetch   TIMESTAMPTZ     NULL
               , is_preferred             BOOLEAN         NULL
-              , datetime_of_link         TIMESTAMPTZ     NULL
+              , datetime_of_data_fetch   TIMESTAMPTZ     NULL
              );
             CREATE INDEX study_all_ids_studyid ON nk.all_ids_studies(study_id);
             CREATE INDEX study_all_ids_sdsidsource ON nk.all_ids_studies(source_id, sd_sid);";
@@ -51,12 +50,13 @@ namespace DataAggregator
               , object_id                INT             NULL
               , source_id                INT             NOT NULL
               , sd_oid                   VARCHAR         NULL
-              , datetime_of_data_fetch   TIMESTAMPTZ     NULL
+              , parent_study_sd_sid      VARCHAR         NULL
               , parent_study_id          INT             NULL
-              , is_preferred             BOOLEAN         NULL
-              , is_study_preferred       BOOLEAN         NULL
-              , datetime_of_link         TIMESTAMPTZ     NULL
-             );
+              , is_preferred_study       BOOLEAN         NULL
+              , is_preferred_object      BOOLEAN         NOT NULL DEFAULT true
+              , use_this_link            BOOLEAN         NOT NULL DEFAULT true
+              , datetime_of_data_fetch   TIMESTAMPTZ     NULL
+            );
             CREATE INDEX object_all_ids_objectid ON nk.all_ids_data_objects(object_id);
             CREATE INDEX object_all_ids_sdidsource ON nk.all_ids_data_objects(source_id, sd_oid);";
 

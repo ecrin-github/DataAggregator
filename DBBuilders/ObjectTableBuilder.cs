@@ -25,7 +25,7 @@ namespace DataAggregator
 		public void create_table_data_objects()
 		{
 			string sql_string = @"CREATE TABLE ob.data_objects(
-                id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 50000001 INCREMENT BY 1) PRIMARY KEY
+                id                     INT             NOT NULL
 			  , study_id               INT             NOT NULL
 			  , display_title          VARCHAR         NULL
               , version                VARCHAR         NULL
@@ -44,9 +44,7 @@ namespace DataAggregator
               , eosc_category          INT             NULL
 			  , add_study_contribs     BOOLEAN         NULL
 			  , add_study_topics       BOOLEAN         NULL
-			  , datetime_of_data_fetch TIMESTAMPTZ     NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX data_objects_study_id ON ob.data_objects(study_id);";
 
@@ -78,8 +76,7 @@ namespace DataAggregator
 			  , consent_genetic_only   BOOLEAN         NULL
 			  , consent_no_methods     BOOLEAN         NULL
 			  , consent_details        VARCHAR         NULL 
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX object_datasets_object_id ON ob.object_datasets(object_id);";
 
@@ -132,8 +129,7 @@ namespace DataAggregator
 			  , resource_size          VARCHAR         NULL
 			  , resource_size_units    VARCHAR         NULL
 			  , resource_comments      VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX object_instances_object_id ON ob.object_instances(object_id);";
 
@@ -162,8 +158,7 @@ namespace DataAggregator
 			  , person_affiliation     VARCHAR         NULL
 			  , affil_org_id           VARCHAR         NULL
 			  , affil_org_id_type      VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX object_contributors_object_id ON ob.object_contributors(object_id);";
 
@@ -185,8 +180,7 @@ namespace DataAggregator
 			  , lang_usage_id          INT             NOT NULL default 11
 			  , is_default             BOOLEAN         NULL
 			  , comments               VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX object_titles_object_id ON ob.object_titles(object_id);";
 
@@ -212,8 +206,7 @@ namespace DataAggregator
               , original_ct_code       VARCHAR         NULL
 			  , original_value         VARCHAR         NULL
 			  , comments               VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX object_topics_object_id ON ob.object_topics(object_id);";
 
@@ -234,8 +227,7 @@ namespace DataAggregator
 			  , description_text       VARCHAR         NULL
               , lang_code              VARCHAR         NULL
               , contains_html          BOOLEAN         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX object_descriptions_object_id ON ob.object_descriptions(object_id);";
 
@@ -244,6 +236,7 @@ namespace DataAggregator
 				conn.Execute(sql_string);
 			}
 		}
+
 
 		public void create_table_object_identifiers()
 		{
@@ -255,8 +248,7 @@ namespace DataAggregator
 			  , identifier_org_id      INT             NULL
 			  , identifier_org         VARCHAR         NULL
 			  , identifier_date        VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX object_identifiers_object_id ON ob.object_identifiers(object_id);";
 
@@ -274,8 +266,7 @@ namespace DataAggregator
 			  , object_id              INT             NOT NULL
               , relationship_type_id   INT             NULL
               , target_object_id       INT             NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX object_relationships_object_id ON ob.object_relationships(object_id);";
 
@@ -294,8 +285,7 @@ namespace DataAggregator
 			  , rights_name            VARCHAR         NULL
               , rights_uri             VARCHAR         NULL
               , comments               VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX object_rights_object_id ON ob.object_rights(object_id);";
 

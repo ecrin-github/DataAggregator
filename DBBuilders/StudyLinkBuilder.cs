@@ -7,15 +7,15 @@ namespace DataAggregator
 	public class StudyLinkBuilder
 	{
 		DataLayer repo;
-		StudyLinksHelper slh;
+		LinksDataHelper slh;
 
 		public StudyLinkBuilder(DataLayer _repo)
 		{
 		   repo = _repo;
-           slh = new StudyLinksHelper(repo);
+           slh = new LinksDataHelper(repo);
 	    }
 			
-	    public void CollectStudyStudyLinks(IEnumerable<DataSource> sources)
+	    public void CollectStudyStudyLinks(IEnumerable<Source> sources)
 		{
 			// Loop through it calling the link helper functions
 			// sources are called in 'preference order' starting
@@ -23,17 +23,17 @@ namespace DataAggregator
 			slh.SetUpTempLinksBySourceTable();
 			slh.SetUpTempPreferencesTable(sources);
 			slh.SetUpTempLinkCollectorTable();
-			foreach (DataSource ds in sources)
+			foreach (Source s in sources)
 			{
 				// Aggregate the study-study links and store them
 				// in the Collector table in the correct arrangement
 				// i.e. lower rated sources inthe 'preferred' fields
 
 				slh.TruncateLinksBySourceTable();
-				IEnumerable<StudyLink> links = slh.FetchLinks(ds.id, ds.database_name);
+				IEnumerable<StudyLink> links = slh.FetchLinks(s.id, s.database_name);
 				slh.StoreLinksInTempTable(IdCopyHelpers.links_helper, links);
-				if (ds.id != 100120) slh.TidyNCTIds();
-				if (ds.id != 100126) slh.TidyISRCTNIds();
+				if (s.id != 100120) slh.TidyNCTIds();
+				if (s.id != 100126) slh.TidyISRCTNIds();
 				slh.TransferLinksToCollectorTable();
 			}
 		}
@@ -68,5 +68,12 @@ namespace DataAggregator
 			slh.DropTempTables();
 		}
 
-    }
+
+		public void CreateStudyGroupRecords()
+        {
+
+        }
+
+
+	}
 }

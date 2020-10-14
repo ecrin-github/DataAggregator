@@ -8,12 +8,12 @@ using System.Text;
 
 namespace DataAggregator
 {
-    public class StudyDataTransferrer
+    public class CoreDataTransferrer
     {
 		DataLayer repo;
 		string connString;
 
-		public StudyDataTransferrer(DataLayer _repo)
+		public CoreDataTransferrer(DataLayer _repo)
 		{
 			repo = _repo;
 			connString = repo.ConnString;
@@ -120,31 +120,6 @@ namespace DataAggregator
 		}
 
 
-		public string SetUpTempFTW(string database_name)
-		{
-			using (var conn = new NpgsqlConnection(connString))
-			{
-				string sql_string = @"CREATE SERVER IF NOT EXISTS " + database_name
-						   + @" FOREIGN DATA WRAPPER postgres_fdw
-                             OPTIONS (host 'localhost', dbname '" + database_name + "');";
-                conn.Execute(sql_string);
-
-				sql_string = @"CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER
-                     SERVER " + database_name
-					 + @" OPTIONS (user '" + repo.Username + "', password '" + repo.Password + "');";
-				conn.Execute(sql_string);
-
-				string schema_name = database_name + "_ad";
-				sql_string = @"DROP SCHEMA IF EXISTS " + schema_name + @" cascade;
-                     CREATE SCHEMA " + schema_name + @";
-                     IMPORT FOREIGN SCHEMA ad
-                     FROM SERVER " + database_name + 
-					 @" INTO " + schema_name + ";";
-				conn.Execute(sql_string);
-
-				return schema_name;
-			}
-		}
 		
 		public void LoadNewStudyData(string schema_name)
 		{
@@ -538,25 +513,6 @@ namespace DataAggregator
 			using (var conn = new NpgsqlConnection(connString))
 			{
 				string sql_string = "DROP TABLE IF EXISTS nk.temp_study_ids";
-				conn.Execute(sql_string);
-			}
-		}
-
-
-		public void DropTempFTW(string database_name)
-		{
-			using (var conn = new NpgsqlConnection(connString))
-			{
-				string schema_name = database_name + "_ad";
-
-				string sql_string = @"DROP USER MAPPING IF EXISTS FOR CURRENT_USER
-                     SERVER " + schema_name + ";";
-                conn.Execute(sql_string);
-
-                sql_string = @"DROP SERVER IF EXISTS " + database_name + " CASCADE;";
-				conn.Execute(sql_string);
-
-				sql_string = @"DROP SCHEMA IF EXISTS " + schema_name;
 				conn.Execute(sql_string);
 			}
 		}

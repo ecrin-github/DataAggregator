@@ -24,21 +24,9 @@ namespace DataAggregator
 			// and re-aggregates all the data from scratch.
 			
 			Aggregator ag = new Aggregator();
-			ag.AggregateData(opts.transfer_data, opts.create_core, opts.create_json);
+			ag.AggregateData(opts.do_statistics, opts.transfer_data, opts.create_core, opts.create_json);
             return 0;
-			
-			/*
-			// Check harvest type id is valid. 
-
-			int harvest_type_id = opts.harvest_type_id;
-			if (harvest_type_id != 1 && harvest_type_id != 2 && harvest_type_id != 3)
-			{
-				WriteLine("Sorry - the harvest type argument does not correspond to 1, 2 or 3");
-				return -1;
-			}
-			*/
-
-			
+		
 		}
 
 		static Task HandleParseErrorAsync(IEnumerable<Error> errs)
@@ -61,6 +49,9 @@ namespace DataAggregator
 
 		[Option('J', "create json", Required = false, HelpText = "Indicates json fields and files should be constructed from the core table data.")]
 		public bool create_json { get; set; }
+
+		[Option('S', "do statistics", Required = false, HelpText = "Summarises record numbbers, of each sort, in different sources and in the summary and core tables")]
+		public bool do_statistics { get; set; }
 
 	}
 

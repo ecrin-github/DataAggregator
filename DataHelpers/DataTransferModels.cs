@@ -13,24 +13,19 @@ namespace DataAggregator
 	}
 
 
-
-
 	public class StudyIds
 	{
-		public int study_ad_id { get; set; }
-		public int study_source_id { get; set; }
-		public string study_sd_id { get; set; }
-		public string study_hash_id { get; set; }
+		public int source_id { get; set; }
+		public string sd_sid { get; set; }
 		public DateTime? datetime_of_data_fetch { get; set; }
 	}
 
 
 	public class ObjectIds
 	{
-		public int object_ad_id { get; set; }
-		public int object_source_id { get; set; }
-		public string object_sd_id { get; set; }
-		public string object_hash_id { get; set; }
+		public int source_id { get; set; }
+		public string sd_oid { get; set; }
+		public string parent_sd_sid { get; set; }
 		public DateTime? datetime_of_data_fetch { get; set; }
 	}
 
@@ -38,16 +33,19 @@ namespace DataAggregator
 	public class NewStudyIds
 	{
 		public int study_id { get; set; }
-		public int study_ad_id { get; set; }
-		public string study_sd_id { get; set; }
+		public int source_id { get; set; }
+		public string sd_sid { get; set; }
+		public DateTime? datetime_of_data_fetch { get; set; }
+
 	}
 
 
 	public class NewObjectIds
 	{
 		public int object_id { get; set; }
-		public int object_ad_id { get; set; }
-		public string object_sd_id { get; set; }
-		public string object_hash_id { get; set; }
+		public int source_id { get; set; }
+		public string sd_oid { get; set; }
+		public string parent_sd_sid { get; set; }
+		public DateTime? datetime_of_data_fetch { get; set; }
 	}
 }

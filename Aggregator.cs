@@ -6,14 +6,31 @@ using System.Threading.Tasks;
 
 namespace DataAggregator
 {
-	class Aggregator
+	public class Aggregator
 	{
-		public void AggregateData(bool transfer_data, bool create_core, bool create_json)
+		int agg_event_id;
+		LoggingDataLayer logging_repo;
+
+		public Aggregator()
+        {
+			logging_repo = new LoggingDataLayer();
+			agg_event_id = logging_repo.GetNextAggEventId();
+		}
+
+		public void AggregateData(bool do_statistics, bool transfer_data, bool create_core, bool create_json)
 		{
 			StringHelpers.SendHeader("Setup");
 			StringHelpers.SendFeedback("transfer data =  " + transfer_data);
 			StringHelpers.SendFeedback("create core =  " + create_core);
 			StringHelpers.SendFeedback("create json =  " + create_json);
+			StringHelpers.SendFeedback("do statistics =  " + do_statistics);
+
+			if (do_statistics)
+            {
+				StatisticsBuilder stb = new StatisticsBuilder(logging_repo, agg_event_id);
+				stb.GetStatisticsBySource();
+			}
+
 
 			if (transfer_data)
 			{
@@ -34,19 +51,18 @@ namespace DataAggregator
 				sb.BuildNewStudyTables();
 				sb.BuildNewObjectTables();
 				sb.BuildNewLinkTables();
-				StringHelpers.SendFeedback("Tables Created");
+				StringHelpers.SendFeedback("Tables created");
 
-				// construct the aggregation record
-				int agg_id = logging_repo.GetNextAggEventId();
-				AggregationEvent harvest = new AggregationEvent();
+				// construct the aggregation event record
+				AggregationEvent agg_event = new AggregationEvent(agg_event_id);
 
 				// Derive a new table of inter-study relationships -
 				// First get a list of all the study sources and
 				// ensure it is sorted correctly....
 
-				IEnumerable<DataSource> sources = logging_repo.RetrieveDataSources()
+				IEnumerable<Source> sources = logging_repo.RetrieveDataSources()
 										   .OrderBy(s => s.preference_rating);
-				StringHelpers.SendFeedback("Sources listed");
+				StringHelpers.SendFeedback("Sources obtained");
 
 				StudyLinkBuilder slb = new StudyLinkBuilder(repo);
 				slb.CollectStudyStudyLinks(sources);
@@ -57,42 +73,71 @@ namespace DataAggregator
 				StringHelpers.SendHeader("Data Transfer");
 
 				// Loop through the study sources (in preference order)
-				foreach (DataSource ds in sources)
+				foreach (Source s in sources)
 				{
-					StudyTransferBuilder stb = new StudyTransferBuilder(ds.id);
-					stb.EstablishForeignTables();
-					stb.ProcessStudyIds();
-					stb.TransferStudyData();
-
-					ObjectTransferBuilder otb = new ObjectTransferBuilder(ds.id);
-					otb.ProcessObjectIds();
-					otb.TransferObjectData();
-					otb.DropForeignTables();
+					string schema_name = repo.SetUpTempFTW(s.database_name);
+					string conn_string = logging_repo.FetchConnString(s.database_name);
+					DataTransferBuilder tb = new DataTransferBuilder(s, schema_name, conn_string);
+					if (s.has_study_tables)
+					{
+						tb.ProcessStudyIds();
+						tb.TransferStudyData();
+						tb.ProcessStudyObjectIds();
+					}
+					else
+                    {
+						tb.ProcessStandaloneObjectIds();
+					}
+					tb.TransferObjectData();
+					tb.TransferLinkData();
+					repo.DropTempFTW(s.database_name);
 				}
 
-				// then add Pubmed data objects - ensure its content has been updated
-				// In future may need a separate set of non-study sources
+				// Also use the study groups to set up study_relationship records
+				slb.CreateStudyGroupRecords();
 
+				if (do_statistics)
+				{
+					StatisticsBuilder stb = new StatisticsBuilder(logging_repo, agg_event_id);
+					stb.GetSummaryStatistics();
+				}
 
 			}
+
 
 			if (create_core)
 			{
 				// create core tables
-
+				DataLayer repo = new DataLayer("mdr");
+				SchemaBuilder sb = new SchemaBuilder(repo.ConnString);
+				sb.DeleteCoreTables();
+				sb.BuildNewCoreTables();
 
 				// transfer data to core tables
+				DataTransferBuilder tb = new DataTransferBuilder();
+        		tb.TransferCoreStudyData();
+				tb.TransferCoreObjectData();
+				tb.TransferCoreLinkData();
 
+				if (do_statistics)
+				{
+					StatisticsBuilder stb = new StatisticsBuilder(logging_repo, agg_event_id);
+					stb.GetCoreStatistics();
+				}
 			}
 
 
 			if (create_json)
 			{
-				// Create json fields
+				JSONBuilder JB = new JSONBuilder();
 
+				// Create json fields.
+				JB.CreateJSONStudyData();
+				JB.CreateJSONObjectFiles();
 
-				// create json files
-
+				// create json files.
+				JB.CreateJSONStudyFiles();
+				JB.CreateJSONObjectFiles();
 			}
 		}
 	}

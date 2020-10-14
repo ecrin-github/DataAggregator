@@ -7,12 +7,12 @@ using System.Text;
 
 namespace DataAggregator
 {
-    public class StudyLinksHelper
+    public class LinksDataHelper
     {
 		DataLayer repo;
 		string connString;
 
-		public StudyLinksHelper(DataLayer _repo)
+		public LinksDataHelper(DataLayer _repo)
 		{
 			repo = _repo;
 			connString = repo.ConnString;
@@ -33,7 +33,7 @@ namespace DataAggregator
 		}
 
 
-		public void SetUpTempPreferencesTable(IEnumerable<DataSource> sources)
+		public void SetUpTempPreferencesTable(IEnumerable<Source> sources)
 		{
 			string sql_string;
 			using (var conn = new NpgsqlConnection(connString))
@@ -42,11 +42,17 @@ namespace DataAggregator
                       CREATE TABLE IF NOT EXISTS nk.temp_preferences(
 				        id int
                       , preference_rating int
-                      , database_name varchar) ";
+                      , database_name varchar
+                ) ";
 				conn.Execute(sql_string);
 
+				List<DataSource> ds = new List<DataSource>();
+				foreach (Source s in sources)
+                {
+					ds.Add(new DataSource(s.id, s.preference_rating, s.database_name));
+                }
 				conn.Open(); 
-				IdCopyHelpers.prefs_helper.SaveAll(conn, sources);
+				IdCopyHelpers.prefs_helper.SaveAll(conn, ds);
 			}
 		}
 

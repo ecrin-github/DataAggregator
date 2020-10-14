@@ -15,6 +15,7 @@ namespace DataAggregator
 				 .MapVarchar("sd_sid_2", x => x.sd_sid_2)
 				 .MapInteger("source_2", x => x.source_2);
 
+
 		public static PostgreSQLCopyHelper<DataSource> prefs_helper =
 			 new PostgreSQLCopyHelper<DataSource>("nk", "temp_preferences")
 				 .MapInteger("id", x => x.id)
@@ -24,32 +25,33 @@ namespace DataAggregator
 
 		public static PostgreSQLCopyHelper<StudyIds> study_ids_helper =
 			 new PostgreSQLCopyHelper<StudyIds>("nk", "temp_study_ids")
-				 .MapInteger("study_ad_id", x => x.study_ad_id)
-				 .MapInteger("study_source_id", x => x.study_source_id)
-				 .MapVarchar("study_sd_id", x => x.study_sd_id)
-				 .MapVarchar("study_hash_id", x => x.study_hash_id)
+				 .MapInteger("source_id", x => x.source_id)
+				 .MapVarchar("sd_sid", x => x.sd_sid)
 				 .MapTimeStampTz("datetime_of_data_fetch", x => x.datetime_of_data_fetch);
+
 
 		public static PostgreSQLCopyHelper<ObjectIds> object_ids_helper =
 			 new PostgreSQLCopyHelper<ObjectIds>("nk", "temp_object_ids")
-				 .MapInteger("object_ad_id", x => x.object_ad_id)
-				 .MapInteger("object_source_id", x => x.object_source_id)
-				 .MapVarchar("object_sd_id", x => x.object_sd_id)
-				 .MapVarchar("object_hash_id", x => x.object_hash_id)
+				 .MapInteger("source_id", x => x.source_id)
+				 .MapVarchar("sd_oid", x => x.sd_oid)
+				 .MapVarchar("parent_sd_sid", x => x.parent_sd_sid)
 				 .MapTimeStampTz("datetime_of_data_fetch", x => x.datetime_of_data_fetch);
 
+
+		/*
 		public static PostgreSQLCopyHelper<NewStudyIds> source_study_ids_helper =
 			 new PostgreSQLCopyHelper<NewStudyIds>("nk", "temp_study_ids")
 				 .MapInteger("study_id", x => x.study_id)
-				 .MapInteger("study_ad_id", x => x.study_ad_id)
-				 .MapVarchar("study_sd_id", x => x.study_sd_id);
+				 .MapInteger("source_id", x => x.source_id)
+				 .MapVarchar("sd_sid", x => x.sd_sid)
+			     .MapTimeStampTz("datetime_of_data_fetch", x => x.datetime_of_data_fetch);
 
 		public static PostgreSQLCopyHelper<NewObjectIds> source_object_ids_helper =
 			 new PostgreSQLCopyHelper<NewObjectIds>("nk", "temp_object_ids")
 				 .MapInteger("object_id", x => x.object_id)
-				 .MapInteger("object_ad_id", x => x.object_ad_id)
-				 .MapVarchar("object_sd_id", x => x.object_sd_id)
-				 .MapVarchar("object_hash_id", x => x.object_hash_id);
-
+				 .MapInteger("source_id", x => x.source_id)
+				 .MapVarchar("sd_oid", x => x.sd_oid)
+				 .MapTimeStampTz("datetime_of_data_fetch", x => x.datetime_of_data_fetch);
+		*/
 	}
 }
