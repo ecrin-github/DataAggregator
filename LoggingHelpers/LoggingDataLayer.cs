@@ -89,7 +89,7 @@ namespace DataAggregator
 		{
 			string sql_string = @"select id, preference_rating, database_name, 
                                   has_study_tables,	has_study_topics, has_study_features,
-		                          has_study_contributors, has_study_relationships,
+		                          has_study_contributors, has_study_references, has_study_relationships,
 		                          has_object_datasets, has_object_dates, has_object_rights,
 		                          has_object_relationships, has_object_pubmed_set 
                                 from sf.source_parameters

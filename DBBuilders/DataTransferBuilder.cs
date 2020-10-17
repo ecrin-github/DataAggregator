@@ -12,9 +12,10 @@ namespace DataAggregator
         StudyDataTransferrer st_tr;
         ObjectDataTransferrer ob_tr;
         CoreDataTransferrer core_tr;
+        LoggingDataLayer logging_repo;
 
 
-        public DataTransferBuilder(Source _source, string _schema_name, string _source_conn_string)
+        public DataTransferBuilder(Source _source, string _schema_name, string _source_conn_string, LoggingDataLayer _logging_repo)
         {
             source = _source;
             DataLayer repo = new DataLayer("mdr");
@@ -22,6 +23,7 @@ namespace DataAggregator
             ob_tr = new ObjectDataTransferrer(repo);
             schema_name = _schema_name;
             source_conn_string = _source_conn_string;
+            logging_repo = _logging_repo;
         }
 
         public DataTransferBuilder()
@@ -39,9 +41,9 @@ namespace DataAggregator
             // for all studies, and then fill it.
 
             st_tr.SetUpTempStudyIdsTable();
-            IEnumerable<StudyIds> study_ids = st_tr.FetchStudyIds(source.id, source_conn_string);
+            IEnumerable<StudyId> study_ids = st_tr.FetchStudyIds(source.id, source_conn_string);
             StringHelpers.SendFeedback("Study Ids obtained");
-            st_tr.StoreStudyIds(IdCopyHelpers.study_ids_helper, study_ids);
+            st_tr.StoreStudyIds(CopyHelpers.study_ids_helper, study_ids);
             StringHelpers.SendFeedback("Study Ids stored");
 
             // Do the check of the temp table ids against the study_study links.
@@ -49,6 +51,7 @@ namespace DataAggregator
             // Back load the correct study ids into the temporary table.
             
             st_tr.CheckStudyLinks();
+            StringHelpers.SendFeedback("Study Ids checked");
             st_tr.UpdateAllStudyIdsTable(source.id);
             StringHelpers.SendFeedback("Study Ids processed");
         }
@@ -57,12 +60,12 @@ namespace DataAggregator
         public void TransferStudyData()
         {
             st_tr.LoadStudies(schema_name);
-            // st_tr.LoadStudyIdentifiers(schema_name);
-            // st_tr.LoadStudyTitles(schema_name);
-            //if (source.has_study_contributors) st_tr.LoadStudyContributors(schema_name);
-            //if (source.has_study_topics) st_tr.LoadStudyTopics(schema_name);
-            //if (source.has_study_features) st_tr.LoadStudyFeatures(schema_name);
-            //if (source.has_object_relationships) st_tr.LoadStudyRelationShips(schema_name);
+            st_tr.LoadStudyIdentifiers(schema_name);
+            st_tr.LoadStudyTitles(schema_name);
+            if (source.has_study_contributors) st_tr.LoadStudyContributors(schema_name);
+            if (source.has_study_topics) st_tr.LoadStudyTopics(schema_name);
+            if (source.has_study_features) st_tr.LoadStudyFeatures(schema_name);
+            if (source.has_study_relationships) st_tr.LoadStudyRelationShips(schema_name);
             st_tr.DropTempStudyIdsTable();
         }
 
@@ -74,12 +77,14 @@ namespace DataAggregator
             // the source database.
 
             ob_tr.SetUpTempObjectIdsTables();
-            IEnumerable<ObjectIds> object_ids = ob_tr.FetchObjectIds(source.id);
-            ob_tr.StoreObjectIds(IdCopyHelpers.object_ids_helper, object_ids);
+            IEnumerable<ObjectId> object_ids = ob_tr.FetchObjectIds(source.id);
+            StringHelpers.SendFeedback("Object Ids obtained");
+            ob_tr.StoreObjectIds(CopyHelpers.object_ids_helper, object_ids);
+            StringHelpers.SendFeedback("Object Ids stored");
 
             // Update the object parent ids against the all_ids_studies table
 
-            ob_tr.UpdateObjectStudyIds(source.id);
+            ob_tr.UpdateObjectsWithStudyIds(source.id);
 
             // Carry out a check for (currently very rare) duplicate
             // objects (i.e. that have been imported before with the data 
@@ -89,7 +94,10 @@ namespace DataAggregator
             // Update the database all objects ids table and derive a 
             // small table that lists the object Ids for all objects
             ob_tr.UpdateAllObjectIdsTable(source.id);
+            StringHelpers.SendFeedback("Object Ids updated");
+
             ob_tr.FillObjectsToAddTable(source.id);
+            StringHelpers.SendFeedback("Object Ids processed");
 
         }
 
@@ -101,27 +109,73 @@ namespace DataAggregator
             // process the data using available object-study links
             // (may be multiple study links per object)
             // exact process likely to differ with different standalone
-            // object sources - at the moment onlyy PubMed in this category
+            // object sources - at the moment only PubMed in this category
 
             if (source.id == 100135)
             {
-                // get the source study-pmid link table data (created at harvest)
-                // Probably better done at import!
-                IEnumerable<ObjectIds> object_ids = ob_tr.FetchPMIDs(source.id);
-                ob_tr.StoreObjectIds(IdCopyHelpers.object_ids_helper, object_ids);
+                // Get the source -study- pmid link data 
+                // A table of PMID bank data was created during data download, but this 
+                // may have been date limited (probably was) so the total of records 
+                // in the ad tables needs to be used.
+                // This needs to be combined with the references in those sources 
+                // that conbtain study_reference tables
+
+                PubmedTransferHelper pm_tr = new PubmedTransferHelper();
+                pm_tr.SetupTempPMIDTable();
+                pm_tr.SetupDistinctPMIDTable();
+                pm_tr.SetUpTempContextFTW();
+
+                IEnumerable<PMIDLink> bank_object_ids = pm_tr.FetchBankPMIDs();
+                pm_tr.StorePMIDLinks(CopyHelpers.pmid_links_helper, bank_object_ids);
+                pm_tr.DropTempContextFTW();
+                StringHelpers.SendFeedback("PMID bank object Ids obtained");
+
+                // Loop threough the study databases that hold
+                // study_reference tables, i.e. with pmid ids
+                IEnumerable<Source> sources = logging_repo.RetrieveDataSources();
+                foreach (Source s in sources)
+                {
+                    if (s.has_study_references)
+                    {
+                        IEnumerable<PMIDLink> source_references = pm_tr.FetchSourceReferences(s.id, s.database_name);
+                        pm_tr.StorePMIDLinks(CopyHelpers.pmid_links_helper, source_references);
+                    }
+                }
+                StringHelpers.SendFeedback("PMID source object Ids obtained");
+
+                pm_tr.FillDistinctPMIDsTable();
+                pm_tr.DropTempPMIDTable();
                 
-                // Use cascade on study-study link table to get preferred sd_sid
+                // Try and tidy some of the worst data anomalies
+                // before updating the data to the permanent tables.
+
+                pm_tr.CleanPMIDsdsidData1();
+                pm_tr.CleanPMIDsdsidData2();
+                pm_tr.CleanPMIDsdsidData3();
+                pm_tr.CleanPMIDsdsidData4();
+                StringHelpers.SendFeedback("PMID Ids cleaned");
+
+                // Transfer data to all_ids_data_objects table.
+
+                pm_tr.TransferPMIDLinksToObjectIds();
+                ob_tr.UpdateObjectsWithStudyIds(source.id);
+                StringHelpers.SendFeedback("Object Ids matched to study ids");
+
+                // Use study-study link table to get preferred sd_sid
                 // then drop any resulting duplicates from study-pmid table
                 ob_tr.InputPreferredSDSIDS();
 
                 // add in study-pmid links to all_ids_objects
-                ob_tr.AddPMIDLinksToAllObjectIdsTable();
+                ob_tr.UpdateAllObjectIdsTable(source.id);
+                StringHelpers.SendFeedback("PMID Ids added to table");
 
                 // use min of ids to set all object ids the same for the same pmid
                 ob_tr.ResetIdsOfDuplicatedPMIDs(source.id);
+                StringHelpers.SendFeedback("PMID Ids deduplicatedd");
 
                 // make new table of distinct pmids to add                 
                 ob_tr.FillObjectsToAddTable(source.id);
+                StringHelpers.SendFeedback("PMID Ids processed");
 
             }
         }

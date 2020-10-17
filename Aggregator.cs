@@ -77,7 +77,7 @@ namespace DataAggregator
 				{
 					string schema_name = repo.SetUpTempFTW(s.database_name);
 					string conn_string = logging_repo.FetchConnString(s.database_name);
-					DataTransferBuilder tb = new DataTransferBuilder(s, schema_name, conn_string);
+					DataTransferBuilder tb = new DataTransferBuilder(s, schema_name, conn_string, logging_repo);
 					if (s.has_study_tables)
 					{
 						tb.ProcessStudyIds();
@@ -94,6 +94,7 @@ namespace DataAggregator
 				}
 
 				// Also use the study groups to set up study_relationship records
+				// TO DO
 				slb.CreateStudyGroupRecords();
 
 				if (do_statistics)
@@ -118,6 +119,7 @@ namespace DataAggregator
         		tb.TransferCoreStudyData();
 				tb.TransferCoreObjectData();
 				tb.TransferCoreLinkData();
+				// Include generation of data provenance strings
 
 				if (do_statistics)
 				{

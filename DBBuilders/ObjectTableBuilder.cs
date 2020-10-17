@@ -22,11 +22,11 @@ namespace DataAggregator
 			}
 		}
 
+
 		public void create_table_data_objects()
 		{
 			string sql_string = @"CREATE TABLE ob.data_objects(
-                id                     INT             NOT NULL
-			  , study_id               INT             NOT NULL
+                id                     INT             NOT NULL PRIMARY KEY
 			  , display_title          VARCHAR         NULL
               , version                VARCHAR         NULL
 			  , doi                    VARCHAR         NULL 
@@ -45,8 +45,7 @@ namespace DataAggregator
 			  , add_study_contribs     BOOLEAN         NULL
 			  , add_study_topics       BOOLEAN         NULL
 			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
-			);
-            CREATE INDEX data_objects_study_id ON ob.data_objects(study_id);";
+			);";
 
 			using (var conn = new NpgsqlConnection(db_conn))
 			{
@@ -102,8 +101,7 @@ namespace DataAggregator
 			  , end_month              INT             NULL
 			  , end_day                INT             NULL
 			  , details                VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
 			);
             CREATE INDEX object_dates_object_id ON ob.object_dates(object_id);";
 

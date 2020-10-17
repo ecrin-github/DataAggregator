@@ -67,10 +67,11 @@ namespace DataAggregator
         }
 
 
-        public void ExecuteTransferSQL(string sql_string, string schema_name, string table_name, string context)
+        public int ExecuteTransferSQL(string sql_string, string schema_name, string table_name, string context)
         {
             try
             {
+                int transferred = 0;
                 int rec_count = GetMaxId(schema_name, table_name);
                 int rec_batch = 50000;
                 // int rec_batch = 10000;  // for testing 
@@ -84,18 +85,24 @@ namespace DataAggregator
                         string feedback = "Transferred " + schema_name + "." + table_name + " (" + context + ") data, " + r.ToString() + " to ";
                         feedback += (r + rec_batch < rec_count) ? (r + rec_batch - 1).ToString() : rec_count.ToString();
                         StringHelpers.SendFeedback(feedback);
+                        transferred += (r + rec_batch < rec_count) ? rec_batch : (rec_count - r);
                     }
                 }
                 else
                 {
                     ExecuteSQL(sql_string);
                     StringHelpers.SendFeedback("Transferred " + schema_name + "." + table_name + " (" + context + ") data, as a single batch");
+                    transferred = rec_count;
                 }
+                return transferred;
             }
+            
+
             catch (Exception e)
             {
                 string res = e.Message;
                 StringHelpers.SendError("In data transfer (" + schema_name + "." + table_name + "(" + context + ")) to aggregate table: " + res);
+                return 0;
             }
         }
 

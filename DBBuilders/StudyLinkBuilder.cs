@@ -19,51 +19,56 @@ namespace DataAggregator
 		{
 			// Loop through it calling the link helper functions
 			// sources are called in 'preference order' starting
-			// with clinical trials.gov...
-			slh.SetUpTempLinksBySourceTable();
+			// with clinical trials.gov.
+
 			slh.SetUpTempPreferencesTable(sources);
 			slh.SetUpTempLinkCollectorTable();
+			slh.SetUpTempLinkSortedTable();
 			foreach (Source s in sources)
 			{
-				// Aggregate the study-study links and store them
-				// in the Collector table in the correct arrangement
-				// i.e. lower rated sources inthe 'preferred' fields
-
-				slh.TruncateLinksBySourceTable();
+				// Fetch the study-study links and store them
+				// in the Collector table 
 				IEnumerable<StudyLink> links = slh.FetchLinks(s.id, s.database_name);
-				slh.StoreLinksInTempTable(IdCopyHelpers.links_helper, links);
-				if (s.id != 100120) slh.TidyNCTIds();
-				if (s.id != 100126) slh.TidyISRCTNIds();
-				slh.TransferLinksToCollectorTable();
+				slh.StoreLinksInTempTable(CopyHelpers.links_helper, links);
 			}
+
+			// Tidy up common format errors and then store links in the 'correct' 
+			// arrangement, i.e. lower rated sources in the 'preferred' fields.
+
+			slh.TidyIds1();
+			slh.TidyIds2();
+			slh.TidyIds3();
 		}
 
 
 		public void ProcessStudyStudyLinks()
 		{
 			// Create a table with the distinct values obtained 
-			// from the aggregation process, then 'cascade' links
-			// to ensure that only the most preferred study id is
-			// identified in the 'preferred' fields.
+			// from the aggregation process.
 
+			slh.TransferLinksToSortedTable();
 			slh.CreateDistinctSourceLinksTable();
-			slh.CascadeLinksInDistinctLinksTable();
 
-			// Identify and remove studies that have links to more than 1
+            // Identify and remove studies that have links to more than 1
 			// study in another registry - these form study-study relationships
-			// rather than simple 1-to-1 study links
+			// rather than simple 1-to-1 study links (though the target links may 
+			// need to be updated at the end of the process)
 
-			slh.ManageLinkedPreferredSources();
-			slh.ManageLinkedNonPreferredSources();
+			slh.IdentifyGroupedStudies();
+            slh.ExtractGroupedStudiess();
+			slh.DeleteGroupedStudyLinkRecords();
 
+			// Cascade 'preferred' studies so that the 
+			// most preferred always appears on the RHS
 			// Identify and repair missing cascade steps
-			// Then repeat the cascade telescoping process as above
+			// then 're-cascade' links.
 
+			//slh.CascadeLinksInDistinctLinksTable();
 			slh.ManageIncompleteLinks();
 			slh.CascadeLinksInDistinctLinksTable();
 
 			// Transfer the (distinct) resultant set into the 
-			// maion links table and tidy up
+			// main links table and tidy up
 			slh.TransferNewLinksToDataTable();
 			slh.DropTempTables();
 		}
@@ -71,8 +76,11 @@ namespace DataAggregator
 
 		public void CreateStudyGroupRecords()
         {
-
-        }
+			// Select* from nk.linked_study_groups 
+			// Use the study_all_ids to insert the study Ids
+			// for the linked sources / sd_sids
+			slh.AddStudyStudyRelationshipRecords();
+		}
 
 
 	}

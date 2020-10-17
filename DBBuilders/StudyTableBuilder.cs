@@ -55,7 +55,7 @@ namespace DataAggregator
 		public void create_table_study_identifiers()
 		{
 			string sql_string = @"CREATE TABLE st.study_identifiers(
-                id                     INT             GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+                id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 20000001 INCREMENT BY 1) PRIMARY KEY
 			  , study_id               INT             NOT NULL
 			  , identifier_type_id     INT             NULL
 			  , identifier_value       VARCHAR         NULL

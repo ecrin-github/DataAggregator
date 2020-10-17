@@ -38,7 +38,7 @@ namespace DataAggregator
 			}
 		}
 
-        public IEnumerable<StudyIds> FetchStudyIds(int source_id, string source_conn_string)
+        public IEnumerable<StudyId> FetchStudyIds(int source_id, string source_conn_string)
         {
             using (var conn = new NpgsqlConnection(source_conn_string))
             {
@@ -46,12 +46,12 @@ namespace DataAggregator
                           sd_sid, datetime_of_data_fetch
                           from ad.studies";
 
-                return conn.Query<StudyIds>(sql_string);
+                return conn.Query<StudyId>(sql_string);
             }
         }
 
 
-        public ulong StoreStudyIds(PostgreSQLCopyHelper<StudyIds> copyHelper, IEnumerable<StudyIds> entities)
+        public ulong StoreStudyIds(PostgreSQLCopyHelper<StudyId> copyHelper, IEnumerable<StudyId> entities)
 		{
 			// stores the study id data in a temporary table
 			using (var conn = new NpgsqlConnection(connString))
@@ -150,7 +150,8 @@ namespace DataAggregator
                     on t.sd_sid = s.sd_sid
                     WHERE t.is_preferred = true ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "studies", "preferred");
+            int res = db.ExecuteTransferSQL(sql_string, schema_name, "studies", "preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " studies, preferred");
 
             // Note that the statement below also updates studies that are not added as new
             // (because they equate to existing studies) but which were new in the 
@@ -175,7 +176,8 @@ namespace DataAggregator
                     on t.sd_sid = s.sd_sid
                     WHERE t.is_preferred = true ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_identifiers", "preferred");
+            int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_identifiers", "preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_identifiers, preferred");
 
             // For 'non-preferred' study Ids add only new identifiers.
 
@@ -195,7 +197,8 @@ namespace DataAggregator
                     WHERE t.is_preferred = false 
                     AND s2.study_id is null ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_identifiers", "non-preferred");
+            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_identifiers", "non-preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_identifiers, non-preferred");
 
             db.Update_SourceTable_ExportDate(schema_name, "study_identifiers");
 		}
@@ -216,8 +219,8 @@ namespace DataAggregator
                     on t.sd_sid = s.sd_sid
                     WHERE t.is_preferred = true ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "preferred");
-
+            int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_titles, preferred");
             // For 'non-preferred' study Ids add only new titles.
 
             sql_string = @"INSERT INTO st.study_titles(study_id, 
@@ -236,9 +239,8 @@ namespace DataAggregator
                     WHERE t.is_preferred = false 
                     AND s2.study_id is null ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "non-preferred");
-
-            // Update status of records
+            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "non-preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_titles, non-preferred");            // Update status of records
 
             db.Update_SourceTable_ExportDate(schema_name, "study_titles");
 		}
@@ -263,8 +265,9 @@ namespace DataAggregator
                     on t.sd_sid = s.sd_sid
                     WHERE t.is_preferred = true ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "preferred");
-
+            int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_contributors, preferred");
+            
             // For 'non-preferred' study Ids add only new contributors.
 
             sql_string = @"INSERT INTO st.study_contributors(study_id, 
@@ -287,8 +290,9 @@ namespace DataAggregator
                     WHERE t.is_preferred = false 
                     AND s2.study_id is null ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "non-preferred");
-
+            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "non-preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_contributors, non-preferred");
+            
             db.Update_SourceTable_ExportDate(schema_name, "study_contributors");
 		}
 
@@ -310,8 +314,9 @@ namespace DataAggregator
                     on t.sd_sid = s.sd_sid
                     WHERE t.is_preferred = true ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "preferred");
-
+            int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_topics, preferred");
+            
             // For 'non-preferred' study Ids add only new topics.
 
             sql_string = @"INSERT INTO st.study_topics(study_id, 
@@ -331,8 +336,9 @@ namespace DataAggregator
                     WHERE t.is_preferred = false 
                     AND s2.study_id is null ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "non-preferred");
-
+            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "non-preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_topics, non-preferred");
+           
             db.Update_SourceTable_ExportDate(schema_name, "study_topics");
         }
 
@@ -350,8 +356,9 @@ namespace DataAggregator
                     on t.sd_sid = s.sd_sid
                     WHERE t.is_preferred = true ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_features", "preferred");
-
+            int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_features", "preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_features, preferred");
+            
             // For 'non-preferred' study Ids add only new feature types.
 
             sql_string = @"INSERT INTO st.study_features(study_id, 
@@ -367,9 +374,8 @@ namespace DataAggregator
                     WHERE t.is_preferred = false 
                     AND s2.study_id is null ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_features", "non-preferred");
-
-            // Update status of records
+            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_features", "non-preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_features, non-preferred");
 
             db.Update_SourceTable_ExportDate(schema_name, "study_features");
         }
@@ -388,7 +394,8 @@ namespace DataAggregator
                     on t.sd_sid = s.sd_sid
                     WHERE t.is_preferred = true ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "preferred");
+            int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_relationships, preferred");
 
             // For 'non-preferred' study Ids add only new relationships types.
 
@@ -405,8 +412,9 @@ namespace DataAggregator
                     WHERE t.is_preferred = false 
                     AND s2.study_id is null ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "non-preferred");
-
+            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "non-preferred");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_relationships, non-preferred");
+            
             // insert target study id, using sd_sid to find it in the temp studies table
             // N.B. These relationships are defined within the same source...
             // (Cross source relationships are defined in the links (nk) schema)
@@ -422,8 +430,9 @@ namespace DataAggregator
                             on s.target_sd_sid = t2.sd_sid) tt
                     WHERE r.study_id = tt.study_id ";
 
-            db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "updating target ids");
-
+            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "updating target ids");
+            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_relationships, updating target ids");
+            
             db.Update_SourceTable_ExportDate(schema_name, "study_relationships");
         }
 

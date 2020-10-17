@@ -50,11 +50,10 @@ namespace DataAggregator
               , object_id                INT             NULL
               , source_id                INT             NOT NULL
               , sd_oid                   VARCHAR         NULL
+              , parent_study_source_id   INT             NULL
               , parent_study_sd_sid      VARCHAR         NULL
               , parent_study_id          INT             NULL
               , is_preferred_study       BOOLEAN         NULL
-              , is_preferred_object      BOOLEAN         NOT NULL DEFAULT true
-              , use_this_link            BOOLEAN         NOT NULL DEFAULT true
               , datetime_of_data_fetch   TIMESTAMPTZ     NULL
             );
             CREATE INDEX object_all_ids_objectid ON nk.all_ids_data_objects(object_id);

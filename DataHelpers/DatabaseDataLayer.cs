@@ -114,7 +114,7 @@ namespace DataAggregator
 				string schema_name = database_name + "_ad";
 
 				string sql_string = @"DROP USER MAPPING IF EXISTS FOR CURRENT_USER
-                     SERVER " + schema_name + ";";
+                     SERVER " + database_name + ";";
 				conn.Execute(sql_string);
 
 				sql_string = @"DROP SERVER IF EXISTS " + database_name + " CASCADE;";

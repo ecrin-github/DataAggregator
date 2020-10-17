@@ -13,7 +13,7 @@ namespace DataAggregator
 	}
 
 
-	public class StudyIds
+	public class StudyId
 	{
 		public int source_id { get; set; }
 		public string sd_sid { get; set; }
@@ -21,31 +21,22 @@ namespace DataAggregator
 	}
 
 
-	public class ObjectIds
+	public class ObjectId
 	{
 		public int source_id { get; set; }
 		public string sd_oid { get; set; }
-		public string parent_sd_sid { get; set; }
+		public int parent_study_source_id { get; set; }
+		public string parent_study_sd_sid { get; set; }
 		public DateTime? datetime_of_data_fetch { get; set; }
 	}
 
 
-	public class NewStudyIds
+	public class PMIDLink
 	{
-		public int study_id { get; set; }
-		public int source_id { get; set; }
-		public string sd_sid { get; set; }
-		public DateTime? datetime_of_data_fetch { get; set; }
-
-	}
-
-
-	public class NewObjectIds
-	{
-		public int object_id { get; set; }
 		public int source_id { get; set; }
 		public string sd_oid { get; set; }
-		public string parent_sd_sid { get; set; }
+		public int parent_study_source_id { get; set; }
+		public string parent_study_sd_sid { get; set; }
 		public DateTime? datetime_of_data_fetch { get; set; }
 	}
 }

@@ -36,7 +36,7 @@ namespace DataAggregator
 			}
 		}
 
-        public IEnumerable<StudyIds> FetchStudyIds(int source_id)
+        public IEnumerable<StudyId> FetchStudyIds(int source_id)
         {
             string conn_string = repo.GetConnString(source_id);
             using (var conn = new NpgsqlConnection(conn_string))
@@ -45,12 +45,12 @@ namespace DataAggregator
                           sd_id as study_sd_id, datetime_of_data_fetch
                           from ad.studies";
 
-                return conn.Query<StudyIds>(sql_string);
+                return conn.Query<StudyId>(sql_string);
             }
         }
 
 
-        public ulong StoreStudyIds(PostgreSQLCopyHelper<StudyIds> copyHelper, IEnumerable<StudyIds> entities)
+        public ulong StoreStudyIds(PostgreSQLCopyHelper<StudyId> copyHelper, IEnumerable<StudyId> entities)
 		{
 			// stores the study id data in a temporary table
 			using (var conn = new NpgsqlConnection(connString))
