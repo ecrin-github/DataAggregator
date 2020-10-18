@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="DataHelpers\CopyHelpers.cs" />
     <Compile Remove="DataHelpers\DatabaseModels.cs" />
     <Compile Remove="DataHelpers\DataTransferHelpers.cs" />
     <Compile Remove="LoggingModels.cs" />

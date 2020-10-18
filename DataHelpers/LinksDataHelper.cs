@@ -765,7 +765,7 @@ namespace DataAggregator
 			{
 				string sql_string = @"Insert into st.study_relationships
                       (study_id, relationship_type_id, target_study_id)
-                      select s1.study_id, g.relationship_id, s2.study_d
+                      select s1.study_id, g.relationship_id, s2.study_id
                       from nk.linked_study_groups g
                       inner join nk.all_ids_studies s1
                       on g.source_id = s1.source_id

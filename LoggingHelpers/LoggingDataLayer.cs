@@ -5,6 +5,7 @@ using System;
 using Microsoft.Extensions.Configuration;
 using System.Linq;
 using System.Collections.Generic;
+using PostgreSQLCopyHelper;
 
 namespace DataAggregator
 {
@@ -138,7 +139,21 @@ namespace DataAggregator
 			}
         }
 
-        public void StoreSourceSummary(SourceSummary sm)
+
+		public int GetAggregateRecNum(string table_name, string schema_name, string source_conn_string)
+		{
+    		string sql_string = "SELECT count(*) from " + schema_name + "." + table_name;
+			int? rec_num;
+			using (var conn = new NpgsqlConnection(source_conn_string))
+			{
+				rec_num = conn.ExecuteScalar<int?>(sql_string);
+			}
+			return rec_num == null ? 0 : (int)rec_num;
+		}
+
+
+
+		public void StoreSourceSummary(SourceSummary sm)
 		{
 			using (var conn = new NpgsqlConnection(connString))
 			{
@@ -147,10 +162,84 @@ namespace DataAggregator
 		}
 
 
-	    // Stores an 'extraction note', e.g. an unusual occurence found and
-	    // logged during the extraction, in the associated table.
+		public void StoreAggregationSummary(AggregationSummary asm)
+		{
+			using (var conn = new NpgsqlConnection(connString))
+			{
+				conn.Insert<AggregationSummary>(asm);
+			}
+		}
 
-	    public void StoreExtractionNote(ExtractionNote ext_note)
+
+		public List<AggregationObjectNum> GetObjectTypes(int aggregation_event_id, string mdr_connString)
+		{
+			string sql_string = @"SELECT "
+                    + aggregation_event_id.ToString() + @" as aggregation_event_id, 
+                    d.object_type_id, 
+                    t.name as object_type_name,
+                    count(d.id) as number_of_type
+					from ob.data_objects d
+                    inner join context_lup.object_types t
+                    on d.object_type_id = t.id
+                    group by object_type_id, t.name
+                    order by count(d.id) desc";
+
+			using (var conn = new NpgsqlConnection(mdr_connString))
+			{
+				return conn.Query<AggregationObjectNum>(sql_string).ToList();
+			}
+
+		}
+
+
+		public List<StudyStudyLinkData> GetStudyStudyLinkData(int aggregation_event_id, string mdr_connString)
+		{
+			string sql_string = @"SELECT 
+					k.source_id, 
+                    d1.default_name as source_name,
+                    k.preferred_source_id as other_source_id,
+                    d2.default_name as other_source_name,
+                    count(preferred_sd_sid) as number_in_other_source
+                    from nk.study_study_links k
+                    inner join context_ctx.data_sources d1
+                    on k.source_id = d1.id
+                    inner join context_ctx.data_sources d2
+                    on k.preferred_source_id = d2.id
+                    group by source_id, preferred_source_id, d1.default_name, d2.default_name;";
+
+			using (var conn = new NpgsqlConnection(mdr_connString))
+			{
+				return conn.Query<StudyStudyLinkData>(sql_string).ToList();
+			}
+		}
+
+
+		public List<StudyStudyLinkData> GetStudyStudyLinkData2(int aggregation_event_id, string mdr_connString)
+		{
+			string sql_string = @"SELECT 
+					k.source_id, 
+                    d1.default_name as source_name,
+                    k.preferred_source_id as other_source_id,
+                    d2.default_name as other_source_name
+                    count(preferred_sd_sid) as number_in_other_source
+                    from nk.study_study_links k
+                    inner join context_ctx.data_sources d1
+                    on k.source_id = d1.id
+                    inner join context_ctx.data_sources d2
+                    on k.source_id = d2.id
+                    group by preferred_source_id, source_id;";
+
+
+			using (var conn = new NpgsqlConnection(mdr_connString))
+			{
+				return conn.Query<StudyStudyLinkData>(sql_string).ToList();
+			}
+		}
+
+		// Stores an 'extraction note', e.g. an unusual occurence found and
+		// logged during the extraction, in the associated table.
+
+		public void StoreExtractionNote(ExtractionNote ext_note)
 		{
 			using (var conn = new NpgsqlConnection(connString))
 			{
@@ -159,6 +248,82 @@ namespace DataAggregator
 		}
 
 
+		public ulong StoreObjectNumbers(PostgreSQLCopyHelper<AggregationObjectNum> copyHelper, 
+			                             IEnumerable<AggregationObjectNum> entities)
+		{
+			// stores the study id data in a temporary table
+			using (var conn = new NpgsqlConnection(connString))
+			{
+				conn.Open();
+				return copyHelper.SaveAll(conn, entities);
+			}
+		}
+
+
+		public ulong StoreStudyLinkNumbers(PostgreSQLCopyHelper<StudyStudyLinkData> copyHelper,
+			                            IEnumerable<StudyStudyLinkData> entities)
+		{
+			// stores the study id data in a temporary table
+			using (var conn = new NpgsqlConnection(connString))
+			{
+				conn.Open();
+				return copyHelper.SaveAll(conn, entities);
+			}
+		}
+
+
+		public void SetUpTempContextFTWs(string mdr_connString)
+		{
+			using (var conn = new NpgsqlConnection(mdr_connString))
+			{
+				string sql_string = @"CREATE EXTENSION IF NOT EXISTS postgres_fdw
+			                         schema sf;";
+				conn.Execute(sql_string);
+
+				sql_string = @"CREATE SERVER IF NOT EXISTS context
+						       FOREIGN DATA WRAPPER postgres_fdw
+                               OPTIONS (host 'localhost', dbname 'context');";
+				conn.Execute(sql_string);
+
+				sql_string = @"CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER
+                     SERVER context"
+					 + @" OPTIONS (user '" + user + "', password '" + password + "');";
+				conn.Execute(sql_string);
+
+				sql_string = @"DROP SCHEMA IF EXISTS context_lup cascade;
+                     CREATE SCHEMA context_lup;
+                     IMPORT FOREIGN SCHEMA lup
+                     FROM SERVER context 
+					 INTO context_lup;";
+				conn.Execute(sql_string);
+
+				sql_string = @"DROP SCHEMA IF EXISTS context_ctx cascade;
+                     CREATE SCHEMA context_ctx;
+                     IMPORT FOREIGN SCHEMA ctx
+                     FROM SERVER context 
+					 INTO context_ctx;";
+				conn.Execute(sql_string);
+			}
+		}
+
+
+		public void DropTempContextFTWs(string mdr_connString)
+		{
+			using (var conn = new NpgsqlConnection(mdr_connString))
+			{
+				string sql_string = @"DROP USER MAPPING IF EXISTS FOR CURRENT_USER
+                     SERVER context;";
+				conn.Execute(sql_string);
+
+				sql_string = @"DROP SERVER IF EXISTS context CASCADE;";
+				conn.Execute(sql_string);
+
+				sql_string = @"DROP SCHEMA IF EXISTS context_lup;";
+				conn.Execute(sql_string);
+				sql_string = @"DROP SCHEMA IF EXISTS context_ctx;";
+				conn.Execute(sql_string);
+			}
+		}
 	}
 
 }

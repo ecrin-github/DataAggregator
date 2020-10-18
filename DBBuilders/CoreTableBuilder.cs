@@ -42,9 +42,7 @@ namespace DataAggregator
 			  , min_age_units_id       INT             NULL
 			  , max_age                INT             NULL
 			  , max_age_units_id       INT             NULL
-			  , datetime_of_data_fetch TIMESTAMPTZ     NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
+			  , provenance_string      VARCHAR         NULL
 			);";
 
 			using (var conn = new NpgsqlConnection(db_conn))
@@ -63,9 +61,6 @@ namespace DataAggregator
 			  , identifier_type_id     INT             NULL
 			  , identifier_org_id      INT             NULL
 			  , identifier_org         VARCHAR         NULL
-			  , identifier_date        VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
 			);
             CREATE INDEX study_identifiers_study_id ON core.study_identifiers(study_id);";
 
@@ -83,8 +78,6 @@ namespace DataAggregator
 			  , study_id               INT             NOT NULL
 			  , relationship_type_id   INT             NULL
 			  , target_study_id        VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
 			);
             CREATE INDEX study_relationships_study_id ON core.study_relationships(study_id);
 			CREATE INDEX study_relationships_target_study_id ON core.study_relationships(target_study_id);"; 
@@ -107,8 +100,6 @@ namespace DataAggregator
 			  , lang_usage_id          INT             NULL
 			  , is_default             BOOLEAN         NULL
 			  , comments               VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
 			);
             CREATE INDEX study_titles_study_id ON core.study_titles(study_id);";
 
@@ -137,8 +128,6 @@ namespace DataAggregator
 			  , person_affiliation     VARCHAR         NULL
 			  , affil_org_id           VARCHAR         NULL
 			  , affil_org_id_type      VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
 			);
             CREATE INDEX study_contributors_study_id ON core.study_contributors(study_id);";
 
@@ -164,8 +153,6 @@ namespace DataAggregator
               , original_ct_code       VARCHAR         NULL
 			  , original_value         VARCHAR         NULL
 			  , comments               VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
 			);
             CREATE INDEX study_topics_study_id ON core.study_topics(study_id);";
 
@@ -183,8 +170,6 @@ namespace DataAggregator
 			  , study_id               INT             NOT NULL
 			  , feature_type_id        INT             NULL
 			  , feature_value_id       INT             NULL
-              , added_on               TIMESTAMPTZ     NULL
-              , last_edited_on         TIMESTAMPTZ     NULL
 			);
             CREATE INDEX study_features_study_id ON core.study_features(study_id);";
 
@@ -217,9 +202,7 @@ namespace DataAggregator
               , eosc_category          INT             NULL
 			  , add_study_contribs     BOOLEAN         NULL
 			  , add_study_topics       BOOLEAN         NULL
-			  , datetime_of_data_fetch TIMESTAMPTZ     NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
+			  , provenance_string      VARCHAR         NULL
 			);
             CREATE INDEX data_objects_study_id ON core.data_objects(study_id);";
 
@@ -251,8 +234,6 @@ namespace DataAggregator
 			  , consent_genetic_only   BOOLEAN         NULL
 			  , consent_no_methods     BOOLEAN         NULL
 			  , consent_details        VARCHAR         NULL 
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
 			);
             CREATE INDEX object_datasets_object_id ON core.object_datasets(object_id);";
 
@@ -278,8 +259,6 @@ namespace DataAggregator
 			  , end_month              INT             NULL
 			  , end_day                INT             NULL
 			  , details                VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
 			);
             CREATE INDEX object_dates_object_id ON core.object_dates(object_id);";
 
@@ -305,8 +284,6 @@ namespace DataAggregator
 			  , resource_size          VARCHAR         NULL
 			  , resource_size_units    VARCHAR         NULL
 			  , resource_comments      VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
 			);
             CREATE INDEX object_instances_object_id ON core.object_instances(object_id);";
 
@@ -335,8 +312,6 @@ namespace DataAggregator
 			  , person_affiliation     VARCHAR         NULL
 			  , affil_org_id           VARCHAR         NULL
 			  , affil_org_id_type      VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
 			);
             CREATE INDEX object_contributors_object_id ON core.object_contributors(object_id);";
 
@@ -358,8 +333,6 @@ namespace DataAggregator
 			  , lang_usage_id          INT             NOT NULL default 11
 			  , is_default             BOOLEAN         NULL
 			  , comments               VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
 			);
             CREATE INDEX object_titles_object_id ON core.object_titles(object_id);";
 
@@ -385,8 +358,6 @@ namespace DataAggregator
               , original_ct_code       VARCHAR         NULL
 			  , original_value         VARCHAR         NULL
 			  , comments               VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
 			);
             CREATE INDEX object_topics_object_id ON core.object_topics(object_id);";
 
@@ -407,8 +378,6 @@ namespace DataAggregator
 			  , description_text       VARCHAR         NULL
               , lang_code              VARCHAR         NULL
               , contains_html          BOOLEAN         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
 			);
             CREATE INDEX object_descriptions_object_id ON core.object_descriptions(object_id);";
 
@@ -429,8 +398,6 @@ namespace DataAggregator
 			  , identifier_org_id      INT             NULL
 			  , identifier_org         VARCHAR         NULL
 			  , identifier_date        VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
 			);
             CREATE INDEX object_identifiers_object_id ON core.object_identifiers(object_id);";
 
@@ -448,8 +415,6 @@ namespace DataAggregator
 			  , object_id              INT             NOT NULL
               , relationship_type_id   INT             NULL
               , target_object_id       INT             NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
 			);
             CREATE INDEX object_relationships_object_id ON core.object_relationships(object_id);";
 
@@ -468,8 +433,6 @@ namespace DataAggregator
 			  , rights_name            VARCHAR         NULL
               , rights_uri             VARCHAR         NULL
               , comments               VARCHAR         NULL
-              , added_on               TIMESTAMPTZ     NOT NULL
-              , last_edited_on         TIMESTAMPTZ     NOT NULL
 			);
             CREATE INDEX object_rights_object_id ON core.object_rights(object_id);";
 

@@ -210,12 +210,21 @@ namespace DataAggregator
 
         public void TransferCoreStudyData()
         {
+            core_tr.LoadCoreStudyData();
+            core_tr.LoadCoreStudyIdentifiers();
+            core_tr.LoadCoreStudyTitles();
+            core_tr.LoadCoreStudyContributors();
+            core_tr.LoadCoreStudyTopics();
+            core_tr.LoadCoreStudyFeatures();
+            core_tr.LoadCoreStudyRelationShips();
+
 
         }
 
          
         public void TransferCoreObjectData()
         {
+
 
         }
 

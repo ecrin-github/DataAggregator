@@ -96,13 +96,13 @@ namespace DataAggregator
 				// Also use the study groups to set up study_relationship records
 				// TO DO
 				slb.CreateStudyGroupRecords();
+			}
+			
 
-				if (do_statistics)
-				{
-					StatisticsBuilder stb = new StatisticsBuilder(logging_repo, agg_event_id);
-					stb.GetSummaryStatistics();
-				}
-
+			if (do_statistics)
+			{
+				StatisticsBuilder stb = new StatisticsBuilder(logging_repo, agg_event_id);
+				stb.GetSummaryStatistics();
 			}
 
 

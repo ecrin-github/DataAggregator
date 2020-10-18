@@ -58,7 +58,48 @@ namespace DataAggregator
 
         public void GetSummaryStatistics()
         {
+            // Obtains figures for aggrgeate tables
+            string conn_string = logging_repo.FetchConnString("mdr");
+            AggregationSummary sm = new AggregationSummary(agg_event_id);
 
+            sm.study_recs = logging_repo.GetAggregateRecNum("studies", "st", conn_string);
+            sm.study_identifiers_recs = logging_repo.GetAggregateRecNum("study_identifiers", "st", conn_string);
+            sm.study_titles_recs = logging_repo.GetAggregateRecNum("study_titles", "st", conn_string);
+            sm.study_contributors_recs = logging_repo.GetAggregateRecNum("study_contributors", "st", conn_string);
+            sm.study_topics_recs = logging_repo.GetAggregateRecNum("study_topics", "st", conn_string);
+            sm.study_features_recs = logging_repo.GetAggregateRecNum("study_features", "st", conn_string);
+            sm.study_relationships_recs = logging_repo.GetAggregateRecNum("study_relationships", "st", conn_string);
+
+            sm.data_object_recs = logging_repo.GetAggregateRecNum("data_objects", "ob", conn_string);
+            sm.object_datasets_recs = logging_repo.GetAggregateRecNum("object_datasets", "ob", conn_string);
+            sm.object_instances_recs = logging_repo.GetAggregateRecNum("object_instances", "ob", conn_string);
+            sm.object_titles_recs = logging_repo.GetAggregateRecNum("object_titles", "ob", conn_string);
+            sm.object_dates_recs = logging_repo.GetAggregateRecNum("object_dates", "ob", conn_string);
+            sm.object_contributors_recs = logging_repo.GetAggregateRecNum("object_contributors", "ob", conn_string);
+            sm.object_topics_recs = logging_repo.GetAggregateRecNum("object_topics", "ob", conn_string);
+            sm.object_identifiers_recs = logging_repo.GetAggregateRecNum("object_identifiers", "ob", conn_string);
+            sm.object_descriptions_recs = logging_repo.GetAggregateRecNum("object_descriptions", "ob", conn_string);
+            sm.object_rights_recs = logging_repo.GetAggregateRecNum("object_rights", "ob", conn_string);
+            sm.object_relationships_recs = logging_repo.GetAggregateRecNum("object_relationships", "ob", conn_string);
+            sm.study_object_link_recs = logging_repo.GetAggregateRecNum("all_ids_data_objects", "nk", conn_string);
+
+            logging_repo.StoreAggregationSummary(sm);
+
+            // Setup context lup and cxt tables as foreign tables
+            // (required for next 2 steps)
+            string mdr_connString = logging_repo.FetchConnString("mdr");
+            logging_repo.SetUpTempContextFTWs(mdr_connString);
+
+            // get and store data object types
+            List<AggregationObjectNum> object_numbers = logging_repo.GetObjectTypes(agg_event_id, mdr_connString);
+            logging_repo.StoreObjectNumbers(CopyHelpers.object_numbers_helper, object_numbers);
+
+            // get study-study linkage
+            List<StudyStudyLinkData> study_link_numbers = logging_repo.GetStudyStudyLinkData(agg_event_id, mdr_connString);
+            logging_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
+
+            // drop context lup and cxt tables as foreign tables
+            logging_repo.DropTempContextFTWs(mdr_connString);
         }
 
 

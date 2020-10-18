@@ -26,7 +26,6 @@ namespace DataAggregator
 			Aggregator ag = new Aggregator();
 			ag.AggregateData(opts.do_statistics, opts.transfer_data, opts.create_core, opts.create_json);
             return 0;
-		
 		}
 
 		static Task HandleParseErrorAsync(IEnumerable<Error> errs)

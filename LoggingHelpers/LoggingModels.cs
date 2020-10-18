@@ -62,6 +62,66 @@ namespace DataAggregator
 		}
 	}
 
+	[Table("sf.aggregation_summaries")]
+	public class AggregationSummary
+	{
+		[Key]
+		public int id { get; set; }
+		public int aggregation_event_id { get; set; }
+		public DateTime agregation_datetime { get; set; }
+		public int study_recs { get; set; }
+		public int study_identifiers_recs { get; set; }
+		public int study_titles_recs { get; set; }
+		public int study_contributors_recs { get; set; }
+		public int study_topics_recs { get; set; }
+		public int study_features_recs { get; set; }
+		public int study_relationships_recs { get; set; }
+
+		public int data_object_recs { get; set; }
+		public int object_datasets_recs { get; set; }
+		public int object_instances_recs { get; set; }
+		public int object_titles_recs { get; set; }
+		public int object_dates_recs { get; set; }
+		public int object_contributors_recs { get; set; }
+		public int object_topics_recs { get; set; }
+		public int object_identifiers_recs { get; set; }
+		public int object_descriptions_recs { get; set; }
+		public int object_rights_recs { get; set; }
+		public int object_relationships_recs { get; set; }
+
+		public int study_object_link_recs { get; set; }
+
+		public AggregationSummary(int _aggregation_event_id)
+		{
+			aggregation_event_id = _aggregation_event_id;
+			agregation_datetime = DateTime.Now;
+		}
+	}
+
+	[Table("sf.aggregation_object_numbers")]
+	public class AggregationObjectNum
+	{
+		[Key]
+		public int id { get; set; }
+		public int aggregation_event_id { get; set; }
+		public int object_type_id { get; set; }
+		public string object_type_name { get; set; }
+		public int number_of_type { get; set; }
+	}
+
+
+	[Table("sf.study_study_link_data")]
+	public class StudyStudyLinkData
+	{
+		[Key]
+		public int id { get; set; }
+		public int source_id { get; set; }
+		public string source_name { get; set; }
+		public int other_source_id { get; set; }
+		public string other_source_name { get; set; }
+		public int number_in_other_source { get; set; }
+	}
+
 
 	[Table("sf.aggregation_events")]
 	public class AggregationEvent
@@ -99,7 +159,6 @@ namespace DataAggregator
 
 		}
 	}
-
 
 
 	[Table("sf.extraction_notes")]
