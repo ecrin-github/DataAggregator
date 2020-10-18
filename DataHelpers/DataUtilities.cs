@@ -15,11 +15,19 @@ namespace DataAggregator
             connstring = _connstring;
         }
 
-        public void ExecuteSQL(string sql_string)
+        public int ExecuteSQL(string sql_string)
         {
             using (var conn = new NpgsqlConnection(connstring))
             {
-                conn.Execute(sql_string);
+                try
+                {
+                    return conn.Execute(sql_string);
+                }
+                catch (Exception e)
+                {
+                    StringHelpers.SendError("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
+                    return 0;
+                }
             }
         }
         
@@ -80,19 +88,17 @@ namespace DataAggregator
                     for (int r = 1; r <= rec_count; r += rec_batch)
                     {
                         string batch_sql_string = sql_string + " and s.id >= " + r.ToString() + " and s.id < " + (r + rec_batch).ToString();
-                        ExecuteSQL(batch_sql_string);
+                        transferred += ExecuteSQL(batch_sql_string);
 
                         string feedback = "Transferred " + schema_name + "." + table_name + " (" + context + ") data, " + r.ToString() + " to ";
                         feedback += (r + rec_batch < rec_count) ? (r + rec_batch - 1).ToString() : rec_count.ToString();
                         StringHelpers.SendFeedback(feedback);
-                        transferred += (r + rec_batch < rec_count) ? rec_batch : (rec_count - r);
                     }
                 }
                 else
                 {
-                    ExecuteSQL(sql_string);
+                    transferred = ExecuteSQL(sql_string);
                     StringHelpers.SendFeedback("Transferred " + schema_name + "." + table_name + " (" + context + ") data, as a single batch");
-                    transferred = rec_count;
                 }
                 return transferred;
             }

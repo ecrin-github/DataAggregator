@@ -92,7 +92,7 @@ namespace DataAggregator
         {
             string sql_string = @"CREATE TABLE nk.linked_study_groups(
                 source_id                INT             NULL
-              , source_sd_sid            VARCHAR         NULL
+              , sd_sid                   VARCHAR         NULL
               , relationship_id          INT             NULL
               , target_sd_sid            VARCHAR         NULL
               , target_source_id         INT             NULL

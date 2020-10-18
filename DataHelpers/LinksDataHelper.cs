@@ -384,7 +384,7 @@ namespace DataAggregator
 		// but multiple studies in a different registry.
 		// Such studies have a study relationship rather than being straight equivalents.
 		// There can be multiple studies in the 'preferred' registry
-		// or in the non-preferred registry - each group being equivalent to
+		// or in the existing studies registry - each group being equivalent to
 		// a registry entry that represents a single study, or sometimes a 
 		// single project / programme, or grant
 
@@ -486,7 +486,7 @@ namespace DataAggregator
 				// equivalent group, as <the target study>.
 
 				sql_string = @"INSERT INTO nk.linked_study_groups 
-                             (source_id, source_sd_sid, relationship_id, 
+                             (source_id, sd_sid, relationship_id, 
                              target_sd_sid, target_source_id)
                              select distinct source_id, sd_sid, 
                              case when preferred_source_id = 101900 
@@ -497,7 +497,7 @@ namespace DataAggregator
 				conn.Execute(sql_string);
 
 				sql_string = @"INSERT INTO nk.linked_study_groups 
-                             (source_id, source_sd_sid, relationship_id, 
+                             (source_id, sd_sid, relationship_id, 
                              target_sd_sid, target_source_id)
                              select distinct preferred_source_id, preferred_sd_sid, 
                              case when source_id = 101900 
@@ -604,7 +604,7 @@ namespace DataAggregator
 				// This table has 6 fields - two initially populated with the source id / sd_sid, 
 				// to identify the record, and the next pair that have the source / sd_sid pair
 				// that does NOT have the minimum source rating, i.e. is the study that will need 
-				// to be 'non-preferred' in the new link
+				// to be 'existing studies' in the new link
 
 				sql_string = @"DROP TABLE IF EXISTS nk.temp_new_links;
 				CREATE TABLE nk.temp_new_links as
@@ -767,10 +767,10 @@ namespace DataAggregator
                       (study_id, relationship_type_id, target_study_id)
                       select s1.study_id, g.relationship_id, s2.study_d
                       from nk.linked_study_groups g
-                      inner join nk.all_ids_stuies s1
+                      inner join nk.all_ids_studies s1
                       on g.source_id = s1.source_id
                       and g.sd_sid = s1.sd_sid
-                      inner join nk.all_ids_stuies s2
+                      inner join nk.all_ids_studies s2
                       on g.target_source_id = s2.source_id
                       and g.target_sd_sid = s2.sd_sid";
 

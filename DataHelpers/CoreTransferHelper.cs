@@ -234,7 +234,7 @@ namespace DataAggregator
 
 				conn.Execute(sql_string);
 
-				// with non-preferred sources all titles should be non default
+				// with existing studies sources all titles should be non default
 				// only titles not already in the system need to be added
 
 				sql_string = @"INSERT INTO st.study_titles(study_id, 
@@ -290,7 +290,7 @@ namespace DataAggregator
 
 				conn.Execute(sql_string);
 
-				// with non-preferred sources relationshipsd are added
+				// with existing studies sources relationshipsd are added
 				// only if they do not already exist
 
 				sql_string = @"INSERT INTO st.study_relationships(study_id, 
@@ -356,7 +356,7 @@ namespace DataAggregator
 
 				conn.Execute(sql_string);
 
-				// with non-preferred sources all titles should be non default
+				// with existing studies sources all titles should be non default
 				// only titles not already in the system need to be added
 
 				sql_string = @"INSERT INTO st.study_contributors(study_id, 
@@ -414,7 +414,7 @@ namespace DataAggregator
 
                 conn.Execute(sql_string);
 
-                // with non-preferred sources all titles should be non default
+                // with existing studies sources all titles should be non default
                 // only titles not already in the system need to be added
 
                 sql_string = @"INSERT INTO st.study_topics(study_id, 
@@ -472,7 +472,7 @@ namespace DataAggregator
 
                 conn.Execute(sql_string);
 
-                // with non-preferred sources all titles should be non default
+                // with existing studies sources all titles should be non default
                 // only titles not already in the system need to be added
 
                 sql_string = @"INSERT INTO st.study_features(study_id, 
