@@ -41,10 +41,18 @@ namespace DataAggregator
         }
 
 
-        public int GetAggMaxId(string table_name, int offset)
+        public int GetAggMinId(string full_table_name)
         {
-            // TO DO
-            string sql_string = @"select max(id) from " + table_name;
+            string sql_string = @"select min(id) from " + full_table_name;
+            using (var conn = new NpgsqlConnection(connstring))
+            {
+                return conn.ExecuteScalar<int>(sql_string);
+            }
+        }
+
+        public int GetAggMaxId(string full_table_name)
+        {
+            string sql_string = @"select max(id) from " + full_table_name;
             using (var conn = new NpgsqlConnection(connstring))
             {
                 return conn.ExecuteScalar<int>(sql_string);
@@ -124,30 +132,31 @@ namespace DataAggregator
         }
 
 
-        public int  ExecuteCoreTransferSQL(string sql_string, string table_name, int offset)
+        public int  ExecuteCoreTransferSQL(string sql_string, string full_table_name)
         {
             try
             {
                 int transferred = 0;
-                int rec_count = GetAggMaxId(table_name, offset);
+                int min_id = GetAggMinId(full_table_name);
+                int max_id = GetAggMaxId(full_table_name);
                 int rec_batch = 50000;
                 // int rec_batch = 10000;  // for testing 
-                if (rec_count > rec_batch)
+                if (max_id - min_id > rec_batch)
                 {
-                    for (int r = 1; r <= rec_count; r += rec_batch)
+                    for (int r = min_id; r <= max_id; r += rec_batch)
                     {
-                        string batch_sql_string = sql_string + " and s.id >= " + r.ToString() + " and s.id < " + (r + rec_batch).ToString();
+                        string batch_sql_string = sql_string + " WHERE s.id >= " + r.ToString() + " and s.id < " + (r + rec_batch).ToString();
                         transferred += ExecuteSQL(batch_sql_string);
 
-                        string feedback = "Transferred " + table_name + " data, " + r.ToString() + " to ";
-                        feedback += (r + rec_batch < rec_count) ? (r + rec_batch - 1).ToString() : rec_count.ToString();
+                        string feedback = "Transferred " + full_table_name + " data, " + r.ToString() + " to ";
+                        feedback += (r + rec_batch < max_id) ? (r + rec_batch - 1).ToString() : max_id.ToString();
                         StringHelpers.SendFeedback(feedback);
                     }
                 }
                 else
                 {
                     transferred = ExecuteSQL(sql_string);
-                    StringHelpers.SendFeedback("Transferred " + table_name + " data, as a single batch");
+                    StringHelpers.SendFeedback("Transferred " + full_table_name + " data, as a single batch");
                 }
                 return transferred;
             }
@@ -156,7 +165,42 @@ namespace DataAggregator
             catch (Exception e)
             {
                 string res = e.Message;
-                StringHelpers.SendError("In data transfer (" + table_name + " to core table: " + res);
+                StringHelpers.SendError("In data transfer (" + full_table_name + " to core table: " + res);
+                return 0;
+            }
+        }
+
+        public int ExecuteProvenanceSQL(string sql_string, string full_table_name)
+        {
+            try
+            {
+                int transferred = 0;
+                int min_id = GetAggMinId(full_table_name);
+                int max_id = GetAggMaxId(full_table_name);
+                int rec_batch = 50000;
+                if (max_id - min_id > rec_batch)
+                {
+                    for (int r = min_id; r <= max_id; r += rec_batch)
+                    {
+                        string batch_sql_string = sql_string + " AND s.id >= " + r.ToString() + " and s.id < " + (r + rec_batch).ToString();
+                        transferred += ExecuteSQL(batch_sql_string);
+
+                        string feedback = "Updated " + full_table_name + " with provenance data, " + r.ToString() + " to ";
+                        feedback += (r + rec_batch < max_id) ? (r + rec_batch - 1).ToString() : max_id.ToString();
+                        StringHelpers.SendFeedback(feedback);
+                    }
+                }
+                else
+                {
+                    transferred = ExecuteSQL(sql_string);
+                    StringHelpers.SendFeedback("Updated " + full_table_name + " with provenance data, as a single batch");
+                }
+                return transferred;
+            }
+            catch (Exception e)
+            {
+                string res = e.Message;
+                StringHelpers.SendError("In updating provenance data in " + full_table_name + ": " + res);
                 return 0;
             }
         }

@@ -14,12 +14,6 @@ namespace DataAggregator
 		private string password;
 		private string host;
 
-		/// <summary>
-		/// Parameterless constructor is used to automatically build
-		/// the connection string, using an appsettings.json file that 
-		/// has the relevant credentials (but which is not stored in GitHub).
-		/// </summary>
-		/// 
 		public DataLayer(string database_name)
 		{
 				IConfigurationRoot settings = new ConfigurationBuilder()
@@ -93,15 +87,26 @@ namespace DataAggregator
                      SERVER " + database_name
 					 + @" OPTIONS (user '" + username + "', password '" + password + "');";
 				conn.Execute(sql_string);
-
-				string schema_name = database_name + "_ad";
-				sql_string = @"DROP SCHEMA IF EXISTS " + schema_name + @" cascade;
+				string schema_name = "";
+				if (database_name == "mon")
+				{
+					schema_name = database_name + "_sf";
+					sql_string = @"DROP SCHEMA IF EXISTS " + schema_name + @" cascade;
+                     CREATE SCHEMA " + schema_name + @";
+                     IMPORT FOREIGN SCHEMA sf
+                     FROM SERVER " + database_name +
+						 @" INTO " + schema_name + ";";
+				}
+				else
+				{
+					schema_name = database_name + "_ad";
+					sql_string = @"DROP SCHEMA IF EXISTS " + schema_name + @" cascade;
                      CREATE SCHEMA " + schema_name + @";
                      IMPORT FOREIGN SCHEMA ad
                      FROM SERVER " + database_name +
-					 @" INTO " + schema_name + ";";
+						 @" INTO " + schema_name + ";";
+				}
 				conn.Execute(sql_string);
-
 				return schema_name;
 			}
 		}
@@ -111,7 +116,15 @@ namespace DataAggregator
 		{
 			using (var conn = new NpgsqlConnection(connString))
 			{
-				string schema_name = database_name + "_ad";
+				string schema_name = "";
+				if (database_name == "mon")
+				{
+					schema_name = database_name + "_sf";
+				}
+                else
+                {
+					schema_name = database_name + "_ad";
+				}
 
 				string sql_string = @"DROP USER MAPPING IF EXISTS FOR CURRENT_USER
                      SERVER " + database_name + ";";
@@ -121,6 +134,60 @@ namespace DataAggregator
 				conn.Execute(sql_string);
 
 				sql_string = @"DROP SCHEMA IF EXISTS " + schema_name;
+				conn.Execute(sql_string);
+			}
+		}
+
+
+		public void SetUpTempContextFTWs()
+		{
+			using (var conn = new NpgsqlConnection(connString))
+			{
+				string sql_string = @"CREATE EXTENSION IF NOT EXISTS postgres_fdw
+			                         schema sf;";
+				conn.Execute(sql_string);
+
+				sql_string = @"CREATE SERVER IF NOT EXISTS context
+						       FOREIGN DATA WRAPPER postgres_fdw
+                               OPTIONS (host 'localhost', dbname 'context');";
+				conn.Execute(sql_string);
+
+				sql_string = @"CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER
+                     SERVER context"
+					 + @" OPTIONS (user '" + username + "', password '" + password + "');";
+				conn.Execute(sql_string);
+
+				sql_string = @"DROP SCHEMA IF EXISTS context_lup cascade;
+                     CREATE SCHEMA context_lup;
+                     IMPORT FOREIGN SCHEMA lup
+                     FROM SERVER context 
+					 INTO context_lup;";
+				conn.Execute(sql_string);
+
+				sql_string = @"DROP SCHEMA IF EXISTS context_ctx cascade;
+                     CREATE SCHEMA context_ctx;
+                     IMPORT FOREIGN SCHEMA ctx
+                     FROM SERVER context 
+					 INTO context_ctx;";
+				conn.Execute(sql_string);
+			}
+		}
+
+
+		public void DropTempContextFTWs()
+		{
+			using (var conn = new NpgsqlConnection(connString))
+			{
+				string sql_string = @"DROP USER MAPPING IF EXISTS FOR CURRENT_USER
+                     SERVER context;";
+				conn.Execute(sql_string);
+
+				sql_string = @"DROP SERVER IF EXISTS context CASCADE;";
+				conn.Execute(sql_string);
+
+				sql_string = @"DROP SCHEMA IF EXISTS context_lup;";
+				conn.Execute(sql_string);
+				sql_string = @"DROP SCHEMA IF EXISTS context_ctx;";
 				conn.Execute(sql_string);
 			}
 		}

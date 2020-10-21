@@ -49,7 +49,7 @@ namespace DataAggregator
             // Do the check of the temp table ids against the study_study links.
             // Change the table to reflect the 'preferred' Ids.
             // Back load the correct study ids into the temporary table.
-            
+
             st_tr.CheckStudyLinks();
             StringHelpers.SendFeedback("Study Ids checked");
             st_tr.UpdateAllStudyIdsTable(source.id);
@@ -123,11 +123,9 @@ namespace DataAggregator
                 PubmedTransferHelper pm_tr = new PubmedTransferHelper();
                 pm_tr.SetupTempPMIDTable();
                 pm_tr.SetupDistinctPMIDTable();
-                pm_tr.SetUpTempContextFTW();
-
+                
                 IEnumerable<PMIDLink> bank_object_ids = pm_tr.FetchBankPMIDs();
                 pm_tr.StorePMIDLinks(CopyHelpers.pmid_links_helper, bank_object_ids);
-                pm_tr.DropTempContextFTW();
                 StringHelpers.SendFeedback("PMID bank object Ids obtained");
 
                 // Loop threough the study databases that hold
@@ -145,7 +143,7 @@ namespace DataAggregator
 
                 pm_tr.FillDistinctPMIDsTable();
                 pm_tr.DropTempPMIDTable();
-                
+
                 // Try and tidy some of the worst data anomalies
                 // before updating the data to the permanent tables.
 
@@ -202,12 +200,6 @@ namespace DataAggregator
         }
 
 
-        public void TransferLinkData()
-        {
-
-        }
-
-
         public void TransferCoreStudyData()
         {
             core_tr.LoadCoreStudyData();
@@ -217,25 +209,35 @@ namespace DataAggregator
             core_tr.LoadCoreStudyTopics();
             core_tr.LoadCoreStudyFeatures();
             core_tr.LoadCoreStudyRelationShips();
-
-
         }
 
-         
+
         public void TransferCoreObjectData()
         {
-
-
+            core_tr.LoadCoreDataObjects();
+            core_tr.LoadCoreObjectDatasets();
+            core_tr.LoadCoreObjectInstances();
+            core_tr.LoadCoreObjectTitles();
+            core_tr.LoadCoreObjectDates();
+            core_tr.LoadCoreObjectContributors();
+            core_tr.LoadCoreObjectTopics();
+            core_tr.LoadCoreObjectDescriptions();
+            core_tr.LoadCoreObjectIdentifiers();
+            core_tr.LoadCoreObjectRelationships();
+            core_tr.LoadCoreObjectRights();
         }
-
 
         public void TransferCoreLinkData()
         {
-
+            core_tr.LoadStudyObjectLinks();
         }
 
 
-        
+        public void GenerateProvenanceData()
+        {
+            core_tr.GenerateStudyProvenanceData();
+            core_tr.GenerateObjectProvenanceData();
+        }
 
     }
 }

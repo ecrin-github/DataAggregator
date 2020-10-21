@@ -61,26 +61,10 @@ namespace DataAggregator
 			  , identifier_type_id     INT             NULL
 			  , identifier_org_id      INT             NULL
 			  , identifier_org         VARCHAR         NULL
+              , identifier_date        VARCHAR         NULL
+              , identifier_link        VARCHAR         NULL
 			);
             CREATE INDEX study_identifiers_study_id ON core.study_identifiers(study_id);";
-
-			using (var conn = new NpgsqlConnection(db_conn))
-			{
-				conn.Execute(sql_string);
-			}
-		}
-
-
-		public void create_table_study_relationships()
-		{
-			string sql_string = @"CREATE TABLE core.study_relationships(
-                id                     INT             NOT NULL PRIMARY KEY
-			  , study_id               INT             NOT NULL
-			  , relationship_type_id   INT             NULL
-			  , target_study_id        VARCHAR         NULL
-			);
-            CREATE INDEX study_relationships_study_id ON core.study_relationships(study_id);
-			CREATE INDEX study_relationships_target_study_id ON core.study_relationships(target_study_id);"; 
 
 			using (var conn = new NpgsqlConnection(db_conn))
 			{
@@ -180,11 +164,28 @@ namespace DataAggregator
 		}
 
 
+		public void create_table_study_relationships()
+		{
+			string sql_string = @"CREATE TABLE core.study_relationships(
+                id                     INT             NOT NULL PRIMARY KEY
+			  , study_id               INT             NOT NULL
+			  , relationship_type_id   INT             NULL
+			  , target_study_id        VARCHAR         NULL
+			);
+            CREATE INDEX study_relationships_study_id ON core.study_relationships(study_id);
+			CREATE INDEX study_relationships_target_study_id ON core.study_relationships(target_study_id);";
+
+			using (var conn = new NpgsqlConnection(db_conn))
+			{
+				conn.Execute(sql_string);
+			}
+		}
+
+
 		public void create_table_data_objects()
 		{
 			string sql_string = @"CREATE TABLE core.data_objects(
                 id                     INT             NOT NULL PRIMARY KEY
-			  , study_id               INT             NOT NULL
 			  , display_title          VARCHAR         NULL
               , version                VARCHAR         NULL
 			  , doi                    VARCHAR         NULL 
@@ -203,8 +204,7 @@ namespace DataAggregator
 			  , add_study_contribs     BOOLEAN         NULL
 			  , add_study_topics       BOOLEAN         NULL
 			  , provenance_string      VARCHAR         NULL
-			);
-            CREATE INDEX data_objects_study_id ON core.data_objects(study_id);";
+			);";
 
 			using (var conn = new NpgsqlConnection(db_conn))
 			{
@@ -445,7 +445,7 @@ namespace DataAggregator
 
 		public void create_table_study_object_links()
 		{
-			string sql_string = @"CREATE TABLE core.object_rights(
+			string sql_string = @"CREATE TABLE core.study_object_links(
                 id                     INT             NOT NULL PRIMARY KEY
               , study_id               INT             NOT NULL
 			  , object_id              INT             NOT NULL

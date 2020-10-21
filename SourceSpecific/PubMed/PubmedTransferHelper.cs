@@ -80,55 +80,6 @@ namespace DataAggregator
 			}
 		}
 
-		public string SetUpTempContextFTW()
-		{
-			using (var conn = new NpgsqlConnection(pubmed_connString))
-			{
-				string sql_string = @"CREATE EXTENSION IF NOT EXISTS postgres_fdw
-			                         schema ad;";
-				conn.Execute(sql_string);
-
-				sql_string = @"CREATE SERVER IF NOT EXISTS context
-						      FOREIGN DATA WRAPPER postgres_fdw
-                              OPTIONS (host 'localhost', dbname 'context');";
-				conn.Execute(sql_string);
-
-				sql_string = @"CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER
-                     SERVER context
-					 OPTIONS (user '" + user + "', password '" + password + "');";
-				conn.Execute(sql_string);
-
-				string schema_name = "context_ctx";
-				sql_string = @"DROP SCHEMA IF EXISTS " + schema_name + @" cascade;
-                     CREATE SCHEMA " + schema_name + @";
-                     IMPORT FOREIGN SCHEMA ctx
-                     FROM SERVER context
-					 INTO " + schema_name + ";";
-				conn.Execute(sql_string);
-
-				return schema_name;
-			}
-		}
-
-
-		public void DropTempContextFTW()
-		{
-			using (var conn = new NpgsqlConnection(pubmed_connString))
-			{
-				string schema_name = "context_ctx";
-
-				string sql_string = @"DROP USER MAPPING IF EXISTS FOR CURRENT_USER
-                     SERVER " + schema_name + ";";
-				conn.Execute(sql_string);
-
-				sql_string = @"DROP SERVER IF EXISTS context CASCADE;";
-				conn.Execute(sql_string);
-
-				sql_string = @"DROP SCHEMA IF EXISTS " + schema_name;
-				conn.Execute(sql_string);
-			}
-		}
-
 
 		public IEnumerable<PMIDLink> FetchBankPMIDs()
 		{

@@ -25,24 +25,25 @@ namespace DataAggregator
 			StringHelpers.SendFeedback("create json =  " + create_json);
 			StringHelpers.SendFeedback("do statistics =  " + do_statistics);
 
+            DataLayer repo = new DataLayer("mdr");
+			LoggingDataLayer logging_repo = new LoggingDataLayer();
+            // set up the context DB as two sets of foreign tables
+			// as it is used in several places
+			repo.SetUpTempContextFTWs();
+
 			if (do_statistics)
             {
 				StatisticsBuilder stb = new StatisticsBuilder(logging_repo, agg_event_id);
 				stb.GetStatisticsBySource();
 			}
 
-
 			if (transfer_data)
 			{
 				// Establish the mdr and logging repo layers.
-
 				StringHelpers.SendHeader("Establish aggregate schemas");
-				DataLayer repo = new DataLayer("mdr");
-				LoggingDataLayer logging_repo = new LoggingDataLayer();
 
 				// In the mdr database, establish new tables, 
 				// for the three schemas st, ob, nk (schemas should already exist)
-
 				SchemaBuilder sb = new SchemaBuilder(repo.ConnString);
 				sb.DeleteStudyTables();
 				sb.DeleteObjectTables();
@@ -58,7 +59,7 @@ namespace DataAggregator
 
 				// Derive a new table of inter-study relationships -
 				// First get a list of all the study sources and
-				// ensure it is sorted correctly....
+				// ensure it is sorted correctly.
 
 				IEnumerable<Source> sources = logging_repo.RetrieveDataSources()
 										   .OrderBy(s => s.preference_rating);
@@ -73,6 +74,8 @@ namespace DataAggregator
 				StringHelpers.SendHeader("Data Transfer");
 
 				// Loop through the study sources (in preference order)
+				// In each case establish and then drop the source tables 
+				// in a foreign table wrapper
 				foreach (Source s in sources)
 				{
 					string schema_name = repo.SetUpTempFTW(s.database_name);
@@ -89,12 +92,10 @@ namespace DataAggregator
 						tb.ProcessStandaloneObjectIds();
 					}
 					tb.TransferObjectData();
-					tb.TransferLinkData();
 					repo.DropTempFTW(s.database_name);
 				}
 
 				// Also use the study groups to set up study_relationship records
-				// TO DO
 				slb.CreateStudyGroupRecords();
 			}
 			
@@ -109,38 +110,40 @@ namespace DataAggregator
 			if (create_core)
 			{
 				// create core tables
-				DataLayer repo = new DataLayer("mdr");
 				SchemaBuilder sb = new SchemaBuilder(repo.ConnString);
-				sb.DeleteCoreTables();
-				sb.BuildNewCoreTables();
+				//sb.DeleteCoreTables();
+				//sb.BuildNewCoreTables();
 
 				// transfer data to core tables
 				DataTransferBuilder tb = new DataTransferBuilder();
-        		tb.TransferCoreStudyData();
-				tb.TransferCoreObjectData();
-				tb.TransferCoreLinkData();
-				// Include generation of data provenance strings
+				//tb.TransferCoreStudyData();
+				//tb.TransferCoreObjectData();
+				//tb.TransferCoreLinkData();
 
-				if (do_statistics)
-				{
-					StatisticsBuilder stb = new StatisticsBuilder(logging_repo, agg_event_id);
-					stb.GetCoreStatistics();
-				}
+				// Include generation of data provenance strings
+				// Need an additional temporary FTW link to mon
+				repo.SetUpTempFTW("mon");
+				tb.GenerateProvenanceData();
+				repo.DropTempFTW("mon");
 			}
 
 
 			if (create_json)
 			{
-				JSONBuilder JB = new JSONBuilder();
+				string conn_string = logging_repo.FetchConnString("mdr");
+				JSONBuilder JB = new JSONBuilder(conn_string);
+				JB.CreateJSONTables();
 
 				// Create json fields.
 				JB.CreateJSONStudyData();
-				JB.CreateJSONObjectFiles();
+				JB.CreateJSONObjectData();
 
 				// create json files.
 				JB.CreateJSONStudyFiles();
 				JB.CreateJSONObjectFiles();
 			}
+
+			repo.DropTempContextFTWs();
 		}
 	}
 }

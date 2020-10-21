@@ -85,28 +85,15 @@ namespace DataAggregator
 
             logging_repo.StoreAggregationSummary(sm);
 
-            // Setup context lup and cxt tables as foreign tables
-            // (required for next 2 steps)
-            string mdr_connString = logging_repo.FetchConnString("mdr");
-            logging_repo.SetUpTempContextFTWs(mdr_connString);
-
             // get and store data object types
-            List<AggregationObjectNum> object_numbers = logging_repo.GetObjectTypes(agg_event_id, mdr_connString);
+            List<AggregationObjectNum> object_numbers = logging_repo.GetObjectTypes(agg_event_id);
             logging_repo.StoreObjectNumbers(CopyHelpers.object_numbers_helper, object_numbers);
 
             // get study-study linkage
-            List<StudyStudyLinkData> study_link_numbers = logging_repo.GetStudyStudyLinkData(agg_event_id, mdr_connString);
+            List<StudyStudyLinkData> study_link_numbers = logging_repo.GetStudyStudyLinkData(agg_event_id);
             logging_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
-
-            // drop context lup and cxt tables as foreign tables
-            logging_repo.DropTempContextFTWs(mdr_connString);
+            study_link_numbers = logging_repo.GetStudyStudyLinkData2(agg_event_id);
+            logging_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
         }
-
-
-        public void GetCoreStatistics()
-        {
-
-        }
-
     }
 }

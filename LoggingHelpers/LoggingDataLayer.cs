@@ -12,7 +12,7 @@ namespace DataAggregator
 	public class LoggingDataLayer
 	{
 		private string connString;
-		private string context_connString;
+		private string mdr_connString;
 		private Source source;
 		private string sql_file_select_string;
 		private string host;
@@ -44,8 +44,8 @@ namespace DataAggregator
 			builder.Database = "mon";
 			connString = builder.ConnectionString;
 
-			builder.Database = "context";
-			context_connString = builder.ConnectionString;
+			builder.Database = "mdr";
+			mdr_connString = builder.ConnectionString;
 
 			sql_file_select_string = "select id, source_id, sd_id, remote_url, last_revised, ";
 			sql_file_select_string += " assume_complete, download_status, local_path, last_saf_id, last_downloaded, ";
@@ -171,7 +171,7 @@ namespace DataAggregator
 		}
 
 
-		public List<AggregationObjectNum> GetObjectTypes(int aggregation_event_id, string mdr_connString)
+		public List<AggregationObjectNum> GetObjectTypes(int aggregation_event_id)
 		{
 			string sql_string = @"SELECT "
                     + aggregation_event_id.ToString() + @" as aggregation_event_id, 
@@ -192,7 +192,7 @@ namespace DataAggregator
 		}
 
 
-		public List<StudyStudyLinkData> GetStudyStudyLinkData(int aggregation_event_id, string mdr_connString)
+		public List<StudyStudyLinkData> GetStudyStudyLinkData(int aggregation_event_id)
 		{
 			string sql_string = @"SELECT 
 					k.source_id, 
@@ -214,7 +214,7 @@ namespace DataAggregator
 		}
 
 
-		public List<StudyStudyLinkData> GetStudyStudyLinkData2(int aggregation_event_id, string mdr_connString)
+		public List<StudyStudyLinkData> GetStudyStudyLinkData2(int aggregation_event_id)
 		{
 			string sql_string = @"SELECT 
 					k.source_id, 
@@ -271,59 +271,6 @@ namespace DataAggregator
 			}
 		}
 
-
-		public void SetUpTempContextFTWs(string mdr_connString)
-		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
-			{
-				string sql_string = @"CREATE EXTENSION IF NOT EXISTS postgres_fdw
-			                         schema sf;";
-				conn.Execute(sql_string);
-
-				sql_string = @"CREATE SERVER IF NOT EXISTS context
-						       FOREIGN DATA WRAPPER postgres_fdw
-                               OPTIONS (host 'localhost', dbname 'context');";
-				conn.Execute(sql_string);
-
-				sql_string = @"CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER
-                     SERVER context"
-					 + @" OPTIONS (user '" + user + "', password '" + password + "');";
-				conn.Execute(sql_string);
-
-				sql_string = @"DROP SCHEMA IF EXISTS context_lup cascade;
-                     CREATE SCHEMA context_lup;
-                     IMPORT FOREIGN SCHEMA lup
-                     FROM SERVER context 
-					 INTO context_lup;";
-				conn.Execute(sql_string);
-
-				sql_string = @"DROP SCHEMA IF EXISTS context_ctx cascade;
-                     CREATE SCHEMA context_ctx;
-                     IMPORT FOREIGN SCHEMA ctx
-                     FROM SERVER context 
-					 INTO context_ctx;";
-				conn.Execute(sql_string);
-			}
-		}
-
-
-		public void DropTempContextFTWs(string mdr_connString)
-		{
-			using (var conn = new NpgsqlConnection(mdr_connString))
-			{
-				string sql_string = @"DROP USER MAPPING IF EXISTS FOR CURRENT_USER
-                     SERVER context;";
-				conn.Execute(sql_string);
-
-				sql_string = @"DROP SERVER IF EXISTS context CASCADE;";
-				conn.Execute(sql_string);
-
-				sql_string = @"DROP SCHEMA IF EXISTS context_lup;";
-				conn.Execute(sql_string);
-				sql_string = @"DROP SCHEMA IF EXISTS context_ctx;";
-				conn.Execute(sql_string);
-			}
-		}
 	}
 
 }

@@ -116,6 +116,7 @@ namespace DataAggregator
 		public void DeleteCoreTables()
 		{
 			// dropping routines include 'if exists'
+			core_tablebuilder = new CoreTableBuilder(connString);
 
 			core_tablebuilder.drop_table("studies");
 			core_tablebuilder.drop_table("study_identifiers");
@@ -162,7 +163,7 @@ namespace DataAggregator
 			core_tablebuilder.create_table_object_topics();
 			core_tablebuilder.create_table_object_descriptions();
 			core_tablebuilder.create_table_object_identifiers();
-			
+
 			core_tablebuilder.create_table_study_object_links();
 
 		}
