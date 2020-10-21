@@ -104,15 +104,16 @@ namespace DataAggregator
 			// TO DO - very rare at the momentt
         }
 
-
 		public void UpdateAllObjectIdsTable(int source_id)
 		{
 			using (var conn = new NpgsqlConnection(connString))
 			{
 				// Add the new object id records to the all Ids table
-				// The assumption here is that within each source the data object sd_oid is unique,
-				// (because they are each linked to different studies) which means 
-				// that the link is also unique.
+				// For study based data, the assumption here is that within each source 
+				// the data object sd_oid is unique, (because they are each linked to different studies) 
+				// which means that the link is also unique.
+				// BUT FOR PUBMED and other data object based data this is not true
+				// therefore need to do the ResetIdsOfDuplicatedPMIDs later
 
 				string sql_string = @"INSERT INTO nk.all_ids_data_objects
                              (source_id, sd_oid, parent_study_source_id, parent_study_sd_sid,
@@ -133,65 +134,6 @@ namespace DataAggregator
 							and object_id is null;";
 				conn.Execute(sql_string);
 
-			}
-		}
-
-
-		public void InputPreferredSDSIDS()
-		{
-			using (var conn = new NpgsqlConnection(connString))
-			{
-				// replace any LHS ad_sids with the 'preferred' RHS
-
-				string sql_string = @"UPDATE nk.temp_object_ids b
-                               SET parent_study_sd_sid = preferred_sd_sid
-                               FROM nk.study_study_links k
-                               WHERE b.parent_study_sd_sid = k.sd_sid;";
-				conn.Execute(sql_string);
-
-				// That may have produced some duplicates - if so get rid of them
-
-				sql_string = @"DROP TABLE IF EXISTS nk.temp_object_ids2;
-                           CREATE TABLE nk.temp_object_ids2 
-                           as SELECT distinct * FROM nk.temp_object_ids";
-				conn.Execute(sql_string);
-
-				sql_string = @"DROP TABLE IF EXISTS nk.temp_object_ids;
-				ALTER TABLE nk.temp_object_ids2 RENAME TO temp_object_ids;";
-				conn.Execute(sql_string);
-
-				// May be a few bl;ank pmids slip through...
-
-				sql_string = @"delete from nk.temp_object_ids
-                    where sd_oid is null or sd_oid = '';";
-				conn.Execute(sql_string);
-			}
-		}
-
-
-		public void ResetIdsOfDuplicatedPMIDs(int source_id)
-		{
-			using (var conn = new NpgsqlConnection(connString))
-			{
-				// Find the minimum object_id for each PMID in the table
-
-				string sql_string = @"DROP TABLE IF EXISTS nk.temp_min_object_ids;
-                                     CREATE TABLE nk.temp_min_object_ids as
-                                     SELECT sd_oid, Min(id) as min_id
-                                     FROM nk.all_ids_data_objects
-								     WHERE source_id = " + source_id.ToString() + @"
-                                     GROUP BY sd_oid;";
-				conn.Execute(sql_string);
-
-				sql_string = @"UPDATE nk.all_ids_data_objects b
-                               SET object_id = min_id
-                               FROM nk.temp_min_object_ids m
-                               WHERE b.sd_oid = m.sd_oid
-                               and source_id = " + source_id.ToString();
-				conn.Execute(sql_string);
-
-				sql_string = @"DROP TABLE nk.temp_min_object_ids;";
-				conn.Execute(sql_string);
 			}
 		}
 

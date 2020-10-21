@@ -83,18 +83,19 @@ namespace DataAggregator
 
 		public IEnumerable<PMIDLink> FetchBankPMIDs()
 		{
-			using (var conn = new NpgsqlConnection(pubmed_connString))
+			using (var conn = new NpgsqlConnection(connString))
 			{
 				string sql_string = @"select 
                         100135 as source_id, 
                         d.id as parent_study_source_id, 
                         k.sd_oid, k.id_in_db as parent_study_sd_sid, 
                         a.datetime_of_data_fetch
-                        from ad.object_db_links k
-                        inner join ad.data_objects a 
+                        from pubmed_ad.object_db_links k
+                        inner join pubmed_ad.data_objects a 
                         on k.sd_oid = a.sd_oid
                         inner join context_ctx.nlm_databanks d
-                        on k.db_name = d.nlm_abbrev";
+                        on k.db_name = d.nlm_abbrev
+                        where bank_type <> 'databank'";
 				return conn.Query<PMIDLink>(sql_string);
 			}
 		}
@@ -135,7 +136,17 @@ namespace DataAggregator
 		{
 			using (var conn = new NpgsqlConnection(connString))
 			{
-				string sql_string = @"INSERT INTO nk.distinct_pmids(
+				// First ensure that any PMIDs (sd_oids) are in the same format
+				// Some have a 'tail' of spaces after them, as the standard 
+				// length of a sd_oid is 24 characters.
+				
+				string sql_string = @"UPDATE nk.temp_pmids
+                         SET sd_oid = trim(sd_oid);";
+				conn.Execute(sql_string);
+
+				// Then transfer the distinct data
+
+				sql_string = @"INSERT INTO nk.distinct_pmids(
 						 source_id, sd_oid, parent_study_source_id, 
 				         parent_study_sd_sid)
                          SELECT distinct 
@@ -144,7 +155,8 @@ namespace DataAggregator
                          FROM nk.temp_pmids;";
 				conn.Execute(sql_string);
 
-				// update with latest datetime_of_data_fetch
+				// Update with latest datetime_of_data_fetch
+
 				sql_string = @"UPDATE nk.distinct_pmids dp
                          set datetime_of_data_fetch = mx.max_fetch_date
                          FROM 
@@ -376,6 +388,7 @@ namespace DataAggregator
 			}
 		}
 
+
 		public void CleanPMIDsdsidData4()
 		{
 			string sql_string = "";
@@ -466,6 +479,106 @@ namespace DataAggregator
 				         parent_study_sd_sid, datetime_of_data_fetch
                          FROM nk.distinct_pmids";
 				conn.Execute(sql_string);
+			}
+		}
+
+
+		public void InputPreferredSDSIDS()
+		{
+			using (var conn = new NpgsqlConnection(connString))
+			{
+				// replace any LHS sd_sids with the 'preferred' RHS
+
+				string sql_string = @"UPDATE nk.temp_object_ids b
+                               SET parent_study_sd_sid = preferred_sd_sid,
+                               parent_study_source_id = preferred_source_id
+                               FROM nk.study_study_links k
+                               WHERE b.parent_study_sd_sid = k.sd_sid
+                               and b.parent_study_source_id = k.source_id ;";
+				conn.Execute(sql_string);
+
+				// That may have produced some duplicates - if so get rid of them
+				// needs to be done indirectly because of the need to get the maximum
+				// datetime_of_data_fetch for each duplciated object
+
+				sql_string = @"DROP TABLE IF EXISTS nk.temp_object_ids2;
+				CREATE TABLE IF NOT EXISTS nk.temp_object_ids2(
+				  object_id                INT
+				, source_id                INT
+				, sd_oid                   VARCHAR
+				, parent_study_source_id   INT
+				, parent_study_sd_sid      VARCHAR
+				, parent_study_id          INT
+				, is_preferred_study       BOOLEAN  default true
+				, datetime_of_data_fetch   TIMESTAMPTZ
+				); ";
+				conn.Execute(sql_string);
+
+				sql_string = @"INSERT INTO nk.temp_object_ids2(
+						 source_id, sd_oid, parent_study_source_id, 
+				         parent_study_sd_sid, parent_study_id)
+                         SELECT distinct 
+                         source_id, sd_oid, parent_study_source_id, 
+				         parent_study_sd_sid, parent_study_id
+                         FROM nk.temp_object_ids;";
+				conn.Execute(sql_string);
+
+				// update with latest datetime_of_data_fetch
+				// for each distinct study - data object link 
+
+				sql_string = @"UPDATE nk.temp_object_ids2 to2
+                         set datetime_of_data_fetch = mx.max_fetch_date
+                         FROM 
+                         ( select sd_oid, parent_study_sd_sid,
+                           max(datetime_of_data_fetch) as max_fetch_date
+                           FROM nk.temp_object_ids
+                           group by sd_oid, parent_study_sd_sid ) mx
+                         WHERE to2.sd_oid = mx.sd_oid
+                         and to2.parent_study_sd_sid = mx.parent_study_sd_sid;";
+				conn.Execute(sql_string);
+
+				sql_string = @"DROP TABLE IF EXISTS nk.temp_object_ids;
+				ALTER TABLE nk.temp_object_ids2 RENAME TO temp_object_ids;";
+				conn.Execute(sql_string);
+
+				// Maybe a few blank pmids slip through...
+
+				sql_string = @"delete from nk.temp_object_ids
+                    where sd_oid is null or sd_oid = '';";
+				conn.Execute(sql_string);
+			}
+		}
+
+
+		public void ResetIdsOfDuplicatedPMIDs()
+		{
+			using (var conn = new NpgsqlConnection(connString))
+			{
+				// Find the minimum object_id for each PMID in the table
+				// source id for PubMed = 100135
+
+				string sql_string = @"DROP TABLE IF EXISTS nk.temp_min_object_ids;
+                                     CREATE TABLE nk.temp_min_object_ids as
+                                     SELECT sd_oid, Min(id) as min_id
+                                     FROM nk.all_ids_data_objects
+								     WHERE source_id = 100135
+                                     GROUP BY sd_oid;";
+				conn.Execute(sql_string);
+
+				sql_string = @"UPDATE nk.all_ids_data_objects b
+                               SET object_id = min_id
+                               FROM nk.temp_min_object_ids m
+                               WHERE b.sd_oid = m.sd_oid
+                               and source_id = 100135;";
+				conn.Execute(sql_string);
+
+				sql_string = @"DROP TABLE nk.temp_min_object_ids;";
+				conn.Execute(sql_string);
+
+				// ???? May be (yet) more duplicates have appeared, where a 
+				// study - pmid link has been generated in more than one way
+				// (Links of the same paper to different studies are not uncommon)
+
 			}
 		}
 

@@ -98,7 +98,6 @@ namespace DataAggregator
 
             ob_tr.FillObjectsToAddTable(source.id);
             StringHelpers.SendFeedback("Object Ids processed");
-
         }
 
 
@@ -161,20 +160,19 @@ namespace DataAggregator
 
                 // Use study-study link table to get preferred sd_sid
                 // then drop any resulting duplicates from study-pmid table
-                ob_tr.InputPreferredSDSIDS();
+                pm_tr.InputPreferredSDSIDS();
 
                 // add in study-pmid links to all_ids_objects
                 ob_tr.UpdateAllObjectIdsTable(source.id);
                 StringHelpers.SendFeedback("PMID Ids added to table");
 
                 // use min of ids to set all object ids the same for the same pmid
-                ob_tr.ResetIdsOfDuplicatedPMIDs(source.id);
+                pm_tr.ResetIdsOfDuplicatedPMIDs();
                 StringHelpers.SendFeedback("PMID Ids deduplicatedd");
 
                 // make new table of distinct pmids to add                 
                 ob_tr.FillObjectsToAddTable(source.id);
                 StringHelpers.SendFeedback("PMID Ids processed");
-
             }
         }
 

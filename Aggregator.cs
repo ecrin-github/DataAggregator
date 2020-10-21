@@ -76,6 +76,7 @@ namespace DataAggregator
 				// Loop through the study sources (in preference order)
 				// In each case establish and then drop the source tables 
 				// in a foreign table wrapper
+
 				foreach (Source s in sources)
 				{
 					string schema_name = repo.SetUpTempFTW(s.database_name);
@@ -111,14 +112,14 @@ namespace DataAggregator
 			{
 				// create core tables
 				SchemaBuilder sb = new SchemaBuilder(repo.ConnString);
-				//sb.DeleteCoreTables();
-				//sb.BuildNewCoreTables();
+				sb.DeleteCoreTables();
+				sb.BuildNewCoreTables();
 
 				// transfer data to core tables
 				DataTransferBuilder tb = new DataTransferBuilder();
-				//tb.TransferCoreStudyData();
-				//tb.TransferCoreObjectData();
-				//tb.TransferCoreLinkData();
+				tb.TransferCoreStudyData();
+				tb.TransferCoreObjectData();
+				tb.TransferCoreLinkData();
 
 				// Include generation of data provenance strings
 				// Need an additional temporary FTW link to mon
