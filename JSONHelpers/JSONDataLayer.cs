@@ -5,12 +5,14 @@ using Microsoft.Extensions.Configuration;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text;
+using Dapper.Contrib.Extensions;
 
 namespace DataAggregator
 {
 	public class JSONDataLayer
 	{
 		private string connString;
+        private string folder_base;
 
         // These strings are used as the base of each query.
         // They are constructed once in the class constructor,
@@ -48,12 +50,14 @@ namespace DataAggregator
             ConstructStudyQueryStrings();
             ConstructObjectQueryStrings();
 
+            folder_base = settings["folder_base"];
+
         }
 
 		public string ConnString => connString;
+        public string FolderBase => folder_base;
 
-
-		public int ExecuteSQL(string sql_string)
+        public int ExecuteSQL(string sql_string)
         {
             using (var conn = new NpgsqlConnection(connString))
             {
@@ -359,60 +363,66 @@ namespace DataAggregator
         }
 
 
-        public DBStudyIdentifier FetchDbStudyIdentifiers(int id)
+        public IEnumerable<DBStudyIdentifier> FetchDbStudyIdentifiers(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
             {
                 string sql_string = study_identifier_query_string + id.ToString();
-                return Conn.QueryFirstOrDefault<DBStudyIdentifier>(sql_string);
+                return Conn.Query<DBStudyIdentifier>(sql_string);
             }
         }
 
-        public DBStudyTitle FetchDbStudyTitles(int id)
+
+        public IEnumerable<DBStudyTitle> FetchDbStudyTitles(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
             {
                 string sql_string = study_title_query_string + id.ToString();
-                return Conn.QueryFirstOrDefault<DBStudyTitle>(sql_string);
+                return Conn.Query<DBStudyTitle>(sql_string);
             }
         }
 
-        public DBStudyObjectLink FetchDbStudyObjectLinks(int id)
-        {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
-            {
-                string sql_string = study_object_link_query_string + id.ToString();
-                return Conn.QueryFirstOrDefault<DBStudyObjectLink>(sql_string);
-            }
-        }
-
-        public DBStudyRelationship FetchDbStudyRelationships(int id)
-        {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
-            {
-                string sql_string = study_relationship_query_string + id.ToString();
-                return Conn.QueryFirstOrDefault<DBStudyRelationship>(sql_string);
-            }
-        }
-
-        public DBStudyFeature FetchDbStudyFeatures(int id)
+        
+        public IEnumerable<DBStudyFeature> FetchDbStudyFeatures(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
             {
                 string sql_string = study_feature_query_string + id.ToString();
-                return Conn.QueryFirstOrDefault<DBStudyFeature>(sql_string);
+                return Conn.Query<DBStudyFeature>(sql_string);
             }
         }
 
-        public DBStudyTopic FetchDbStudyTopics(int id)
+
+        public IEnumerable<DBStudyTopic> FetchDbStudyTopics(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
             {
                 string sql_string = study_topics_query_string + id.ToString();
-                return Conn.QueryFirstOrDefault<DBStudyTopic>(sql_string);
+                return Conn.Query<DBStudyTopic>(sql_string);
             }
         }
 
+
+        public IEnumerable<DBStudyRelationship> FetchDbStudyRelationships(int id)
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            {
+                string sql_string = study_relationship_query_string + id.ToString();
+                return Conn.Query<DBStudyRelationship>(sql_string);
+            }
+        }
+
+
+        public IEnumerable<DBStudyObjectLink> FetchDbStudyObjectLinks(int id)
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            {
+                string sql_string = study_object_link_query_string + id.ToString();
+                return Conn.Query<DBStudyObjectLink>(sql_string);
+            }
+        }
+
+        
 
         // Fetches the main singleton data object attributes, used during the intiial 
         // construction of a data object by the Processor's CreateObject routine.
@@ -579,6 +589,23 @@ namespace DataAggregator
             }
         }
 
+
+        public void StoreStudyJSON(DBStudyJSON sj)
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            {
+                Conn.Insert<DBStudyJSON>(sj);
+            }
+        }
+
+
+        public void StoreObjectJSON(DBObjectJSON oj)
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            {
+                Conn.Insert<DBObjectJSON>(oj);
+            }
+        }
 
     }
 }

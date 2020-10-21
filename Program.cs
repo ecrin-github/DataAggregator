@@ -24,7 +24,8 @@ namespace DataAggregator
 			// and re-aggregates all the data from scratch.
 			
 			Aggregator ag = new Aggregator();
-			ag.AggregateData(opts.do_statistics, opts.transfer_data, opts.create_core, opts.create_json);
+			ag.AggregateData(opts.do_statistics, opts.transfer_data, opts.create_core, 
+				             opts.create_json, opts.also_do_files);
             return 0;
 		}
 
@@ -46,8 +47,11 @@ namespace DataAggregator
 		[Option('C', "harvest_type_id", Required = false, HelpText = "Indicates that the core tables should be crated and filled from the aggregate tables.")]
 		public bool create_core { get; set; }
 
-		[Option('J', "create json", Required = false, HelpText = "Indicates json fields and files should be constructed from the core table data.")]
+		[Option('J', "create json", Required = false, HelpText = "Indicates json fields should be constructed from the core table data.")]
 		public bool create_json { get; set; }
+
+		[Option('J', "create json files", Required = false, HelpText = "Indicates json files should also be constructed from the core table data. Only has an effect if -J parameter present ")]
+		public bool also_do_files { get; set; }
 
 		[Option('S', "do statistics", Required = false, HelpText = "Summarises record numbbers, of each sort, in different sources and in the summary and core tables")]
 		public bool do_statistics { get; set; }

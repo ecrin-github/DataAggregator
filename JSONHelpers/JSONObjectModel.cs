@@ -6,7 +6,7 @@ using System.Text;
 namespace DataAggregator
 {
 
-    public class DataObject
+    public class JSONDataObject
     {
         public string file_type { get; set; }
         public int id { get; set; }
@@ -19,43 +19,45 @@ namespace DataAggregator
         public lookup managing_organisation { get; set; }
         public string lang_code { get; set; }
         public lookup access_type { get; set; }
-        public access_details access_details { get; set; }
-        public string access_details_url { get; set; }
-        public string url_last_checked { get; set; }
+        public object_access access_details { get; set; }
         public int? eosc_category { get; set; }
-        public string provenance_data { get; set; }
+        public string provenance_string { get; set; }
 
         public record_keys dataset_record_keys { get; set; }
         public deidentification dataset_deident_level { get; set; }
         public consent dataset_consent { get; set; }
 
-        public List<object_identifier> object_identifiers { get; set; }
+        public List<object_instance> object_instances { get; set; }
         public List<object_title> object_titles { get; set; }
         public List<object_contributor> object_contributors { get; set; }
         public List<object_date> object_dates { get; set; }
-        public List<object_description> object_descriptions { get; set; }
-        public List<object_instance> object_instances { get; set; }
         public List<object_topic> object_topics { get; set; }
+        public List<object_description> object_descriptions { get; set; }
+        public List<object_identifier> object_identifiers { get; set; }
         public List<object_right> object_rights { get; set; }
         public List<object_relationship> object_relationships { get; set; }
         public List<int> linked_studies { get; set; }
 
-        public DataObject(int _id, string _doi, string _display_title,
+        public JSONDataObject(int _id, string _doi, string _display_title, string _version,
                     lookup _object_class, lookup _object_type, int? _publication_year,
-                    lookup _managing_organisation, 
-                    lookup _access_type, access_details _access_details)
+                    lookup _managing_organisation, string _lang_code,
+                    lookup _access_type, object_access _access_details,
+                    int? _eosc_category, string _provenance_string)
         {
-            id = _id;
             file_type = "data_object";
+            id = _id;
             doi = _doi;
             display_title = _display_title;
-            version = null;
+            version = _version;
             object_class = _object_class;
             object_type = _object_type;
             publication_year = _publication_year;
             managing_organisation = _managing_organisation;
+            lang_code = _lang_code;
             access_type = _access_type;
             access_details = _access_details;
+            eosc_category = _eosc_category;
+            provenance_string = _provenance_string;
         }
     }
 
@@ -75,13 +77,13 @@ namespace DataAggregator
         }
     }
 
-    public class access_details
+    public class object_access
     {
         public string description { get; set; }
         public string url { get; set; }
         public string url_last_checked { get; set; }
 
-        public access_details(string _description, string _url, string _url_last_checked)
+        public object_access(string _description, string _url, string _url_last_checked)
         {
             description = _description;
             url = _url;
@@ -159,28 +161,61 @@ namespace DataAggregator
     }
 
 
-
-    // Corresponds to the repeating composite object_identifier json element
+    // Corresponds to the repeating composite object_instance json element
     // and is therefore part of the data object class as a List<> 
 
-    public class object_identifier
+    public class object_instance
     {
         public int id { get; set; }
-        public string identifier_value { get; set; }
-        public lookup identifier_type { get; set; }
-        public lookup identifier_org { get; set; }
-        public string identifier_date { get; set; }
+        public lookup repository_org { get; set; }
+        public access_details access_details { get; set; }
+        public resource_details resource_details { get; set; }
 
-        public object_identifier(int _id, lookup _identifier_type, lookup _identifier_org,
-                                    string _identifier_value, string _identifier_date)
+        public object_instance(int _id, lookup _repository_org,
+                        access_details _access_details, resource_details _resource_details)
         {
             id = _id;
-            identifier_type = _identifier_type;
-            identifier_org = _identifier_org;
-            identifier_value = _identifier_value;
-            identifier_date = _identifier_date;
+            repository_org = _repository_org;
+            access_details = _access_details;
+            resource_details = _resource_details;
         }
     }
+
+
+    public class access_details
+    {
+        public bool? direct_access { get; set; }
+        public string url { get; set; }
+        public string url_last_checked { get; set; }
+
+        public access_details(bool? _direct_access, string _url, string _url_last_checked)
+        {
+            direct_access = _direct_access;
+            url = _url;
+            url_last_checked = _url_last_checked;
+        }
+    }
+
+
+    public class resource_details
+    {
+         public int? type_id { get; set; }
+         public string type_name { get; set; }
+         public float? size { get; set; }
+         public string size_unit { get; set; }
+         public string comments { get; set; }
+
+         public resource_details(int? _type_id, string _type_name,
+                float? _size, string _size_unit, string _comments)
+        {
+            type_id = _type_id;
+            type_name = _type_name;
+            size = _size;
+            size_unit = _size_unit;
+            comments = _comments;
+        }
+    }
+
 
 
     // Corresponds to the repeating composite object_title json element
@@ -356,38 +391,43 @@ namespace DataAggregator
         public string description_text { get; set; }
         public string lang_code { get; set; }
         public bool? contains_html { get; set; }
-    }
 
-
-    // Corresponds to the repeating composite object_instance json element
-    // and is therefore part of the data object class as a List<> 
-
-    public class object_instance
-    {
-        public int id { get; set; }
-        public lookup repository_org { get; set; }
-        public string url { get; set; }
-        public bool? url_direct_access { get; set; }
-        public string url_last_checked { get; set; }
-        public lookup resource_type { get; set; }
-        public float? resource_size { get; set; }
-        public string resource_size_units { get; set; }
-
-        public object_instance(int _id, lookup _repository_org, string _url,
-                        bool? _url_direct_access, string _url_last_checked,
-                        lookup _resource_type, float? _resource_size, string _resource_size_units)
+        public object_description(int _id, lookup _description_type,
+                                  string _description_label, string _description_text,
+                                  string _lang_code, bool? _contains_html)
         {
             id = _id;
-            repository_org = _repository_org;
-            url = _url;
-            url_direct_access = _url_direct_access;
-            url_last_checked = _url_last_checked;
-            resource_type = _resource_type;
-            resource_size = _resource_size;
-            resource_size_units = _resource_size_units;
+            description_type = _description_type;
+            description_label = _description_label;
+            description_text = _description_text;
+            lang_code = _lang_code;
+            contains_html = _contains_html;
         }
     }
 
+
+    // Corresponds to the repeating composite object_identifier json element
+    // and is therefore part of the data object class as a List<> 
+
+    public class object_identifier
+    {
+        public int id { get; set; }
+        public string identifier_value { get; set; }
+        public lookup identifier_type { get; set; }
+        public lookup identifier_org { get; set; }
+        public string identifier_date { get; set; }
+
+        public object_identifier(int _id, string _identifier_value, 
+                                 lookup _identifier_type, lookup _identifier_org,
+                                 string _identifier_date)
+        {
+            id = _id;
+            identifier_type = _identifier_type;
+            identifier_org = _identifier_org;
+            identifier_value = _identifier_value;
+            identifier_date = _identifier_date;
+        }
+    }
 
     // Corresponds to the repeating composite object_right json element
     // and is therefore part of the data object class as a List<> 
@@ -398,6 +438,15 @@ namespace DataAggregator
         public string rights_name { get; set; }
         public string rights_uri { get; set; }
         public string comments { get; set; }
+
+        public object_right(int _id, string _rights_name, 
+                            string _rights_uri, string _comments)
+        {
+            id = _id;
+            rights_name = _rights_name;
+            rights_uri = _rights_uri;
+            comments = _comments;
+        }
     }
 
 
@@ -409,6 +458,14 @@ namespace DataAggregator
         public int id { get; set; }
         public lookup relationship_type { get; set; }
         public int target_object_id { get; set; }
+
+        public object_relationship(int _id, lookup _relationship_type,
+                                   int _target_object_id)
+        {
+            id = _id;
+            relationship_type = _relationship_type;
+            target_object_id = _target_object_id;
+        }
     }
 
 
@@ -613,6 +670,20 @@ namespace DataAggregator
         public int id { get; set; }
         public int study_id { get; set; }
         public int object_id { get; set; }
+    }
+
+
+    [Table("core.objects_json")]
+    public class DBObjectJSON
+    {
+        public int id { get; set; }
+        public string json { get; set; }
+
+        public DBObjectJSON(int _id, string _json)
+        {
+            id = _id;
+            json = _json;
+        }
     }
 
 }

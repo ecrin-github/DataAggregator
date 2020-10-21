@@ -17,15 +17,18 @@ namespace DataAggregator
 			agg_event_id = logging_repo.GetNextAggEventId();
 		}
 
-		public void AggregateData(bool do_statistics, bool transfer_data, bool create_core, bool create_json)
+		public void AggregateData(bool do_statistics, bool transfer_data, bool create_core, 
+			                      bool create_json, bool also_do_files)
 		{
 			StringHelpers.SendHeader("Setup");
 			StringHelpers.SendFeedback("transfer data =  " + transfer_data);
 			StringHelpers.SendFeedback("create core =  " + create_core);
 			StringHelpers.SendFeedback("create json =  " + create_json);
+			StringHelpers.SendFeedback("also do json files =  " + also_do_files);
 			StringHelpers.SendFeedback("do statistics =  " + do_statistics);
 
-            DataLayer repo = new DataLayer("mdr");
+
+			DataLayer repo = new DataLayer("mdr");
 			LoggingDataLayer logging_repo = new LoggingDataLayer();
             // set up the context DB as two sets of foreign tables
 			// as it is used in several places
@@ -132,16 +135,12 @@ namespace DataAggregator
 			if (create_json)
 			{
 				string conn_string = logging_repo.FetchConnString("mdr");
-				JSONBuilder JB = new JSONBuilder(conn_string);
-				JB.CreateJSONTables();
+				JSONHelper jh= new JSONHelper(conn_string);
+				jh.CreateJSONTables();
 
 				// Create json fields.
-				JB.CreateJSONStudyData();
-				JB.CreateJSONObjectData();
-
-				// create json files.
-				JB.CreateJSONStudyFiles();
-				JB.CreateJSONObjectFiles();
+				jh.CreateJSONStudyData(also_do_files);
+				jh.CreateJSONObjectData(also_do_files);
 			}
 
 			repo.DropTempContextFTWs();

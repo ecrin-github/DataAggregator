@@ -11,20 +11,20 @@ namespace DataAggregator
         private DBDataObject ob;
         private lookup object_class;
         private lookup object_type;
+        private lookup managing_organisation;
         private lookup access_type;
-        private lookup managing_org;
-        private access_details access;
+        private object_access access_details;
         private record_keys ds_record_keys;
         private deidentification ds_deident_level;
         private consent ds_consent;
        
-        private List<object_identifier> object_identifiers;
+        private List<object_instance> object_instances;
         private List<object_title> object_titles;
         private List<object_contributor> object_contributors;
         private List<object_date> object_dates;
-        private List<object_instance> object_instances;
         private List<object_topic> object_topics;
         private List<object_description> object_descriptions;
+        private List<object_identifier> object_identifiers;
         private List<object_right> object_rights;
         private List<object_relationship> object_relationships;
         private List<int> linked_studies;
@@ -34,15 +34,15 @@ namespace DataAggregator
             repo = _repo;
         }
 
-        public DataObject CreateObject(int id)
+        public JSONDataObject CreateObject(int id)
         {
             // Re-initialise these compound properties.
 
             object_class = null;
             object_type = null;
             access_type = null;
-            managing_org = null;
-            access = null;
+            managing_organisation = null;
+            access_details = null;
             ds_record_keys = null;
             ds_deident_level = null;
             ds_consent = null;
@@ -62,12 +62,6 @@ namespace DataAggregator
 
             ob = repo.FetchDbDataObject(id);
 
-            if (ob == null)
-            {
-                // Odd problem - should not occur but just in case...
-                return null;
-            }
-
             // First check there is at least one linked study
             // (several hundred of the journal articles are not linked).
 
@@ -75,8 +69,9 @@ namespace DataAggregator
             if (linked_studies.Count == 0)
             {
                 // May occur in a few hundred cases, therefore
-                // need to investigate further !!!!!!!
+                // if it does need to investigate further !!!!!!!
                 // Possible (minor) error in data object linkage with journal articles.
+                StringHelpers.SendError("object " + ob.id + " does not appear to be linked to studies");
                 return null;
             }
 
@@ -84,15 +79,15 @@ namespace DataAggregator
 
             object_class = new lookup(ob.object_class_id, ob.object_class);
             object_type = new lookup(ob.object_type_id, ob.object_type);
+            managing_organisation = new lookup(ob.managing_org_id, ob.managing_org);
             access_type = new lookup(ob.access_type_id, ob.access_type);
-            managing_org = new lookup(ob.managing_org_id, ob.managing_org);
-            access = new access_details(ob.access_details, ob.access_details_url, ob.url_last_checked);
+            access_details = new object_access(ob.access_details, ob.access_details_url, ob.url_last_checked);
 
             // Instantiate data object with those details
 
-            DataObject dobj = new DataObject(ob.id, ob.doi, ob.display_title,
-                                object_class, object_type, ob.publication_year, managing_org, access_type,
-                                access);
+            JSONDataObject dobj = new JSONDataObject(ob.id, ob.doi, ob.display_title, ob.version, object_class,
+                                  object_type, ob.publication_year, managing_organisation, ob.lang_code,
+                                  access_type, access_details, ob.eosc_category, ob.provenance_string);
 
 
             // Get dataset properties, if there are any...
@@ -107,18 +102,25 @@ namespace DataAggregator
                 ds_consent = new consent(db_ds.consent_type_id, db_ds.consent_type, db_ds.consent_noncommercial,
                                              db_ds.consent_geog_restrict, db_ds.consent_research_type, db_ds.consent_genetic_only,
                                              db_ds.consent_no_methods, db_ds.consent_details);
+
+                dobj.dataset_record_keys = ds_record_keys;
+                dobj.dataset_deident_level = ds_deident_level;
+                dobj.dataset_consent = ds_consent;
             }
 
-            // Get object identifiers.
 
-            var db_object_identifiers = new List<DBObjectIdentifier>(repo.FetchObjectIdentifiers(id));
-            if (db_object_identifiers.Count > 0)
+            // Get object instances.
+
+            var db_object_instances = new List<DBObjectInstance>(repo.FetchObjectInstances(id));
+            if (db_object_instances.Count > 0)
             {
-                object_identifiers = new List<object_identifier>();
-                foreach (DBObjectIdentifier i in db_object_identifiers)
+                object_instances = new List<object_instance>();
+                foreach (DBObjectInstance i in db_object_instances)
                 {
-                    object_identifiers.Add(new object_identifier(i.id, new lookup(i.identifier_type_id, i.identifier_type),
-                                          new lookup(i.identifier_org_id, i.identifier_org), i.identifier_value, i.identifier_date));
+                    object_instances.Add(new object_instance(i.id, new lookup(i.repository_org_id, i.repository_org),
+                                                            new access_details(i.url_accessible, i.url, i.url_last_checked),
+                                                            new resource_details(i.resource_type_id, i.resource_type, 
+                                                                i.resource_size, i.resource_size_units, i.comments)));
                 }
             }
 
@@ -163,7 +165,6 @@ namespace DataAggregator
 
 
             // Get object contributors - 
-            // source will depend on boolean flag, itself dependent on the type of object.
 
             var db_object_contributors = new List<DBObjectContributor>(repo.FetchObjectContributors(id,  ob.add_study_contribs));
             if (db_object_contributors.Count > 0)
@@ -205,18 +206,58 @@ namespace DataAggregator
             }
 
 
-            // Get object instances.
+            // Get object identifiers.
 
-            var db_object_instances = new List<DBObjectInstance>(repo.FetchObjectInstances(id));
-            if (db_object_instances.Count > 0)
+            var db_object_identifiers = new List<DBObjectIdentifier>(repo.FetchObjectIdentifiers(id));
+            if (db_object_identifiers.Count > 0)
             {
-                object_instances = new List<object_instance>();
-                foreach (DBObjectInstance i in db_object_instances)
+                object_identifiers = new List<object_identifier>();
+                foreach (DBObjectIdentifier i in db_object_identifiers)
                 {
-                    object_instances.Add(new object_instance(i.id, new lookup(i.repository_org_id, i.repository_org),
-                                                            i.url, i.url_accessible, i.url_last_checked,
-                                                            new lookup(i.resource_type_id, i.resource_type),
-                                                            i.resource_size, i.resource_size_units));
+                    object_identifiers.Add(new object_identifier(i.id, i.identifier_value, 
+                                          new lookup(i.identifier_type_id, i.identifier_type),
+                                          new lookup(i.identifier_org_id, i.identifier_org), i.identifier_date));
+                }
+            }
+
+
+            // Get object descriptions.
+
+            var db_object_descriptions = new List<DBObjectDescription>(repo.FetchObjectDescriptions(id));
+            if (db_object_descriptions.Count > 0)
+            {
+                object_descriptions = new List<object_description>();
+                foreach (DBObjectDescription i in db_object_descriptions)
+                {
+                    object_descriptions.Add(new object_description(i.id, new lookup(i.description_type_id, i.description_type),
+                                         i.label, i.description_text, i.lang_code, i.contains_html));
+                }
+            }
+
+
+            // Get object rights.
+
+            var db_object_rights = new List<DBObjectRight>(repo.FetchObjectRights(id));
+            if (db_object_rights.Count > 0)
+            {
+                object_rights = new List<object_right>();
+                foreach (DBObjectRight i in db_object_rights)
+                {
+                    object_rights.Add(new object_right(i.id, i.rights_name, i.rights_uri, i.comments));
+                }
+            }
+
+
+            // Get object relationships.
+
+            var db_object_relationships = new List<DBObjectRelationship>(repo.FetchObjectRelationships(id));
+            if (db_object_relationships.Count > 0)
+            {
+                object_relationships = new List<object_relationship>();
+                foreach (DBObjectRelationship i in db_object_relationships)
+                {
+                    object_relationships.Add(new object_relationship(i.id, new lookup(i.relationship_type_id, i.relationship_type),
+                                                                     i.target_object_id));
                 }
             }
 

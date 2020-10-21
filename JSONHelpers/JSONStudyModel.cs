@@ -20,18 +20,45 @@ namespace DataAggregator
         public age_param max_age { get; set; }
         public string provenance_string { get; set; }
 
-        public List<study_identifier> identifiers { get; set; }
-        public List<study_title> titles { get; set; }
-        public List<study_topic> topics { get; set; }
-        public List<study_feature> features { get; set; }
-        public List<study_relationship> relationships { get; set; }
-        public List<int> linked_objects { get; set; }
+        public List<study_identifier> study_identifiers { get; set; }
+        public List<study_title> study_titles { get; set; }
+        public List<study_topic> study_topics { get; set; }
+        public List<study_feature> study_features { get; set; }
+        public List<study_relationship> study_relationships { get; set; }
+        public List<int> linked_data_objects { get; set; }
+
+        public JSONStudy(int _id, string _display_title, 
+                         text_block _brief_description, text_block _data_sharing_statement,
+                         lookup _study_type, lookup _study_status, int? _study_enrolment,
+                         lookup _study_gender_elig, age_param _min_age, age_param _max_age,
+                         string _provenance_string)
+        {
+            file_type = "study";
+            id = _id;
+            display_title = _display_title;
+            brief_description = _brief_description;
+            data_sharing_statement = _data_sharing_statement;
+            study_type = _study_type;
+            study_status = _study_status;
+            study_enrolment = _study_enrolment;
+            study_gender_elig = _study_gender_elig;
+            min_age = _min_age;
+            max_age = _max_age;
+            provenance_string = _provenance_string;
+    }
+
     }
 
     public class text_block
     {
-        public string text{ get; set; }
+        public string text { get; set; }
         public bool? contains_html { get; set; }
+
+        public text_block(string _text, bool? _contains_html)
+        {
+            text = _text;
+            contains_html = _contains_html;
+        }
     }
 
     public class age_param
@@ -56,6 +83,18 @@ namespace DataAggregator
         public lookup identifier_org { get; set; }
         public string identifier_date { get; set; }
         public string identifier_link { get; set; }
+
+        public study_identifier(int _id, string _identifier_value,
+                           lookup _identifier_type, lookup _identifier_org,
+                           string _identifier_date, string _identifier_link)
+        {
+            id = _id;
+            identifier_value = _identifier_value;
+            identifier_type = _identifier_type;
+            identifier_org = _identifier_org;
+            identifier_date = _identifier_date;
+            identifier_link = _identifier_link;
+        }
     }
 
     public class study_title
@@ -65,8 +104,19 @@ namespace DataAggregator
         public string title_text { get; set; }
         public string lang_code { get; set; }
         public string comments { get; set; }
-   
+
+        public study_title(int _id, lookup _title_type,
+                           string _title_text, string _lang_code,
+                           string _comments)
+        {
+            id = _id;
+            title_type = _title_type;
+            title_text = _title_text;
+            lang_code = _lang_code;
+            comments = _comments;
+        }
     }
+
 
     public class study_topic
     {
@@ -78,6 +128,21 @@ namespace DataAggregator
         public string topic_qualcode { get; set; }
         public string topic_qualvalue { get; set; }
         public string original_value { get; set; }
+
+        public study_topic(int _id, lookup _topic_type,
+                             bool _mesh_coded, string _topic_code,
+                             string _topic_value, string _topic_qualcode,
+                             string _topic_qualvalue, string _original_value)
+        {
+            id = _id;
+            topic_type = _topic_type;
+            mesh_coded = _mesh_coded;
+            topic_code = _topic_code;
+            topic_value = _topic_value;
+            topic_qualcode = _topic_qualcode;
+            topic_qualvalue = _topic_qualvalue;
+            original_value = _original_value;
+        }
     }
 
     public class study_feature
@@ -85,6 +150,14 @@ namespace DataAggregator
         public int id { get; set; }
         public lookup feature_type { get; set; }
         public lookup feature_value { get; set; }
+
+        public study_feature(int _id, lookup _feature_type,
+                                  lookup _feature_value)
+        {
+            id = _id;
+            feature_type = _feature_type;
+            feature_value = _feature_value;
+        }
     }
 
     public class study_relationship
@@ -92,6 +165,21 @@ namespace DataAggregator
         public int id { get; set; }
         public lookup relationship_type { get; set; }
         public int target_study_id { get; set; }
+
+        public study_relationship(int _id, lookup _relationship_type,
+                                  int _target_study_id)
+        {
+            id = _id;
+            relationship_type = _relationship_type;
+            target_study_id = _target_study_id;
+        }
+    }
+
+    public class study_object_link
+    {
+        public int id { get; set; }
+        public int study_id { get; set; }
+        public int object_id { get; set; }
     }
 
 
@@ -193,5 +281,17 @@ namespace DataAggregator
     }
 
 
+    [Table("core.studies_json")]
+    public class DBStudyJSON
+    {
+        public int id { get; set; }
+        public string json { get; set; }
+
+        public DBStudyJSON(int _id, string _json)
+        {
+            id = _id;
+            json = _json;
+        }
+    }
 
 }
