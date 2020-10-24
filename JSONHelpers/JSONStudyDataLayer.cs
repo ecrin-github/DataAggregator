@@ -1,12 +1,9 @@
 ﻿using Dapper;
-using Npgsql;
-using System;
 using Microsoft.Extensions.Configuration;
-using System.Linq;
-using System.Collections.Generic;
-using System.Text;
-using Dapper.Contrib.Extensions;
+using Npgsql;
 using NpgsqlTypes;
+using System;
+using System.Collections.Generic;
 
 namespace DataAggregator
 {

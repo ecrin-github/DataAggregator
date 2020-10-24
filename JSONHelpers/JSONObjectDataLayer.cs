@@ -1,18 +1,15 @@
 ﻿using Dapper;
-using Npgsql;
-using System;
 using Microsoft.Extensions.Configuration;
-using System.Linq;
-using System.Collections.Generic;
-using System.Text;
-using Dapper.Contrib.Extensions;
+using Npgsql;
 using NpgsqlTypes;
+using System;
+using System.Collections.Generic;
 
 namespace DataAggregator
 {
-	public class JSONObjectDataLayer
-	{
-		private string connString;
+    public class JSONObjectDataLayer
+    {
+        private string connString;
         private string object_json_folder;
 
         // These strings are used as the base of each query.
@@ -30,25 +27,25 @@ namespace DataAggregator
         private string object_rights_query_string;
 
         public JSONObjectDataLayer()
-		{
-				IConfigurationRoot settings = new ConfigurationBuilder()
-				.SetBasePath(AppContext.BaseDirectory)
-				.AddJsonFile("appsettings.json")
-				.Build();
+        {
+                IConfigurationRoot settings = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
 
-			NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder();
-			builder.Host = settings["host"];
-			builder.Username = settings["user"];
-			builder.Password = settings["password"];
-			builder.Database = "mdr";
+            NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder();
+            builder.Host = settings["host"];
+            builder.Username = settings["user"];
+            builder.Password = settings["password"];
+            builder.Database = "mdr";
 
-			connString = builder.ConnectionString;
+            connString = builder.ConnectionString;
 
             ConstructObjectQueryStrings();
             object_json_folder = settings["object json folder"];
         }
 
-		public string ConnString => connString;
+        public string ConnString => connString;
         public string ObjectJsonFolder => object_json_folder;
 
         public int ExecuteSQL(string sql_string)

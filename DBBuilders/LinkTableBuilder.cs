@@ -4,23 +4,23 @@ using Npgsql;
 
 namespace DataAggregator
 {
-	public class LinkTableBuilder
-	{
-		string db_conn;
+    public class LinkTableBuilder
+    {
+        string db_conn;
 
-		public LinkTableBuilder(string _db_conn)
-		{
-			db_conn = _db_conn;
-		}
+        public LinkTableBuilder(string _db_conn)
+        {
+            db_conn = _db_conn;
+        }
 
-		public void drop_table(string table_name)
-		{
-			string sql_string = @"DROP TABLE IF EXISTS nk." + table_name;
-			using (var conn = new NpgsqlConnection(db_conn))
-			{
-				conn.Execute(sql_string);
-			}
-		}
+        public void drop_table(string table_name)
+        {
+            string sql_string = @"DROP TABLE IF EXISTS nk." + table_name;
+            using (var conn = new NpgsqlConnection(db_conn))
+            {
+                conn.Execute(sql_string);
+            }
+        }
 
 
         public void create_table_all_ids_studies()
