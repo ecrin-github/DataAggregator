@@ -25,7 +25,7 @@ namespace DataAggregator
 			
 			Aggregator ag = new Aggregator();
 			ag.AggregateData(opts.do_statistics, opts.transfer_data, opts.create_core, 
-				             opts.create_json, opts.also_do_files);
+				             opts.create_json, opts.also_do_files, opts.create_zip_files);
             return 0;
 		}
 
@@ -50,12 +50,14 @@ namespace DataAggregator
 		[Option('J', "create json", Required = false, HelpText = "Indicates json fields should be constructed from the core table data.")]
 		public bool create_json { get; set; }
 
-		[Option('J', "create json files", Required = false, HelpText = "Indicates json files should also be constructed from the core table data. Only has an effect if -J parameter present ")]
+		[Option('F', "create json files", Required = false, HelpText = "Indicates json files should also be constructed from the core table data. Only has an effect if -J parameter present ")]
 		public bool also_do_files { get; set; }
 
-		[Option('S', "do statistics", Required = false, HelpText = "Summarises record numbbers, of each sort, in different sources and in the summary and core tables")]
+		[Option('S', "do statistics", Required = false, HelpText = "Summarises record numbers, of each sort, in different sources and in the summary and core tables")]
 		public bool do_statistics { get; set; }
 
+		[Option('Z', "create zips", Required = false, HelpText = "Zips folders into zipped files, for ease of transfer")]
+		public bool create_zip_files { get; set; }
 	}
 
 }

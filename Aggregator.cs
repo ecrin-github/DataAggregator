@@ -18,7 +18,7 @@ namespace DataAggregator
 		}
 
 		public void AggregateData(bool do_statistics, bool transfer_data, bool create_core, 
-			                      bool create_json, bool also_do_files)
+			                      bool create_json, bool also_do_files, bool create_zip_files)
 		{
 			StringHelpers.SendHeader("Setup");
 			StringHelpers.SendFeedback("transfer data =  " + transfer_data);
@@ -26,7 +26,7 @@ namespace DataAggregator
 			StringHelpers.SendFeedback("create json =  " + create_json);
 			StringHelpers.SendFeedback("also do json files =  " + also_do_files);
 			StringHelpers.SendFeedback("do statistics =  " + do_statistics);
-
+			StringHelpers.SendFeedback("create zip files =  " + create_zip_files);
 
 			DataLayer repo = new DataLayer("mdr");
 			LoggingDataLayer logging_repo = new LoggingDataLayer();
@@ -136,12 +136,32 @@ namespace DataAggregator
 			{
 				string conn_string = logging_repo.FetchConnString("mdr");
 				JSONHelper jh= new JSONHelper(conn_string);
-				jh.CreateJSONTables();
 
 				// Create json fields.
+				// if tables are to be left as they are, add false as 
+				// an additional boolean (default = true)
+				// if tables are to have further data appended add an integer
+				// offset that represents the records to skip (default = 0)
+
 				jh.CreateJSONStudyData(also_do_files);
 				jh.CreateJSONObjectData(also_do_files);
+
+				// if data is to be updated and / or inserted
+				// use these routines instead 
+				// If the update process is to start from a particular
+				// value add an integer offset that represents the
+				// records to skip (default = 0)
+
+				jh.UpdateJSONStudyData(also_do_files);
+				jh.UpdateJSONObjectData(also_do_files);
 			}
+
+			if (create_zip_files)
+            {
+				ZipHelper zh = new ZipHelper();
+				//zh.ZipStudyFiles();
+				zh.ZipObjectFiles();
+            }
 
 			repo.DropTempContextFTWs();
 		}

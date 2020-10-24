@@ -6,7 +6,7 @@ namespace DataAggregator
 {
     public class JSONStudyProcessor
     {
-        JSONDataLayer repo;
+        JSONStudyDataLayer repo;
 
         private DBStudy st;
         private text_block brief_description;
@@ -24,7 +24,7 @@ namespace DataAggregator
         private List<study_relationship> study_relationships;
         private List<int> linked_data_objects;
 
-        public JSONStudyProcessor(JSONDataLayer _repo)
+        public JSONStudyProcessor(JSONStudyDataLayer _repo)
         {
             repo = _repo;
         }
@@ -52,18 +52,39 @@ namespace DataAggregator
             var s = repo.FetchDbStudy(id);
 
             // Instantiate the top level lookup types
-            brief_description = new text_block(s.brief_description, s.bd_contains_html);
-            data_sharing_statement = new text_block(s.data_sharing_statement, s.dss_contains_html);
-            study_type = new lookup(s.study_type_id, s.study_type);
-            study_status = new lookup(s.study_status_id, s.study_status);
-            study_gender_elig = new lookup(s.study_gender_elig_id, s.study_gender_elig);
-            min_age = new age_param(s.min_age, s.min_age_units_id, s.min_age_units);
-            max_age = new age_param(s.max_age, s.max_age_units_id, s.max_age_units);
+            if (s.brief_description != null)
+            {
+                brief_description = new text_block(s.brief_description, s.bd_contains_html);
+            }
+            if (s.data_sharing_statement != null)
+            {
+                data_sharing_statement = new text_block(s.data_sharing_statement, s.dss_contains_html);
+            }
+            if (s.study_type_id != null)
+            {
+                study_type = new lookup(s.study_type_id, s.study_type);
+            }
+            if (s.study_status_id != null)
+            {
+                study_status = new lookup(s.study_status_id, s.study_status);
+            }
+            if (s.study_gender_elig_id != null)
+            {
+                study_gender_elig = new lookup(s.study_gender_elig_id, s.study_gender_elig);
+            }
+            if (s.min_age != null)
+            {
+                min_age = new age_param(s.min_age, s.min_age_units_id, s.min_age_units);
+            }
+            if (s.max_age != null)
+            {
+                max_age = new age_param(s.max_age, s.max_age_units_id, s.max_age_units);
+            }
 
             // instantiate a (json) study object and
             // fill it with study level details
 
-            JSONStudy jst = new JSONStudy(s.id, s.display_title, brief_description, 
+            JSONStudy jst = new JSONStudy(s.id, s.display_title, brief_description,
                          data_sharing_statement, study_type, study_status, s.study_enrolment,
                          study_gender_elig, min_age, max_age, s.provenance_string);
 
@@ -75,9 +96,9 @@ namespace DataAggregator
                 study_identifiers = new List<study_identifier>();
                 foreach (DBStudyIdentifier t in db_study_identifiers)
                 {
-                    study_identifiers.Add(new study_identifier(t.id, t.identifier_value, 
+                    study_identifiers.Add(new study_identifier(t.id, t.identifier_value,
                                           new lookup(t.identifier_type_id, t.identifier_type),
-                                          new lookup(t.identifier_org_id, t.identifier_org), 
+                                          new lookup(t.identifier_org_id, t.identifier_org),
                                           t.identifier_date, t.identifier_link));
                 }
             }
@@ -117,8 +138,8 @@ namespace DataAggregator
                 study_topics = new List<study_topic>();
                 foreach (DBStudyTopic t in db_study_topics)
                 {
-                    study_topics.Add(new study_topic(t.id, new lookup(t.topic_type_id, t.topic_type), 
-                                         t.mesh_coded, t.topic_code, t.topic_value, t.topic_qualcode, 
+                    study_topics.Add(new study_topic(t.id, new lookup(t.topic_type_id, t.topic_type),
+                                         t.mesh_coded, t.topic_code, t.topic_value, t.topic_qualcode,
                                          t.topic_qualvalue, t.original_value));
                 }
             }
@@ -131,8 +152,8 @@ namespace DataAggregator
                 study_relationships = new List<study_relationship>();
                 foreach (DBStudyRelationship t in db_study_relationships)
                 {
-                    study_relationships.Add(new study_relationship(t.id, 
-                                            new lookup(t.relationship_type_id, t.relationship_type), 
+                    study_relationships.Add(new study_relationship(t.id,
+                                            new lookup(t.relationship_type_id, t.relationship_type),
                                             t.target_study_id));
                 }
             }
@@ -161,5 +182,10 @@ namespace DataAggregator
             return jst;
         }
 
+
+        public void StoreJSONStudyInDB(int id, string study_json)
+        {
+            repo.StoreJSONStudyInDB(id, study_json); ;
+        }
     }
 }

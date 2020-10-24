@@ -184,14 +184,14 @@ namespace DataAggregator
 
     public class access_details
     {
-        public bool? direct_access { get; set; }
         public string url { get; set; }
+        public bool? direct_access { get; set; }
         public string url_last_checked { get; set; }
 
-        public access_details(bool? _direct_access, string _url, string _url_last_checked)
+        public access_details( string _url, bool? _direct_access, string _url_last_checked)
         {
-            direct_access = _direct_access;
             url = _url;
+            direct_access = _direct_access;
             url_last_checked = _url_last_checked;
         }
     }
@@ -604,7 +604,7 @@ namespace DataAggregator
         public string person_given_name { get; set; }
         public string person_family_name { get; set; }
         public string person_full_name { get; set; }
-        public string public_identifier { get; set; }
+        public string person_identifier { get; set; }
         public string identifier_type { get; set; }
         public string affiliation { get; set; }
         public string affil_org_id { get; set; }

@@ -6,7 +6,7 @@ namespace DataAggregator
 { 
     class JSONObjectProcessor
     {
-        JSONDataLayer repo;
+        JSONObjectDataLayer repo;
 
         private DBDataObject ob;
         private lookup object_class;
@@ -29,7 +29,7 @@ namespace DataAggregator
         private List<object_relationship> object_relationships;
         private List<int> linked_studies;
 
-        public JSONObjectProcessor(JSONDataLayer _repo)
+        public JSONObjectProcessor(JSONObjectDataLayer _repo)
         {
             repo = _repo;
         }
@@ -79,9 +79,18 @@ namespace DataAggregator
 
             object_class = new lookup(ob.object_class_id, ob.object_class);
             object_type = new lookup(ob.object_type_id, ob.object_type);
-            managing_organisation = new lookup(ob.managing_org_id, ob.managing_org);
-            access_type = new lookup(ob.access_type_id, ob.access_type);
-            access_details = new object_access(ob.access_details, ob.access_details_url, ob.url_last_checked);
+            if (ob.managing_org != null)
+            {
+                managing_organisation = new lookup(ob.managing_org_id, ob.managing_org);
+            }
+            if (ob.access_type_id != null)
+            {
+                access_type = new lookup(ob.access_type_id, ob.access_type);
+            }
+            if (ob.access_details != null || ob.access_details_url != null)
+            {
+                access_details = new object_access(ob.access_details, ob.access_details_url, ob.url_last_checked);
+            }
 
             // Instantiate data object with those details
 
@@ -117,10 +126,23 @@ namespace DataAggregator
                 object_instances = new List<object_instance>();
                 foreach (DBObjectInstance i in db_object_instances)
                 {
-                    object_instances.Add(new object_instance(i.id, new lookup(i.repository_org_id, i.repository_org),
-                                                            new access_details(i.url_accessible, i.url, i.url_last_checked),
-                                                            new resource_details(i.resource_type_id, i.resource_type, 
-                                                                i.resource_size, i.resource_size_units, i.comments)));
+                    lookup repo_org = null;
+                    access_details access = null;
+                    resource_details resource = null;
+                    if (i.repository_org != null)
+                    {
+                        repo_org = new lookup(i.repository_org_id, i.repository_org);
+                    }
+                    if (i.url != null || i.url_accessible != null)
+                    {
+                        access = new access_details(i.url, i.url_accessible, i.url_last_checked);
+                    }
+                    if (i.resource_type_id != null || i.comments != null)
+                    {
+                        resource = new resource_details(i.resource_type_id, i.resource_type,
+                                                i.resource_size, i.resource_size_units, i.comments);
+                    }
+                    object_instances.Add(new object_instance(i.id, repo_org, access, resource));
                 }
             }
 
@@ -178,7 +200,7 @@ namespace DataAggregator
                     if (c.is_individual)
                     {
                         person = new individual(c.person_family_name, c.person_given_name, c.person_full_name,
-                                                c.public_identifier, c.affiliation);
+                                                c.person_identifier, c.affiliation);
                     }
                     else
                     {
@@ -282,5 +304,11 @@ namespace DataAggregator
 
             return dobj;
         }
+
+        public void StoreJSONObjectInDB(int id, string object_json)
+        {
+            repo.StoreJSONObjectInDB(id, object_json); ;
+        }
+
     }
 }

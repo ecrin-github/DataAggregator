@@ -6,22 +6,19 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Text;
 using Dapper.Contrib.Extensions;
+using NpgsqlTypes;
 
 namespace DataAggregator
 {
-	public class JSONDataLayer
+	public class JSONObjectDataLayer
 	{
 		private string connString;
-        private string folder_base;
+        private string object_json_folder;
 
         // These strings are used as the base of each query.
         // They are constructed once in the class constructor,
         // and can then be applied for each object constructed,
         // by adding the id parameter at the end of the string.
-
-        private string study_query_string, study_identifier_query_string, study_title_query_string;
-        private string study_object_link_query_string, study_relationship_query_string;
-        private string study_feature_query_string, study_topics_query_string;
 
         private string data_object_query_string, data_set_query_string;
         private string object_link_query_string, object_identifier_query_string;
@@ -32,7 +29,7 @@ namespace DataAggregator
         private string object_description_query_string, object_relationships_query_string;
         private string object_rights_query_string;
 
-        public JSONDataLayer()
+        public JSONObjectDataLayer()
 		{
 				IConfigurationRoot settings = new ConfigurationBuilder()
 				.SetBasePath(AppContext.BaseDirectory)
@@ -47,15 +44,12 @@ namespace DataAggregator
 
 			connString = builder.ConnectionString;
 
-            ConstructStudyQueryStrings();
             ConstructObjectQueryStrings();
-
-            folder_base = settings["folder_base"];
-
+            object_json_folder = settings["object json folder"];
         }
 
 		public string ConnString => connString;
-        public string FolderBase => folder_base;
+        public string ObjectJsonFolder => object_json_folder;
 
         public int ExecuteSQL(string sql_string)
         {
@@ -73,27 +67,27 @@ namespace DataAggregator
             }
         }
 
-        public int FetchMinId(string table_name)
+        public int FetchMinId()
         {
-            string sql_string = @"select min(id) from core." + table_name;
+            string sql_string = @"select min(id) from core.data_objects";
             using (var conn = new NpgsqlConnection(connString))
             {
                 return conn.ExecuteScalar<int>(sql_string);
             }
         }
 
-        public int FetchMaxId(string table_name)
+        public int FetchMaxId()
         {
-            string sql_string = @"select max(id) from core." + table_name;
+            string sql_string = @"select max(id) from core.data_objects";
             using (var conn = new NpgsqlConnection(connString))
             {
                 return conn.ExecuteScalar<int>(sql_string);
             }
         }
 
-        public IEnumerable<int> FetchIds(string table_name, int n, int batch)
+        public IEnumerable<int> FetchIds(int n, int batch)
         {
-            string sql_string = @"select id from core." + table_name + @"
+            string sql_string = @"select id from core.data_objects
                      where id between " + n.ToString() + @" 
                      and " + (n + batch - 1).ToString();
             using (var conn = new NpgsqlConnection(connString))
@@ -114,7 +108,7 @@ namespace DataAggregator
                 dob.managing_org_id, dob.managing_org,
                 dob.access_type_id, oat.name as access_type,
                 dob.access_details, dob.access_details_url, dob.url_last_checked,
-                dob.eosc_category, dob.add_study_contribs, dob.uses_study_topics,
+                dob.eosc_category, dob.add_study_contribs, dob.add_study_topics,
                 dob.provenance_string
                 from core.data_objects dob
                 left join context_lup.object_classes oc on dob.object_class_id = oc.id
@@ -127,21 +121,21 @@ namespace DataAggregator
                 ds.record_keys_type_id, rt.name as record_keys_type, 
                 ds.record_keys_details,
                 ds.deident_type_id, it.name as deident_type, 
-                ds.deident_direct, ds.deident_hipaa, s.deident_dates,
+                ds.deident_direct, ds.deident_hipaa, ds.deident_dates,
                 ds.deident_nonarr, ds.deident_kanon, ds.deident_details,
                 ds.consent_type_id, ct.name as consent_type, 
                 ds.consent_noncommercial, ds.consent_geog_restrict, ds.consent_research_type,
-                ds.consent_genetic_only, ds.consent_no_methods, ds.consents_details
-                from core.dataset_properties ds
-                left join context_lup.dataset_record_key_types rt on ds.record_keys_type_id = rt.id
-                left join context_lup.dataset_de-identification_levels it on ds.deident_type_id = it.id
+                ds.consent_genetic_only, ds.consent_no_methods, ds.consent_details
+                from core.object_datasets ds
+                left join context_lup.dataset_recordkey_types rt on ds.record_keys_type_id = rt.id
+                left join context_lup.dataset_deidentification_levels it on ds.deident_type_id = it.id
                 left join context_lup.dataset_consent_types ct on ds.consent_type_id = ct.id
                 where ds.id = ";
 
 
             // object instances
             object_instance_query_string = @"select
-                oi.id, instance_type_id, it.name as instance_type
+                oi.id, instance_type_id, it.name as instance_type,
                 repository_org_id, repository_org, url,
                 url_accessible, url_last_checked,
                 resource_type_id, rt.name as resource_type,
@@ -174,10 +168,9 @@ namespace DataAggregator
             // object contributor (using study contributors only)
             object_study_contrib_query_string = @"select
                 sc.id, contrib_type_id, ct.name as contrib_type,
-                is_individual, person_id, person_given_name, person_family_name,
-                person_full_name, public_identifier, identifier_type,
-                affiliation, affil_org_id, affil_org_id_type,
-                organisation_id as contrib_org_id, organisation_name as contrib_org_name
+                is_individual, organisation_id, organisation_name,
+                person_given_name, person_family_name, person_full_name,
+                person_identifier, person_affiliation
                 from core.study_object_links k
                 inner join core.study_contributors sc on k.study_id = sc.study_id
                 left join context_lup.contribution_types ct on sc.contrib_type_id = ct.id
@@ -187,10 +180,9 @@ namespace DataAggregator
             // object contributor (using object contributors AND study organisations) - part 1
             object_contrib_query_string1 = @"select
                 oc.id, contrib_type_id, ct.name as contrib_type,
-                is_individual, organisation_id, organisation_name
-                person_id, person_given_name, person_family_name,
-                person_full_name, public_identifier, identifier_type,
-                affiliation, affil_org_id, affil_org_id_type
+                is_individual, organisation_id, organisation_name,
+                person_given_name, person_family_name, person_full_name,
+                person_identifier, person_affiliation
                 from core.object_contributors oc
                 left join context_lup.contribution_types ct on oc.contrib_type_id = ct.id
                 where object_id = ";
@@ -199,8 +191,8 @@ namespace DataAggregator
             // object contributor (using object contributors AND study organisations) - part 2
             object_contrib_query_string2 = @"select
                 sc.id, contrib_type_id, ct.name as contrib_type,
-                is_individual, organisation_id, organisation_name
-                null, null, null, null, null, null, null, null, null
+                is_individual, organisation_id, organisation_name,
+                null, null, null, null, null
                 from core.study_object_links k
                 inner join core.study_contributors sc on k.study_id = sc.study_id
                 left join context_lup.contribution_types ct on sc.contrib_type_id = ct.id
@@ -209,8 +201,8 @@ namespace DataAggregator
 
             // object topics (using study objects)
             object_study_topics_query_string = @"select
-                st.id, topic_type_id, tt.name as topic_type, mesh_coded
-                topic_code, topic_value, topic_qualcode, topic_qualvalue
+                st.id, topic_type_id, tt.name as topic_type, mesh_coded,
+                topic_code, topic_value, topic_qualcode, topic_qualvalue,
                 original_value
                 from core.study_object_links k
                 inner join core.study_topics st on k.study_id = st.study_id
@@ -220,8 +212,8 @@ namespace DataAggregator
 
             // object topics (using object topics)
             object_topics_query_string = @"select
-                ot.id, topic_type_id, tt.name as topic_type, mesh_coded
-                topic_code, topic_value, topic_qualcode, topic_qualvalue
+                ot.id, topic_type_id, tt.name as topic_type, mesh_coded,
+                topic_code, topic_value, topic_qualcode, topic_qualvalue,
                 original_value
                 from core.object_topics ot
                 left join context_lup.topic_types tt on ot.topic_type_id = tt.id
@@ -240,7 +232,7 @@ namespace DataAggregator
 
             // object description query string 
             object_description_query_string = @"select
-                id, description_type_id, dt.name as description_type
+                od.id, description_type_id, dt.name as description_type,
                 label, description_text, lang_code, contains_html 
                 from core.object_descriptions od
                 left join context_lup.description_types dt
@@ -249,12 +241,12 @@ namespace DataAggregator
 
 
             // object relationships query string 
-            object_relationships_query_string = @"select
-                id, relationship_type_id, rt.name as relationship_type,
-                target_object_id, from core.object_relationships
-                from core.object_relationships or
+            object_relationships_query_string = @"select 
+                r.id, relationship_type_id, rt.name as relationship_type,
+                target_object_id 
+                from core.object_relationships r
                 left join context_lup.object_relationship_types rt 
-                on or.relationship_type_id = rt.id
+                on r.relationship_type_id = rt.id
                 where object_id = ";
 
 
@@ -271,158 +263,6 @@ namespace DataAggregator
                 where object_id = ";
         }
 
-
-        private void ConstructStudyQueryStrings()
-        {
-            // study query string
-            study_query_string = @"Select s.id, display_title, title_lang_code,
-                brief_description, bd_contains_html, 
-                data_sharing_statement, dss_contains_html,
-                study_type_id, st.name as study_type,
-                study_status_id, ss.named as study_status
-                study_enrolment, 
-                study_gender_elig_id, ge.name as study_gender_elig, 
-                min_age, min_age_units_id, tu1.name as min_age_units,
-                max_age, max_age_units_id, tu2.name as max_age_units,
-                provenance_string
-                from core.studies s
-                left join context_lup.study_types st on s.study_type_id = st.id
-                left join context_lup.study_statuses ss on s.study_status_id = ss.id
-                left join context_lup.gender_eligibilty_types ge on s.study_gender_elig_id = ge.id
-                left join context_lup.time_units tu1 on s.min_age_units_id = tu1.id
-                left join context_lup.time_units tu2 on s.min_age_units_id = tu2.id
-                where s.id = ";
-
-
-            // study identifier query string 
-            study_identifier_query_string = @"select
-                si.id, identifier_value,
-                identifier_type_id, it.name as identifier_type,
-                identifier_org_id, identifier_org,
-                identifier_date, identifier_link
-                from core.studyidentifiers si
-                left join context_lup.identifier_types it on si.identifier_type_id = it.id
-                where study_id = ";
-
-
-            //study title query string
-            study_title_query_string = @"select
-                st.id, title_type_id, tt.name as title_type, title_text,
-                lang_code, comments
-                from core.study_titles st
-                left join context_lup.title_types tt on st.title_type_id = tt.id
-                where study_id = ";
-
-
-            // study topics query string
-            study_topics_query_string = @"select
-                st.id, topic_type_id, tt.name as topic_type, mesh_coded
-                topic_code, topic_value, topic_qualcode, topic_qualvalue
-                original_value
-                from core.study_topics st
-                left join context_lup.topic_types tt on st.topic_type_id = tt.id
-                where study_id = ";
-
-
-            // study feature query string
-            study_feature_query_string = @"select
-                sf.id, feature_type_id, ft.name as feature_type,
-                feature_value_id, fv.name as feature_value
-                from core.study_features sf
-                inner join context_lup.study_feature_types ft on sf.feature_type_id = ft.id
-                left join context_lup.study_feature_categories fv on sc.contrib_type_id = fv.id
-                where study_id = ";
-
-
-            // study_relationship query string
-            study_relationship_query_string = @"select
-                sr.id, relationship_type_id, rt.name as relationship_type,
-                target_study_id
-                from core.study_relationships
-                left join context_lup.study_relationship_types rt 
-                on sr.relationship_type_id = rt.id
-                where study_id = ";
-
-
-            // study object link query string
-            study_object_link_query_string = @"select object_id
-                from core.study_object_links
-                where study_id = ";
-
-        }
-
-
-
-        public DBStudy FetchDbStudy(int id)
-        {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
-            {
-                string sql_string = study_query_string + id.ToString();
-                return Conn.QueryFirstOrDefault<DBStudy>(sql_string);
-            }
-        }
-
-
-        public IEnumerable<DBStudyIdentifier> FetchDbStudyIdentifiers(int id)
-        {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
-            {
-                string sql_string = study_identifier_query_string + id.ToString();
-                return Conn.Query<DBStudyIdentifier>(sql_string);
-            }
-        }
-
-
-        public IEnumerable<DBStudyTitle> FetchDbStudyTitles(int id)
-        {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
-            {
-                string sql_string = study_title_query_string + id.ToString();
-                return Conn.Query<DBStudyTitle>(sql_string);
-            }
-        }
-
-        
-        public IEnumerable<DBStudyFeature> FetchDbStudyFeatures(int id)
-        {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
-            {
-                string sql_string = study_feature_query_string + id.ToString();
-                return Conn.Query<DBStudyFeature>(sql_string);
-            }
-        }
-
-
-        public IEnumerable<DBStudyTopic> FetchDbStudyTopics(int id)
-        {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
-            {
-                string sql_string = study_topics_query_string + id.ToString();
-                return Conn.Query<DBStudyTopic>(sql_string);
-            }
-        }
-
-
-        public IEnumerable<DBStudyRelationship> FetchDbStudyRelationships(int id)
-        {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
-            {
-                string sql_string = study_relationship_query_string + id.ToString();
-                return Conn.Query<DBStudyRelationship>(sql_string);
-            }
-        }
-
-
-        public IEnumerable<DBStudyObjectLink> FetchDbStudyObjectLinks(int id)
-        {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
-            {
-                string sql_string = study_object_link_query_string + id.ToString();
-                return Conn.Query<DBStudyObjectLink>(sql_string);
-            }
-        }
-
-        
 
         // Fetches the main singleton data object attributes, used during the intiial 
         // construction of a data object by the Processor's CreateObject routine.
@@ -518,7 +358,7 @@ namespace DataAggregator
                 }
                 else
                 {
-                    sql_string = object_contrib_query_string1 + id.ToString() + " union select ";
+                    sql_string = object_contrib_query_string1 + id.ToString() + " union ";
                     sql_string += object_contrib_query_string2 + id.ToString() + " and is_individual = false";
                 }
                 return Conn.Query<DBObjectContributor>(sql_string);
@@ -590,20 +430,24 @@ namespace DataAggregator
         }
 
 
-        public void StoreStudyJSON(DBStudyJSON sj)
+        public void StoreJSONObjectInDB(int id, string object_json)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
             {
-                Conn.Insert<DBStudyJSON>(sj);
-            }
-        }
+                Conn.Open();
 
+                // To insert the string into a json field the parameters for the 
+                // command have to be explictly declared and typed
 
-        public void StoreObjectJSON(DBObjectJSON oj)
-        {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
-            {
-                Conn.Insert<DBObjectJSON>(oj);
+                using (var cmd = new NpgsqlCommand())
+                {
+                    cmd.CommandText = "INSERT INTO core.objects_json (id, json) VALUES (@id, @p)";
+                    cmd.Parameters.Add(new NpgsqlParameter("@id", NpgsqlDbType.Integer) { Value = id });
+                    cmd.Parameters.Add(new NpgsqlParameter("@p", NpgsqlDbType.Json) { Value = object_json });
+                    cmd.Connection = Conn;
+                    cmd.ExecuteNonQuery();
+                }
+                Conn.Close();
             }
         }
 
