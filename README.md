@@ -15,11 +15,11 @@ These include:<br/>
 -J: indicates that the core data be used to create JSON versions of the data within the core database.<br/>
 -F: indicates that the core data should be used to create JSON files of two types, one for each study and another for each data object. It has no effect unless the -J parameter is also supplied.<br/>
 -S: collects statistics about the existing data, from both the ad tables and the central aggregated tables.
--Z: zips the json files created by the -F parameter into a series of zip files, with up to 100,000 files in each. This is for ease of transfer to other systems.<br/>        
-<br/>   
+-Z: zips the json files created by the -F parameter into a series of zip files, with up to 100,000 files in each. This is for ease of transfer to other systems.<br/><br/>       
 The -S parameter can be provided at any time or on its own. It makes little sense to trigger the other processes without an initial call using -D. A -C call would then normally follows, and then -J (-F), and finally -Z. The system can cope with multiple parameters, and applies them in the order given: -D -C -J -F -S -Z. It is easier to see what is happening, however, to make multiple calls to the program working through the parameter list as described.<br/>  
 
 ### Overview
+
 
 ### Provenance
 * Author: Steve Canham
