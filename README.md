@@ -10,12 +10,12 @@ For a much more detailed explanation of the extraction process,and the MDR syste
 ### Parameters
 The program is a console app. There are a variety of flag type parameters, that can be used alone or in combination (though only some combinations make sense).
 These include:<br/>
--D: which indicates that the aggregating data transfer should take place, from the source ad tables to the tables in the st (studies), ob (objects) and nk (links) schemas. This is the necessary first step of the aggregation process.<br/>
--C: indicates that the core tables should be created and filled from the aggregate tables, i.e. data is combined from the st, ob and nk schemas in to a single, simpler core schema.<br/>
--J: indicates that the core data be used to create JSON versions of the data within the core database.<br/>
--F: indicates that the core data should be used to create JSON files of two types, one for each study and another for each data object. It has no effect unless the -J parameter is also supplied.<br/>
--S: collects statistics about the existing data, from both the ad tables and the central aggregated tables.
--Z: zips the json files created by the -F parameter into a series of zip files, with up to 100,000 files in each. This is for ease of transfer to other systems.<br/>     
+**-D**: which indicates that the aggregating data transfer should take place, from the source ad tables to the tables in the st (studies), ob (objects) and nk (links) schemas. This is the necessary first step of the aggregation process.<br/>
+**-C**: indicates that the core tables should be created and filled from the aggregate tables, i.e. data is combined from the st, ob and nk schemas in to a single, simpler core schema.<br/>
+**-J**: indicates that the core data be used to create JSON versions of the data within the core database.<br/>
+**-F**: indicates that the core data should be used to create JSON files of two types, one for each study and another for each data object. It has no effect unless the -J parameter is also supplied.<br/>
+**-S**: collects statistics about the existing data, from both the ad tables and the central aggregated tables.
+**-Z**: zips the json files created by the -F parameter into a series of zip files, with up to 100,000 files in each. This is for ease of transfer to other systems.<br/>     
 The -S parameter can be provided at any time or on its own. It makes little sense to trigger the other processes without an initial call using -D. A -C call would then normally follows, and then -J (-F), and finally -Z. The system can cope with multiple parameters, and applies them in the order given: -D -C -J -F -S -Z. It is easier to see what is happening, however, to make multiple calls to the program working through the parameter list as described.<br/>  
 
 ### Overview
