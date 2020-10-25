@@ -31,6 +31,10 @@ The main aggregation process, as triggered by -D, begins with the creation of a 
 * For sources where there are no studies - just data objects - the process is necessarily different. It must also follow after the aggregation of study data, to ensure that all  studies are in the central system.
 * This only applies to PubMed data at the moment. For PubMed, the links between the PubMed data and the studies are first identified. Two sources are used - the 'bank id' data within the PubMed data itself, referring to trial registry ids, and the 'source id' data in the study based sources, where references are provided to relevant papers. These two sets of data are combined and de-duplicated, and two final sets of data are created: the distinct list of PubMed data objects, and the list of links between those objects and studies. Unlike most data objects in the study based resources, PubMed data objects can be linked to multiple studies, and of course studies may have multiple article references. The linkage is therefore complex and requires considerable additional processing.
 
+Most of the other options provided by the progrram are relatively simple and self contained. The -C option copies the data from the aggregating schema (st, ob, and nk) to the core schema without any processing, other than creating the provenance strings for both studies and data objects. The latter may be composite if more than one source was involved.<br/>
+
+### Logging
+
 ### Provenance
 * Author: Steve Canham
 * Organisation: ECRIN (https://ecrin.org)
