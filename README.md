@@ -34,6 +34,7 @@ The main aggregation process, as triggered by -D, begins with the creation of a 
 Most of the other options provided by the progrram are relatively simple and self contained. The -C option copies the data from the aggregating schema (st, ob, and nk) to the core schema without any processing, other than creating the provenance strings for both studies and data objects. The latter may be composite if more than one source was involved.<br/>
 
 ### Logging
+There is an aggregation event record stored after each aggregation process that summarises the numbers of studies, data onbjects and links involved, as well as recording the time of the process, but the main statistics are provided by the statistics module, which records the state of each source before, and the central tables after, the aggregation process. In addition each source record has a datetime exported value added by the aggregation process, and each central record includes a datetime added field.
 
 ### Provenance
 * Author: Steve Canham
