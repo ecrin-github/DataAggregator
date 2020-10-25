@@ -8,7 +8,7 @@ The program represents the fourth stage in the 4 stage MDR extraction process:<b
 For a much more detailed explanation of the extraction process,and the MDR system as a whole, please see the project wiki (landing page at https://ecrin-mdr.online/index.php/Project_Overview).<br/>
 
 ### Parameters
-The program is a concxole app. There are a variety of flag type parameters, that can be used alone or in combination (though only some combinations make sense).
+The program is a console app. There are a variety of flag type parameters, that can be used alone or in combination (though only some combinations make sense).
 These include:<br/>
 -D: which indicates that the aggregating data transfer should take place, from the source ad tables to the tables in the st (studies), ob (objects) and nk (links) schemas. This is the necessary first step of the aggregation process.<br/>
 -C: indicates that the core tables should be created and filled from the aggregate tables, i.e. data is combined from the st, ob and nk schemas in to a single, simpler core schema.<br/>
