@@ -7,13 +7,15 @@
         private ObjectTableBuilder object_tablebuilder;
         private LinkTableBuilder link_tablebuilder;
         private CoreTableBuilder core_tablebuilder;
+        LoggingDataLayer logging_repo;
 
-        public SchemaBuilder(string _connString)
+        public SchemaBuilder(string _connString, LoggingDataLayer _logging_repo)
         {
             connString = _connString;
-            study_tablebuilder = new StudyTableBuilder(connString);
-            object_tablebuilder = new ObjectTableBuilder(connString);
-            link_tablebuilder = new LinkTableBuilder(connString);
+            logging_repo = _logging_repo;
+            study_tablebuilder = new StudyTableBuilder(connString, logging_repo);
+            object_tablebuilder = new ObjectTableBuilder(connString, logging_repo);
+            link_tablebuilder = new LinkTableBuilder(connString, logging_repo);
         }
 
         public void DeleteStudyTables()
@@ -130,6 +132,7 @@
             core_tablebuilder.drop_table("object_rights");
 
             core_tablebuilder.drop_table("study_object_links");
+            logging_repo.LogLine("Core tables dropped");
         }
 
 
@@ -156,7 +159,7 @@
             core_tablebuilder.create_table_object_identifiers();
 
             core_tablebuilder.create_table_study_object_links();
-
+            logging_repo.LogLine("Core tables created");
         }
     }
 }

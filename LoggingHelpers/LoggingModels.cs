@@ -129,6 +129,8 @@ namespace DataAggregator
         public int id { get; set; }
         public DateTime? time_started { get; set; }
         public DateTime? time_ended { get; set; }
+        public int? num_studies_imported { get; set; }
+        public int? num_objects_imported { get; set; }
         public int? num_total_studies { get; set; }
         public int? num_total_objects { get; set; }
         public int? num_total_study_object_links { get; set; }

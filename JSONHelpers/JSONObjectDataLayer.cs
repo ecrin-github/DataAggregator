@@ -11,6 +11,7 @@ namespace DataAggregator
     {
         private string connString;
         private string object_json_folder;
+        LoggingDataLayer logging_repo;
 
         // These strings are used as the base of each query.
         // They are constructed once in the class constructor,
@@ -26,7 +27,7 @@ namespace DataAggregator
         private string object_description_query_string, object_relationships_query_string;
         private string object_rights_query_string;
 
-        public JSONObjectDataLayer()
+        public JSONObjectDataLayer(LoggingDataLayer _logging_repo)
         {
                 IConfigurationRoot settings = new ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory)
@@ -43,6 +44,8 @@ namespace DataAggregator
 
             ConstructObjectQueryStrings();
             object_json_folder = settings["object json folder"];
+
+            logging_repo = _logging_repo;
         }
 
         public string ConnString => connString;
@@ -58,7 +61,7 @@ namespace DataAggregator
                 }
                 catch (Exception e)
                 {
-                    StringHelpers.SendError("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
+                    logging_repo.LogError("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
                     return 0;
                 }
             }

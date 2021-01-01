@@ -6,7 +6,6 @@ namespace DataAggregator
     {
         JSONStudyDataLayer repo;
 
-        private DBStudy st;
         private text_block brief_description;
         private text_block data_sharing_statement;
         private lookup study_type;

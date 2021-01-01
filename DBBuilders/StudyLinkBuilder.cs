@@ -8,11 +8,13 @@ namespace DataAggregator
     {
         DataLayer repo;
         LinksDataHelper slh;
+        LoggingDataLayer logging_repo;
 
-        public StudyLinkBuilder(DataLayer _repo)
+        public StudyLinkBuilder(DataLayer _repo, LoggingDataLayer _logging_repo)
         {
            repo = _repo;
-           slh = new LinksDataHelper(repo);
+           logging_repo = _logging_repo;
+           slh = new LinksDataHelper(repo, logging_repo);
         }
             
         public void CollectStudyStudyLinks(IEnumerable<Source> sources)

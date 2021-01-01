@@ -9,11 +9,13 @@ namespace DataAggregator
     {
         DataLayer repo;
         string connString;
+        LoggingDataLayer logging_repo;
 
-        public LinksDataHelper(DataLayer _repo)
+        public LinksDataHelper(DataLayer _repo, LoggingDataLayer _logging_repo)
         {
             repo = _repo;
             connString = repo.ConnString;
+            logging_repo = _logging_repo;
         }
 
 

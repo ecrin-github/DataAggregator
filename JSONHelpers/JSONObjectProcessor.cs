@@ -5,6 +5,7 @@ namespace DataAggregator
     class JSONObjectProcessor
     {
         JSONObjectDataLayer repo;
+        LoggingDataLayer logging_repo;
 
         private DBDataObject ob;
         private lookup object_class;
@@ -27,9 +28,10 @@ namespace DataAggregator
         private List<object_relationship> object_relationships;
         private List<int> linked_studies;
 
-        public JSONObjectProcessor(JSONObjectDataLayer _repo)
+        public JSONObjectProcessor(JSONObjectDataLayer _repo, LoggingDataLayer _logging_repo)
         {
             repo = _repo;
+            logging_repo = _logging_repo;
         }
 
         public JSONDataObject CreateObject(int id)
@@ -69,7 +71,7 @@ namespace DataAggregator
                 // May occur in a few hundred cases, therefore
                 // if it does need to investigate further !!!!!!!
                 // Possible (minor) error in data object linkage with journal articles.
-                StringHelpers.SendError("object " + ob.id + " does not appear to be linked to studies");
+                logging_repo.LogError("object " + ob.id + " does not appear to be linked to studies");
                 return null;
             }
 

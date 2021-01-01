@@ -306,7 +306,7 @@ namespace DataAggregator
     public class object_topic
     {
         public int id { get; set; }
-        public lookup topic_type_id { get; set; }
+        public lookup topic_type { get; set; }
         public bool? mesh_coded { get; set; }
         public string topic_code { get; set; }
         public string topic_value { get; set; }
@@ -314,14 +314,14 @@ namespace DataAggregator
         public string topic_qualvalue { get; set; }
         public string original_value { get; set; }
 
-        public object_topic(int _id, lookup _topic_type_id,
+        public object_topic(int _id, lookup _topic_type,
                             bool? _mesh_coded, string _topic_code, 
                             string _topic_value,
                             string _topic_qualcode, string _topic_qualvalue,
                             string _original_value)
         {
             id = _id;
-            topic_type_id = _topic_type_id;
+            topic_type = _topic_type;
             mesh_coded = _mesh_coded;
             topic_code = _topic_code;
             topic_value = _topic_value;

@@ -5,6 +5,7 @@ using Npgsql;
 using PostgreSQLCopyHelper;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace DataAggregator
@@ -18,6 +19,10 @@ namespace DataAggregator
         private string host;
         private string user;
         private string password;
+
+        private string logfile_startofpath;
+        private string logfile_path;
+        private StreamWriter sw;
 
         /// <summary>
         /// Parameterless constructor is used to automatically build
@@ -47,13 +52,80 @@ namespace DataAggregator
             builder.Database = "mdr";
             mdr_connString = builder.ConnectionString;
 
+            logfile_startofpath = settings["logfilepath"];
+
             sql_file_select_string = "select id, source_id, sd_id, remote_url, last_revised, ";
             sql_file_select_string += " assume_complete, download_status, local_path, last_saf_id, last_downloaded, ";
             sql_file_select_string += " last_harvest_id, last_harvested, last_import_id, last_imported ";
-
         }
 
-        public Source SourceParameters => source;
+        public Source SourceParameter => source;
+
+
+        public void LogParameters(Options opts)
+        {
+            LogHeader("Setup");
+            LogLine("transfer data =  " + opts.transfer_data);
+            LogLine("create core =  " + opts.create_core);
+            LogLine("create json =  " + opts.create_json);
+            LogLine("also do json files =  " + opts.also_do_files);
+            LogLine("do statistics =  " + opts.do_statistics);
+        }
+
+
+        public void OpenLogFile(Options opts)
+        {
+            string dt_string = DateTime.Now.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
+                              .Replace("-", "").Replace(":", "").Replace("T", " ");
+            logfile_path = logfile_startofpath + "AGGREG";
+            if (opts.transfer_data) logfile_path += " -D";
+            if (opts.create_core) logfile_path += " -C";
+            if (opts.do_statistics) logfile_path += " -S";
+            if (opts.create_json) logfile_path += " -J";
+            if (opts.also_do_files) logfile_path += " -F";
+            logfile_path += " " + dt_string + ".log";
+            sw = new StreamWriter(logfile_path, true, System.Text.Encoding.UTF8);
+        }
+
+        public void LogLine(string message, string identifier = "")
+        {
+            string dt_string = DateTime.Now.ToShortDateString() + " : " + DateTime.Now.ToShortTimeString() + " :   ";
+            string feedback = dt_string + message + identifier;
+            Transmit(feedback);
+        }
+
+        public void LogHeader(string message)
+        {
+            string dt_string = DateTime.Now.ToShortDateString() + " : " + DateTime.Now.ToShortTimeString() + " :   ";
+            string header = dt_string + "**** " + message + " ****";
+            Transmit("");
+            Transmit(header);
+        }
+
+        public void LogError(string message, string identifier = "")
+        {
+            string dt_string = DateTime.Now.ToShortDateString() + " : " + DateTime.Now.ToShortTimeString() + " :   ";
+            string error_message = dt_string + "***ERROR*** " + message;
+            Transmit("");
+            Transmit("+++++++++++++++++++++++++++++++++++++++");
+            Transmit(error_message);
+            Transmit("+++++++++++++++++++++++++++++++++++++++");
+            Transmit("");
+        }
+
+        public void CloseLog()
+        {
+            LogHeader("Closing Log");
+            sw.Flush();
+            sw.Close();
+        }
+
+
+        private void Transmit(string message)
+        {
+            sw.WriteLine(message);
+            Console.WriteLine(message);
+        }
 
         public Source FetchSourceParameters(int source_id)
         {
@@ -75,9 +147,19 @@ namespace DataAggregator
             }
         }
 
+        public int GetLastAggEventId()
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            {
+                string sql_string = "select max(id) from sf.aggregation_events ";
+                int? last_id = Conn.ExecuteScalar<int?>(sql_string);
+                return (int)last_id;
+            }
+        }
 
         public int StoreAggregationEvent(AggregationEvent aggregation)
         {
+            aggregation.time_ended = DateTime.Now;
             using (var conn = new NpgsqlConnection(connString))
             {
                 return (int)conn.Insert<AggregationEvent>(aggregation);
@@ -213,28 +295,28 @@ namespace DataAggregator
             }
         }
 
-
         public List<StudyStudyLinkData> GetStudyStudyLinkData2(int aggregation_event_id)
         {
             string sql_string = @"SELECT 
-                    k.source_id, 
-                    d1.default_name as source_name,
-                    k.preferred_source_id as other_source_id,
-                    d2.default_name as other_source_name
-                    count(preferred_sd_sid) as number_in_other_source
+                    k.preferred_source_id as source_id, 
+                    d2.default_name as source_name,
+                    k.source_id as other_source_id,
+                    d1.default_name as other_source_name,
+                    count(sd_sid) as number_in_other_source
                     from nk.study_study_links k
                     inner join context_ctx.data_sources d1
                     on k.source_id = d1.id
                     inner join context_ctx.data_sources d2
-                    on k.source_id = d2.id
-                    group by preferred_source_id, source_id;";
-
+                    on k.preferred_source_id = d2.id
+                    group by preferred_source_id, source_id, d2.default_name, d1.default_name;;";
 
             using (var conn = new NpgsqlConnection(mdr_connString))
             {
                 return conn.Query<StudyStudyLinkData>(sql_string).ToList();
             }
         }
+
+
 
         // Stores an 'extraction note', e.g. an unusual occurence found and
         // logged during the extraction, in the associated table.

@@ -7,15 +7,17 @@ namespace DataAggregator
         DataLayer repo;
         string connString;
         DBUtilities db;
+        LoggingDataLayer logging_repo;
 
-        public CoreDataTransferrer(DataLayer _repo)
+        public CoreDataTransferrer(DataLayer _repo, LoggingDataLayer _logging_repo)
         {
             repo = _repo;
             connString = repo.ConnString;
-            db = new DBUtilities(connString);
+            logging_repo = _logging_repo;
+            db = new DBUtilities(connString, logging_repo);
         }
 
-        public void LoadCoreStudyData()
+        public int LoadCoreStudyData()
         {
             using (var conn = new NpgsqlConnection(connString))
             {
@@ -31,12 +33,12 @@ namespace DataAggregator
                         s.max_age, s.max_age_units_id
                         FROM st.studies s ";
 
-                int res = db.ExecuteCoreTransferSQL(sql_string, "st.studies");
+                return db.ExecuteCoreTransferSQL(sql_string, "st.studies");
             }
         }
 
 
-        public void LoadCoreStudyIdentifiers()
+        public int LoadCoreStudyIdentifiers()
         {
             using (var conn = new NpgsqlConnection(connString))
             {
@@ -52,12 +54,12 @@ namespace DataAggregator
                         identifier_org, identifier_date, identifier_link
                         FROM st.study_identifiers s ";
 
-                int res = db.ExecuteCoreTransferSQL(sql_string, "st.study_identifiers");
+                return db.ExecuteCoreTransferSQL(sql_string, "st.study_identifiers");
             }
         }
 
 
-        public void LoadCoreStudyTitles()
+        public int LoadCoreStudyTitles()
         {
             using (var conn = new NpgsqlConnection(connString))
             {
@@ -70,12 +72,12 @@ namespace DataAggregator
                         s.lang_usage_id, s.is_default, s.comments 
                         FROM st.study_titles s ";
 
-                int res = db.ExecuteCoreTransferSQL(sql_string, "st.study_titles");
+                return db.ExecuteCoreTransferSQL(sql_string, "st.study_titles");
             }
         }
 
 
-        public void LoadCoreStudyContributors()
+        public int LoadCoreStudyContributors()
         {
             using (var conn = new NpgsqlConnection(connString))
             {
@@ -92,12 +94,12 @@ namespace DataAggregator
                         s.identifier_type, s.affil_org_id, s.affil_org_id_type 
                         FROM st.study_contributors s ";
 
-                int res = db.ExecuteCoreTransferSQL(sql_string, "st.study_contributors");
+                return db.ExecuteCoreTransferSQL(sql_string, "st.study_contributors");
             }
         }
 
 
-        public void LoadCoreStudyTopics()
+        public int LoadCoreStudyTopics()
         {
             using (var conn = new NpgsqlConnection(connString))
             {
@@ -112,11 +114,11 @@ namespace DataAggregator
                         s.original_ct_id, s.original_ct_code, s.original_value, s.comments
                         FROM st.study_topics s ";
 
-                int res = db.ExecuteCoreTransferSQL(sql_string, "st.study_topics");
+                return db.ExecuteCoreTransferSQL(sql_string, "st.study_topics");
             }
         }
 
-        public void LoadCoreStudyFeatures()
+        public int LoadCoreStudyFeatures()
         {
             using (var conn = new NpgsqlConnection(connString))
             {
@@ -127,12 +129,12 @@ namespace DataAggregator
                         s.feature_type_id, s.feature_value_id 
                         FROM st.study_features s ";
 
-                int res = db.ExecuteCoreTransferSQL(sql_string, "st.study_features");
+                return db.ExecuteCoreTransferSQL(sql_string, "st.study_features");
             }
         }
 
 
-        public void LoadCoreStudyRelationShips()
+        public int LoadCoreStudyRelationShips()
         {
             using (var conn = new NpgsqlConnection(connString))
             {
@@ -144,12 +146,12 @@ namespace DataAggregator
                         s.relationship_type_id, target_study_id
                         FROM st.study_relationships s ";
 
-                int res = db.ExecuteCoreTransferSQL(sql_string, "st.study_relationships");
+                return db.ExecuteCoreTransferSQL(sql_string, "st.study_relationships");
             }
         }
 
 
-        public void LoadCoreDataObjects()
+        public int LoadCoreDataObjects()
         {
             string sql_string = @"INSERT INTO core.data_objects(id,
                     display_title, version, doi, doi_status_id, publication_year,
@@ -165,12 +167,12 @@ namespace DataAggregator
                     s.add_study_topics
                     FROM ob.data_objects s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "ob.data_objects");
+            return db.ExecuteCoreTransferSQL(sql_string, "ob.data_objects");
 
         }
 
 
-        public void LoadCoreObjectDatasets()
+        public int LoadCoreObjectDatasets()
         {
             string sql_string = @"INSERT INTO core.object_datasets(id, object_id, 
             record_keys_type_id, record_keys_details, 
@@ -186,11 +188,11 @@ namespace DataAggregator
             consent_research_type, consent_genetic_only, consent_no_methods, consent_details
             FROM ob.object_datasets s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "ob.object_datasets");
+            return db.ExecuteCoreTransferSQL(sql_string, "ob.object_datasets");
         }
 
 
-        public void LoadCoreObjectInstances()
+        public int LoadCoreObjectInstances()
         {
             string sql_string = @"INSERT INTO core.object_instances(id, object_id,  
             instance_type_id, repository_org_id, repository_org,
@@ -202,11 +204,11 @@ namespace DataAggregator
             resource_size, resource_size_units, resource_comments
             FROM ob.object_instances s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "ob.object_instances");
+            return db.ExecuteCoreTransferSQL(sql_string, "ob.object_instances");
         }
 
 
-        public void LoadCoreObjectTitles()
+        public int LoadCoreObjectTitles()
         {
             string sql_string = @"INSERT INTO core.object_titles(id, object_id, 
             title_type_id, title_text, lang_code,
@@ -216,11 +218,11 @@ namespace DataAggregator
             lang_usage_id, is_default, comments
             FROM ob.object_titles s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "ob.object_titles");
+            return db.ExecuteCoreTransferSQL(sql_string, "ob.object_titles");
         }
 
 
-        public void LoadCoreObjectDates()
+        public int LoadCoreObjectDates()
         {
             string sql_string = @"INSERT INTO core.object_dates(id, object_id,  
             date_type_id, is_date_range, date_as_string, start_year, 
@@ -230,11 +232,11 @@ namespace DataAggregator
             start_month, start_day, end_year, end_month, end_day, details
             FROM ob.object_dates s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "ob.object_dates");
+            return db.ExecuteCoreTransferSQL(sql_string, "ob.object_dates");
         }
 
 
-        public void LoadCoreObjectContributors()
+        public int LoadCoreObjectContributors()
         {
             string sql_string = @"INSERT INTO core.object_contributors(id, object_id, 
             contrib_type_id, is_individual, organisation_id, organisation_name,
@@ -248,11 +250,11 @@ namespace DataAggregator
             affil_org_id_type
             FROM ob.object_contributors s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "ob.object_contributors");
+            return db.ExecuteCoreTransferSQL(sql_string, "ob.object_contributors");
         }
 
 
-        public void LoadCoreObjectTopics()
+        public int LoadCoreObjectTopics()
         {
             string sql_string = @"INSERT INTO core.object_topics(id, object_id,  
             topic_type_id, mesh_coded, topic_code, topic_value, 
@@ -264,11 +266,11 @@ namespace DataAggregator
             original_value, comments
             FROM ob.object_topics s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "ob.object_topics");
+            return db.ExecuteCoreTransferSQL(sql_string, "ob.object_topics");
         }
 
 
-        public void LoadCoreObjectDescriptions()
+        public int LoadCoreObjectDescriptions()
         {
             string sql_string = @"INSERT INTO core.object_descriptions(id, object_id, 
             description_type_id, label, description_text, lang_code, 
@@ -278,11 +280,11 @@ namespace DataAggregator
             contains_html
             FROM ob.object_descriptions s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "ob.object_descriptions");
+            return db.ExecuteCoreTransferSQL(sql_string, "ob.object_descriptions");
         }
 
 
-        public void LoadCoreObjectIdentifiers()
+        public int LoadCoreObjectIdentifiers()
         {
             string sql_string = @"INSERT INTO core.object_identifiers(id, object_id, 
             identifier_value, identifier_type_id, identifier_org_id, identifier_org,
@@ -292,11 +294,11 @@ namespace DataAggregator
             identifier_date
             FROM ob.object_identifiers s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "ob.object_identifiers");
+            return db.ExecuteCoreTransferSQL(sql_string, "ob.object_identifiers");
         }
 
 
-        public void LoadCoreObjectRelationships()
+        public int LoadCoreObjectRelationships()
         {
             string sql_string = @"INSERT INTO core.object_relationships(id, object_id,   
             relationship_type_id, target_object_id)
@@ -304,11 +306,11 @@ namespace DataAggregator
             s.relationship_type_id, s.target_object_id
             FROM ob.object_relationships s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "ob.object_relationships");
+            return db.ExecuteCoreTransferSQL(sql_string, "ob.object_relationships");
         }
 
 
-        public void LoadCoreObjectRights()
+        public int LoadCoreObjectRights()
         {
             string sql_string = @"INSERT INTO core.object_rights(id, object_id,  
             rights_name, rights_uri, comments)
@@ -316,18 +318,18 @@ namespace DataAggregator
             rights_name, rights_uri, comments
             FROM ob.object_rights s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "ob.object_rights");
+            return db.ExecuteCoreTransferSQL(sql_string, "ob.object_rights");
         }
 
 
-        public void LoadStudyObjectLinks()
+        public int LoadStudyObjectLinks()
         {
             string sql_string = @"INSERT INTO core.study_object_links(id, 
             study_id, object_id)
             SELECT s.id, s.parent_study_id, s.object_id
             FROM nk.all_ids_data_objects s ";
 
-            int res = db.ExecuteCoreTransferSQL(sql_string, "nk.all_ids_data_objects");
+            return db.ExecuteCoreTransferSQL(sql_string, "nk.all_ids_data_objects");
         }
 
 
@@ -380,16 +382,44 @@ namespace DataAggregator
                          inner join mon_sf.source_parameters p
                          on t.id = p.id) d
                     on s.source_id = d.id
+                    where s.source_id <> 100135
                     group by object_id ";
             db.ExecuteSQL(sql_string);
 
+            // PubMed objects need a different approach
+            sql_string = @"create table nk.temp_pubmed_object_provenance
+                     as select s.sd_oid,
+                     'Data retrieved from Pubmed at ' || TO_CHAR(max(s.datetime_of_data_fetch), 'HH24:MI, dd Mon yyyy') as provenance
+                     from nk.all_ids_data_objects s
+                     inner
+                     join
+                  (select t.id,
+                         t.default_name as repo_name
+                         from context_ctx.data_sources t
+                         ) d
+                    on s.source_id = d.id
+                    where s.source_id = 100135
+                    group by s.sd_oid ";
+            db.ExecuteSQL(sql_string);
+
+            // update non pubmed objects
             sql_string = @"update core.data_objects s
                     set provenance_string = tt.provenance
                     from nk.temp_object_provenance tt
                     where s.id = tt.object_id ";
             db.ExecuteProvenanceSQL(sql_string, "core.data_objects");
 
-            sql_string = @"drop table nk.temp_object_provenance;";
+            // update pubmed objects
+            sql_string = @"update core.data_objects s
+                    set provenance_string = tt.provenance
+                    from nk.temp_pubmed_object_provenance tt
+                    inner join nk.all_ids_data_objects k
+                    on tt.sd_oid = k.sd_oid
+                    where s.id = k.object_id ";
+            db.ExecuteProvenanceSQL(sql_string, "core.data_objects");
+
+            sql_string = @"drop table nk.temp_object_provenance;
+            drop table nk.temp_pubmed_object_provenance;";
             db.ExecuteSQL(sql_string);
         }
     }

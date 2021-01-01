@@ -7,10 +7,12 @@ namespace DataAggregator
     public class DBUtilities
     {
         string connstring;
+        LoggingDataLayer logging_repo;
 
-        public DBUtilities(string _connstring)
+        public DBUtilities(string _connstring, LoggingDataLayer _logging_repo)
         {
             connstring = _connstring;
+            logging_repo = _logging_repo;
         }
 
         public int ExecuteSQL(string sql_string)
@@ -23,7 +25,7 @@ namespace DataAggregator
                 }
                 catch (Exception e)
                 {
-                    StringHelpers.SendError("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
+                    logging_repo.LogError("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
                     return 0;
                 }
             }
@@ -75,19 +77,19 @@ namespace DataAggregator
                         ExecuteSQL(batch_sql_string);
                         string feedback = "Updated " + schema_name + "." + table_name + " export date, " + r.ToString() + " to ";
                         feedback += (r + rec_batch < rec_count) ? (r + rec_batch - 1).ToString() : rec_count.ToString();
-                        StringHelpers.SendFeedback(feedback);
+                        logging_repo.LogLine(feedback);
                     }
                 }
                 else
                 {
                     ExecuteSQL(sql_string);
-                    StringHelpers.SendFeedback("Updated " + schema_name + "." + table_name + " export date, as a single batch");
+                    logging_repo.LogLine("Updated " + schema_name + "." + table_name + " export date, as a single batch");
                 }
             }
             catch (Exception e)
             {
                 string res = e.Message;
-                StringHelpers.SendError("In update export date (" + schema_name + "." + table_name + ") to aggregate table: " + res);
+                logging_repo.LogError("In update export date (" + schema_name + "." + table_name + ") to aggregate table: " + res);
             }
         }
 
@@ -109,22 +111,21 @@ namespace DataAggregator
 
                         string feedback = "Transferred " + schema_name + "." + table_name + " (" + context + ") data, " + r.ToString() + " to ";
                         feedback += (r + rec_batch < rec_count) ? (r + rec_batch - 1).ToString() : rec_count.ToString();
-                        StringHelpers.SendFeedback(feedback);
+                        logging_repo.LogLine(feedback);
                     }
                 }
                 else
                 {
                     transferred = ExecuteSQL(sql_string);
-                    StringHelpers.SendFeedback("Transferred " + schema_name + "." + table_name + " (" + context + ") data, as a single batch");
+                    logging_repo.LogLine("Transferred " + schema_name + "." + table_name + " (" + context + ") data, as a single batch");
                 }
                 return transferred;
             }
-            
 
             catch (Exception e)
             {
                 string res = e.Message;
-                StringHelpers.SendError("In data transfer (" + schema_name + "." + table_name + "(" + context + ")) to aggregate table: " + res);
+                logging_repo.LogError("In data transfer (" + schema_name + "." + table_name + "(" + context + ")) to aggregate table: " + res);
                 return 0;
             }
         }
@@ -148,22 +149,21 @@ namespace DataAggregator
 
                         string feedback = "Transferred " + full_table_name + " data, " + r.ToString() + " to ";
                         feedback += (r + rec_batch < max_id) ? (r + rec_batch - 1).ToString() : max_id.ToString();
-                        StringHelpers.SendFeedback(feedback);
+                        logging_repo.LogLine(feedback);
                     }
                 }
                 else
                 {
                     transferred = ExecuteSQL(sql_string);
-                    StringHelpers.SendFeedback("Transferred " + full_table_name + " data, as a single batch");
+                    logging_repo.LogLine("Transferred " + full_table_name + " data, as a single batch");
                 }
                 return transferred;
             }
 
-
             catch (Exception e)
             {
                 string res = e.Message;
-                StringHelpers.SendError("In data transfer (" + full_table_name + " to core table: " + res);
+                logging_repo.LogError("In data transfer (" + full_table_name + " to core table: " + res);
                 return 0;
             }
         }
@@ -185,20 +185,20 @@ namespace DataAggregator
 
                         string feedback = "Updated " + full_table_name + " with provenance data, " + r.ToString() + " to ";
                         feedback += (r + rec_batch < max_id) ? (r + rec_batch - 1).ToString() : max_id.ToString();
-                        StringHelpers.SendFeedback(feedback);
+                        logging_repo.LogLine(feedback);
                     }
                 }
                 else
                 {
                     transferred = ExecuteSQL(sql_string);
-                    StringHelpers.SendFeedback("Updated " + full_table_name + " with provenance data, as a single batch");
+                    logging_repo.LogLine("Updated " + full_table_name + " with provenance data, as a single batch");
                 }
                 return transferred;
             }
             catch (Exception e)
             {
                 string res = e.Message;
-                StringHelpers.SendError("In updating provenance data in " + full_table_name + ": " + res);
+                logging_repo.LogError("In updating provenance data in " + full_table_name + ": " + res);
                 return 0;
             }
         }

@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -6,7 +7,6 @@ namespace DataAggregator
 {
     class Program
     {
-
         static async Task Main(string[] args)
         {
             var parsedArguments = Parser.Default.ParseArguments<Options>(args);
@@ -16,21 +16,34 @@ namespace DataAggregator
 
         static async Task<int> RunOptionsAndReturnExitCodeAsync(Options opts)
         {
-            // For now the aggregation process runs without parameters
-            // and re-aggregates all the data from scratch.
-            
-            Aggregator ag = new Aggregator();
-            ag.AggregateData(opts.do_statistics, opts.transfer_data, opts.create_core, 
-                             opts.create_json, opts.also_do_files, opts.create_zip_files);
-            return 0;
+            // N.B. The aggregation process re-aggregates all the data from scratch.
+
+            LoggingDataLayer logging_repo = new LoggingDataLayer();
+            Aggregator ag = new Aggregator(logging_repo);
+            logging_repo.OpenLogFile(opts);
+
+            try
+            {
+                await ag.AggregateDataAsync(opts);
+                return 0;
+            }
+            catch (Exception e)
+            {
+                logging_repo.LogError("Unhandled exception: " + e.Message);
+                logging_repo.LogLine(e.StackTrace);
+                logging_repo.LogLine(e.TargetSite.Name);
+                logging_repo.CloseLog();
+                return -1;
+            }
         }
 
         static Task HandleParseErrorAsync(IEnumerable<Error> errs)
         {
-            // do nothing for the moment
+            // try and log error and details
+
+
             return Task.CompletedTask;
         }
-
     }
 
 
@@ -51,9 +64,6 @@ namespace DataAggregator
 
         [Option('S', "do statistics", Required = false, HelpText = "Summarises record numbers, of each sort, in different sources and in the summary and core tables")]
         public bool do_statistics { get; set; }
-
-        [Option('Z', "create zips", Required = false, HelpText = "Zips folders into zipped files, for ease of transfer")]
-        public bool create_zip_files { get; set; }
     }
 
 }

@@ -11,12 +11,14 @@ namespace DataAggregator
         DataLayer repo;
         string connString;
         DBUtilities db;
+        LoggingDataLayer logging_repo;
 
-        public ObjectDataTransferrer(DataLayer _repo)
+        public ObjectDataTransferrer(DataLayer _repo, LoggingDataLayer _logging_repo)
         {
             repo = _repo;
             connString = repo.ConnString;
-            db = new DBUtilities(connString);
+            logging_repo = _logging_repo;
+            db = new DBUtilities(connString, logging_repo);
         }
 
         public void SetUpTempObjectIdsTables()
@@ -149,7 +151,7 @@ namespace DataAggregator
         }
 
 
-        public void LoadDataObjects(string schema_name)
+        public int LoadDataObjects(string schema_name)
         {
              string sql_string = @"INSERT INTO ob.data_objects(id,
                     display_title, version, doi, doi_status_id, publication_year,
@@ -168,9 +170,10 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "data_objects", "");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " data_objects");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " data_objects");
 
             db.Update_SourceTable_ExportDate(schema_name, "data_objects");
+            return res;
         }
 
     
@@ -193,7 +196,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_datasets", "");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " object_datasets");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_datasets");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_datasets");
         }
@@ -214,7 +217,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_instances", "");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " object_instances");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_instances");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_instances");
         }
@@ -233,7 +236,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_titles", "");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " object_titles");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_titles");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_titles");
         }
@@ -252,7 +255,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_dates", "");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " object_dates");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_dates");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_dates");
         }
@@ -275,7 +278,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_contributors", "");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " object_contributors");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_contributors");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_contributors");
         }
@@ -297,7 +300,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_topics", "");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " object_topics");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_topics");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_topics");
         }
@@ -316,7 +319,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_descriptions", "");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " object_descriptions");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_descriptions");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_descriptions");
         }
@@ -336,7 +339,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_identifiers", "");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " object_identifiers");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_identifiers");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_identifiers");
         }
@@ -356,7 +359,7 @@ namespace DataAggregator
             // NEED TO DO UPDATE OF TARGET SEPARATELY
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_relationships", "");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " object_relationships");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_relationships");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_relationships");
         }
@@ -374,7 +377,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_rights", "");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " object_rights");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_rights");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_rights");
         }

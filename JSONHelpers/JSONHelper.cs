@@ -8,17 +8,19 @@ namespace DataAggregator
     {
         string connString;
         DBUtilities db;
+        LoggingDataLayer logging_repo;
 
-        public JSONHelper(string _connString)
+        public JSONHelper(string _connString, LoggingDataLayer _logging_repo)
         {
             connString = _connString;
-            db = new DBUtilities(connString);
+            logging_repo = _logging_repo;
+            db = new DBUtilities(connString, logging_repo);
         }
 
 
         public void CreateJSONStudyData(bool also_do_files, bool create_table = true, int offset = 0)
         {
-            JSONStudyDataLayer repo = new JSONStudyDataLayer();
+            JSONStudyDataLayer repo = new JSONStudyDataLayer(logging_repo);
 
             if (create_table)
             {
@@ -39,7 +41,7 @@ namespace DataAggregator
 
         public void CreateJSONObjectData(bool also_do_files, bool create_table = true, int offset = 0)
         {
-            JSONObjectDataLayer repo = new JSONObjectDataLayer();
+            JSONObjectDataLayer repo = new JSONObjectDataLayer(logging_repo);
 
             if (create_table)
             {
@@ -101,7 +103,7 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) StringHelpers.SendFeedback(k.ToString() + " records preocessed");
+                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records preocessed");
                 }
             }
         }
@@ -109,7 +111,7 @@ namespace DataAggregator
 
         public void LoopThroughObjectRecords(JSONObjectDataLayer repo, int min_id, int max_id, bool also_do_files, int offset)
         {
-            JSONObjectProcessor processor = new JSONObjectProcessor(repo);
+            JSONObjectProcessor processor = new JSONObjectProcessor(repo, logging_repo);
 
             // Do 10,000 ids at a time
             int batch = 10000;
@@ -153,7 +155,7 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) StringHelpers.SendFeedback(k.ToString() + " records preocessed");
+                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records preocessed");
                 }
             }
         }
@@ -161,7 +163,7 @@ namespace DataAggregator
 
         public void UpdateJSONStudyData(bool also_do_files, int offset = 0)
         {
-            JSONStudyDataLayer repo = new JSONStudyDataLayer();
+            JSONStudyDataLayer repo = new JSONStudyDataLayer(logging_repo);
             JSONStudyProcessor processor = new JSONStudyProcessor(repo);
 
             int min_id = repo.FetchMinId();
@@ -204,7 +206,7 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) StringHelpers.SendFeedback(k.ToString() + " records preocessed");
+                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records preocessed");
                 }
             }
         }
@@ -212,8 +214,8 @@ namespace DataAggregator
 
         public void UpdateJSONObjectData(bool also_do_files, int offset = 0)
         {
-            JSONObjectDataLayer repo = new JSONObjectDataLayer();
-            JSONObjectProcessor processor = new JSONObjectProcessor(repo);
+            JSONObjectDataLayer repo = new JSONObjectDataLayer(logging_repo);
+            JSONObjectProcessor processor = new JSONObjectProcessor(repo, logging_repo);
 
             int min_id = repo.FetchMinId();
             int max_id = repo.FetchMaxId();
@@ -259,7 +261,7 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) StringHelpers.SendFeedback(k.ToString() + " records preocessed");
+                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records preocessed");
                 }
             }
         }

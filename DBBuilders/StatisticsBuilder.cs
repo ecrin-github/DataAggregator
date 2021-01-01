@@ -7,7 +7,7 @@ namespace DataAggregator
         int agg_event_id;
         LoggingDataLayer logging_repo;
 
-        public StatisticsBuilder(LoggingDataLayer _logging_repo, int _agg_event_id)
+        public StatisticsBuilder(int _agg_event_id, LoggingDataLayer _logging_repo)
         {
             logging_repo = _logging_repo;
             agg_event_id = _agg_event_id;
@@ -21,9 +21,10 @@ namespace DataAggregator
             // Loop through and...
             // derive a connection string for each source,
             // then get the records contained in each ad table
-            // and store it in the databse.
+            // and store it in the database.
+            logging_repo.LogHeader("Statistics for each source database");
 
-            foreach(Source s in sources)
+            foreach (Source s in sources)
             {
                 string conn_string = logging_repo.FetchConnString(s.database_name);
                 SourceSummary sm = new SourceSummary(agg_event_id, s.database_name);
@@ -50,6 +51,7 @@ namespace DataAggregator
                 sm.object_relationships_recs = logging_repo.GetRecNum("object_relationships", conn_string);
 
                 logging_repo.StoreSourceSummary(sm);
+                logging_repo.LogLine("Summary stats generated for " + s.database_name + " tables");
             }
         }
 
@@ -59,6 +61,7 @@ namespace DataAggregator
             // Obtains figures for aggrgeate tables
             string conn_string = logging_repo.FetchConnString("mdr");
             AggregationSummary sm = new AggregationSummary(agg_event_id);
+            logging_repo.LogHeader("Statistics for core tables");
 
             sm.study_recs = logging_repo.GetAggregateRecNum("studies", "st", conn_string);
             sm.study_identifiers_recs = logging_repo.GetAggregateRecNum("study_identifiers", "st", conn_string);
@@ -83,15 +86,18 @@ namespace DataAggregator
 
             logging_repo.StoreAggregationSummary(sm);
 
+            logging_repo.LogHeader("Summary object and study stats");
             // get and store data object types
             List<AggregationObjectNum> object_numbers = logging_repo.GetObjectTypes(agg_event_id);
             logging_repo.StoreObjectNumbers(CopyHelpers.object_numbers_helper, object_numbers);
+            logging_repo.LogLine("Statistics done for different data objects");
 
             // get study-study linkage
             List<StudyStudyLinkData> study_link_numbers = logging_repo.GetStudyStudyLinkData(agg_event_id);
             logging_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
             study_link_numbers = logging_repo.GetStudyStudyLinkData2(agg_event_id);
             logging_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
+            logging_repo.LogLine("Statistics done for study-study links");
         }
     }
 }

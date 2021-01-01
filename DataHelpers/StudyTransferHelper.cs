@@ -10,12 +10,14 @@ namespace DataAggregator
         DataLayer repo;
         string connString;
         DBUtilities db;
+        LoggingDataLayer logging_repo;
 
-        public StudyDataTransferrer(DataLayer _repo)
+        public StudyDataTransferrer(DataLayer _repo, LoggingDataLayer _logging_repo)
         {
             repo = _repo;
             connString = repo.ConnString;
-            db = new DBUtilities(connString);
+            logging_repo = _logging_repo;
+            db = new DBUtilities(connString, logging_repo);
         }
 
 
@@ -79,7 +81,7 @@ namespace DataAggregator
                            WHERE t.sd_sid = k.sd_sid
                            AND t.source_id =  k.source_id;";
                 int res = db.ExecuteSQL(sql_string);
-                StringHelpers.SendFeedback(res.ToString() + " existing studies found");
+                logging_repo.LogLine(res.ToString() + " existing studies found");
 
                 // Also create a small table that has just the study_ids and sd_sids for the 
                 // already existing studies (used in the import of any additional data
@@ -137,7 +139,7 @@ namespace DataAggregator
 
 
         
-        public void LoadStudies(string schema_name)
+        public int LoadStudies(string schema_name)
         {
             
             // Insert the study data unless it is already in under another 
@@ -161,13 +163,14 @@ namespace DataAggregator
                     WHERE t.is_preferred = true ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "studies", "new studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " studies, new studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " studies, new studies");
 
             // Note that the statement below also updates studies that are not added as new
             // (because they equate to existing studies) but which were new in the 
             // source data.
 
             db.Update_SourceTable_ExportDate(schema_name, "studies");
+            return res;
         }
 
 
@@ -191,7 +194,7 @@ namespace DataAggregator
                     WHERE k.is_preferred = true ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_identifiers", "new studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_identifiers, new studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_identifiers, new studies");
 
             // For 'existing studies' study Ids add only new identifiers.
 
@@ -222,7 +225,7 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
             res = db.ExecuteTransferSQL(sql_string, schema_name, "study_identifiers", "existing studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_identifiers, existing studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_identifiers, existing studies");
 
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
@@ -251,7 +254,7 @@ namespace DataAggregator
                     WHERE k.is_preferred = true ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "new studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_titles, new studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_titles, new studies");
 
             // For 'existing studies' study Ids add only new titles.
 
@@ -282,7 +285,7 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
             res = db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "existing studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_titles, existing studies");            
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_titles, existing studies");            
 
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
@@ -315,7 +318,7 @@ namespace DataAggregator
                     WHERE k.is_preferred = true ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "new studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_contributors, new studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_contributors, new studies");
 
             // For 'existing studies' study Ids add only new contributors.
             // Need to do it in two sets to simplify the SQL (to try and avoid time outs)
@@ -349,7 +352,7 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
             res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "existing studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_contributors (orgs), existing studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_contributors (orgs), existing studies");
 
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
@@ -382,7 +385,7 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
             res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "existing studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_contributors (people), existing studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_contributors (people), existing studies");
 
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
@@ -413,7 +416,7 @@ namespace DataAggregator
                     WHERE k.is_preferred = true ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "new studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_topics, new studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_topics, new studies");
 
             // For 'existing studies' study Ids add only new topics.
 
@@ -443,7 +446,7 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
             res = db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "existing studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_topics, existing studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_topics, existing studies");
 
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
@@ -469,7 +472,7 @@ namespace DataAggregator
                     WHERE k.is_preferred = true ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_features", "new studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_features, new studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_features, new studies");
 
             // For 'existing studies' study Ids add only new feature types.
 
@@ -499,7 +502,7 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
             res = db.ExecuteTransferSQL(sql_string, schema_name, "study_features", "existing studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_features, existing studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_features, existing studies");
 
             db.Update_SourceTable_ExportDate(schema_name, "study_features");
         }
@@ -523,7 +526,7 @@ namespace DataAggregator
                     WHERE k.is_preferred = true ";
             
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "new studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_relationships, new studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_relationships, new studies");
 
             // For 'existing studies' study Ids add only new relationships types.
             sql_string = @"DROP TABLE IF EXISTS nk.source_data;
@@ -552,7 +555,7 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
             res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "existing studies");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_relationships, existing studies");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_relationships, existing studies");
             
             // insert target study id, using sd_sid to find it in the temp studies table
             // N.B. These relationships are defined within the same source...
@@ -570,7 +573,7 @@ namespace DataAggregator
                     WHERE r.study_id = tt.study_id ";
 
             res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "updating target ids");
-            StringHelpers.SendFeedback("Loaded records - " + res.ToString() + " study_relationships, updating target ids");
+            logging_repo.LogLine("Loaded records - " + res.ToString() + " study_relationships, updating target ids");
             
             db.Update_SourceTable_ExportDate(schema_name, "study_relationships");
         }
