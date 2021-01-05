@@ -79,7 +79,19 @@ namespace DataAggregator
 
                     string folder_name = "studies " + n.ToString() + " to " + (n + batch - 1).ToString();
                     folder_path = Path.Combine(repo.StudyJsonFolder, folder_name);
-                    Directory.CreateDirectory(folder_path);
+                    if (!Directory.Exists(folder_path))
+                    {
+                        Directory.CreateDirectory(folder_path);
+                    }
+                    else
+                    {
+                        // first clear files from folder
+                        DirectoryInfo di = new DirectoryInfo(folder_path);
+                        foreach (FileInfo file in di.EnumerateFiles())
+                        {
+                            file.Delete();
+                        }
+                    }
                 }
 
                 IEnumerable<int> id_numbers = repo.FetchIds(n, batch);
@@ -103,7 +115,7 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records preocessed");
+                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records processed");
                 }
             }
         }
@@ -130,7 +142,19 @@ namespace DataAggregator
 
                     string folder_name = "objects " + n.ToString() + " to " + (n + batch -1).ToString();
                     folder_path = Path.Combine(repo.ObjectJsonFolder, folder_name);
-                    Directory.CreateDirectory(folder_path);
+                    if (!Directory.Exists(folder_path))
+                    {
+                        Directory.CreateDirectory(folder_path);
+                    }
+                    else
+                    {
+                        // first clear files from folder
+                        DirectoryInfo di = new DirectoryInfo(folder_path);
+                        foreach (FileInfo file in di.EnumerateFiles())
+                        {
+                            file.Delete();
+                        }
+                    }
                 }
 
                 IEnumerable<int> id_numbers = repo.FetchIds(n, batch);
@@ -155,12 +179,12 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records preocessed");
+                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records processed");
                 }
             }
         }
 
-
+        /*
         public void UpdateJSONStudyData(bool also_do_files, int offset = 0)
         {
             JSONStudyDataLayer repo = new JSONStudyDataLayer(logging_repo);
@@ -183,6 +207,10 @@ namespace DataAggregator
 
                     string folder_name = "studies " + n.ToString() + " to " + (n + batch - 1).ToString();
                     folder_path = Path.Combine(repo.StudyJsonFolder, folder_name);
+                    if (!Directory.Exists(folder_path))
+                    {
+                        Directory.CreateDirectory(folder_path);
+                    }
                 }
 
                 IEnumerable<int> id_numbers = repo.FetchIds(n, batch);
@@ -206,7 +234,7 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records preocessed");
+                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records processed");
                 }
             }
         }
@@ -237,6 +265,10 @@ namespace DataAggregator
 
                     string folder_name = "objects " + n.ToString() + " to " + (n + batch - 1).ToString();
                     folder_path = Path.Combine(repo.ObjectJsonFolder, folder_name);
+                    if (!Directory.Exists(folder_path))
+                    {
+                        Directory.CreateDirectory(folder_path);
+                    }
                 }
 
                 IEnumerable<int> id_numbers = repo.FetchIds(n, batch);
@@ -261,10 +293,11 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records preocessed");
+                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records processed");
                 }
             }
         }
+        */
 
     }
 }

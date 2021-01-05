@@ -22,6 +22,7 @@ namespace DataAggregator
             // derive a connection string for each source,
             // then get the records contained in each ad table
             // and store it in the database.
+            logging_repo.DeleteSameEventDBStats(agg_event_id);
             logging_repo.LogHeader("Statistics for each source database");
 
             foreach (Source s in sources)
@@ -62,6 +63,7 @@ namespace DataAggregator
             string conn_string = logging_repo.FetchConnString("mdr");
             AggregationSummary sm = new AggregationSummary(agg_event_id);
             logging_repo.LogHeader("Statistics for core tables");
+            logging_repo.DeleteSameEventSummaryStats(agg_event_id);
 
             sm.study_recs = logging_repo.GetAggregateRecNum("studies", "st", conn_string);
             sm.study_identifiers_recs = logging_repo.GetAggregateRecNum("study_identifiers", "st", conn_string);
@@ -83,16 +85,19 @@ namespace DataAggregator
             sm.object_rights_recs = logging_repo.GetAggregateRecNum("object_rights", "ob", conn_string);
             sm.object_relationships_recs = logging_repo.GetAggregateRecNum("object_relationships", "ob", conn_string);
             sm.study_object_link_recs = logging_repo.GetAggregateRecNum("all_ids_data_objects", "nk", conn_string);
-
             logging_repo.StoreAggregationSummary(sm);
+            logging_repo.LogLine("Statistics done for mdr central schemas");
 
             logging_repo.LogHeader("Summary object and study stats");
+
             // get and store data object types
+            logging_repo.DeleteSameEventObjectStats(agg_event_id);
             List<AggregationObjectNum> object_numbers = logging_repo.GetObjectTypes(agg_event_id);
             logging_repo.StoreObjectNumbers(CopyHelpers.object_numbers_helper, object_numbers);
             logging_repo.LogLine("Statistics done for different data objects");
 
             // get study-study linkage
+            logging_repo.RecreateStudyStudyLinksTable();
             List<StudyStudyLinkData> study_link_numbers = logging_repo.GetStudyStudyLinkData(agg_event_id);
             logging_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
             study_link_numbers = logging_repo.GetStudyStudyLinkData2(agg_event_id);
@@ -101,3 +106,4 @@ namespace DataAggregator
         }
     }
 }
+

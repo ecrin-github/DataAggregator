@@ -142,26 +142,21 @@ namespace DataAggregator
             if (opts.create_json)
             {
                 string conn_string = logging_repo.FetchConnString("mdr");
-                JSONHelper jh= new JSONHelper(conn_string, logging_repo);
+                JSONHelper jh = new JSONHelper(conn_string, logging_repo);
 
                 // Create json fields.
+
                 // if tables are to be left as they are, add false as 
                 // an additional boolean (default = true)
                 // if tables are to have further data appended add an integer
                 // offset that represents the records to skip (default = 0)
+
                 logging_repo.LogHeader("Creating JSON study data");
                 jh.CreateJSONStudyData(opts.also_do_files);
+                //jh.UpdateJSONStudyData(opts.also_do_files);
                 logging_repo.LogHeader("Creating JSON object data");
                 jh.CreateJSONObjectData(opts.also_do_files);
-
-                // if data is to be updated and / or inserted
-                // use these routines instead 
-                // If the update process is to start from a particular
-                // value add an integer offset that represents the
-                // records to skip (default = 0)
-
-                // jh.UpdateJSONStudyData(opts.also_do_files);
-                // jh.UpdateJSONObjectData(opts.also_do_files);
+                //jh.UpdateJSONObjectData(opts.also_do_files);
             }
 
             repo.DropTempContextFTWs();

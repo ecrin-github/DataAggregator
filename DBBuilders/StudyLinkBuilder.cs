@@ -29,9 +29,12 @@ namespace DataAggregator
             foreach (Source s in sources)
             {
                 // Fetch the study-study links and store them
-                // in the Collector table 
-                IEnumerable<StudyLink> links = slh.FetchLinks(s.id, s.database_name);
-                slh.StoreLinksInTempTable(CopyHelpers.links_helper, links);
+                // in the Collector table (asumingthe source has study data)
+                if (s.has_study_tables)
+                {
+                    IEnumerable<StudyLink> links = slh.FetchLinks(s.id, s.database_name);
+                    slh.StoreLinksInTempTable(CopyHelpers.links_helper, links);
+                }
             }
 
             // Tidy up common format errors and then store links in the 'correct' 
