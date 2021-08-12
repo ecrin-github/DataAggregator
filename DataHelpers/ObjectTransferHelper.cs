@@ -2,28 +2,27 @@
 using Npgsql;
 using PostgreSQLCopyHelper;
 using System.Collections.Generic;
+using Serilog;
 
 namespace DataAggregator
 {
     public class ObjectDataTransferrer
     {
 
-        DataLayer repo;
-        string connString;
+        string _connString;
         DBUtilities db;
-        LoggingDataLayer logging_repo;
+        ILogger _logger;
 
-        public ObjectDataTransferrer(DataLayer _repo, LoggingDataLayer _logging_repo)
+        public ObjectDataTransferrer(string connString, ILogger logger)
         {
-            repo = _repo;
-            connString = repo.ConnString;
-            logging_repo = _logging_repo;
-            db = new DBUtilities(connString, logging_repo);
+            _connString = connString;
+            _logger = logger;
+            db = new DBUtilities(connString, _logger);
         }
 
         public void SetUpTempObjectIdsTables()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_object_ids;
                       CREATE TABLE IF NOT EXISTS nk.temp_object_ids(
@@ -49,10 +48,9 @@ namespace DataAggregator
         }
 
 
-        public IEnumerable<ObjectId> FetchObjectIds(int source_id)
+        public IEnumerable<ObjectId> FetchObjectIds(int source_id, string source_conn_string)
         {
-            string conn_string = repo.GetConnString(source_id);
-            using (var conn = new NpgsqlConnection(conn_string))
+            using (var conn = new NpgsqlConnection(source_conn_string))
             {
                 string sql_string = @"select " + source_id.ToString() + @" as source_id, " 
                           + source_id.ToString() + @" as parent_study_source_id, 
@@ -66,7 +64,7 @@ namespace DataAggregator
 
         public ulong StoreObjectIds(PostgreSQLCopyHelper<ObjectId> copyHelper, IEnumerable<ObjectId> entities)
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 conn.Open();
                 return copyHelper.SaveAll(conn, entities);
@@ -79,7 +77,7 @@ namespace DataAggregator
             // Update the object parent study_id using the 'correct'
             // value found in the all_ids_studies table
 
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"UPDATE nk.temp_object_ids t
                            SET parent_study_id = s.study_id, 
@@ -103,9 +101,10 @@ namespace DataAggregator
             // TO DO - very rare at the momentt
         }
 
+
         public void UpdateAllObjectIdsTable(int source_id)
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 // Add the new object id records to the all Ids table
                 // For study based data, the assumption here is that within each source 
@@ -139,7 +138,7 @@ namespace DataAggregator
 
         public void FillObjectsToAddTable(int source_id)
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"INSERT INTO nk.temp_objects_to_add
                              (object_id, sd_oid)
@@ -155,13 +154,15 @@ namespace DataAggregator
         {
              string sql_string = @"INSERT INTO ob.data_objects(id,
                     display_title, version, doi, doi_status_id, publication_year,
-                    object_class_id, object_type_id, managing_org_id, managing_org,
+                    object_class_id, object_type_id, 
+                    managing_org_id, managing_org, managing_org_ror_id,
                     lang_code, access_type_id, access_details, access_details_url,
                     url_last_checked, eosc_category, add_study_contribs, 
                     add_study_topics)
                     SELECT t.object_id,
                     s.display_title, s.version, s.doi, s.doi_status_id, s.publication_year,
-                    s.object_class_id, s.object_type_id, s.managing_org_id, s.managing_org,
+                    s.object_class_id, s.object_type_id, 
+                    s.managing_org_id, s.managing_org, s.managing_org_ror_id,
                     s.lang_code, s.access_type_id, s.access_details, s.access_details_url,
                     s.url_last_checked, s.eosc_category, s.add_study_contribs, 
                     s.add_study_topics
@@ -170,7 +171,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "data_objects", "");
-            logging_repo.LogLine("Loaded records - " + res.ToString() + " data_objects");
+            _logger.Information("Loaded records - " + res.ToString() + " data_objects");
 
             db.Update_SourceTable_ExportDate(schema_name, "data_objects");
             return res;
@@ -196,7 +197,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_datasets", "");
-            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_datasets");
+            _logger.Information("Loaded records - " + res.ToString() + " object_datasets");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_datasets");
         }
@@ -217,7 +218,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_instances", "");
-            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_instances");
+            _logger.Information("Loaded records - " + res.ToString() + " object_instances");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_instances");
         }
@@ -236,7 +237,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_titles", "");
-            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_titles");
+            _logger.Information("Loaded records - " + res.ToString() + " object_titles");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_titles");
         }
@@ -245,17 +246,17 @@ namespace DataAggregator
         public void LoadObjectDates(string schema_name)
         {
             string sql_string = @"INSERT INTO ob.object_dates(object_id, 
-            date_type_id, is_date_range, date_as_string, start_year, 
+            date_type_id, date_is_range, date_as_string, start_year, 
             start_month, start_day, end_year, end_month, end_day, details)
             SELECT t.object_id,
-            date_type_id, is_date_range, date_as_string, start_year, 
+            date_type_id, date_is_range, date_as_string, start_year, 
             start_month, start_day, end_year, end_month, end_day, details
             FROM " + schema_name + @".object_dates s
                     INNER JOIN nk.temp_objects_to_add t
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_dates", "");
-            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_dates");
+            _logger.Information("Loaded records - " + res.ToString() + " object_dates");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_dates");
         }
@@ -264,21 +265,21 @@ namespace DataAggregator
         public void LoadObjectContributors(string schema_name)
         {
             string sql_string = @"INSERT INTO ob.object_contributors(object_id, 
-            contrib_type_id, is_individual, organisation_id, organisation_name,
+            contrib_type_id, is_individual, 
             person_id, person_given_name, person_family_name, person_full_name,
-            person_identifier, identifier_type, person_affiliation, affil_org_id,
-            affil_org_id_type)
+            orcid_id, person_affiliation, organisation_id, 
+            organisation_name, organisation_ror_id )
             SELECT t.object_id,
-            contrib_type_id, is_individual, organisation_id, organisation_name,
+            contrib_type_id, is_individual, 
             person_id, person_given_name, person_family_name, person_full_name,
-            person_identifier, identifier_type, person_affiliation, affil_org_id,
-            affil_org_id_type
+            orcid_id, person_affiliation, organisation_id, 
+            organisation_name, organisation_ror_id 
             FROM " + schema_name + @".object_contributors s
                     INNER JOIN nk.temp_objects_to_add t
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_contributors", "");
-            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_contributors");
+            _logger.Information("Loaded records - " + res.ToString() + " object_contributors");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_contributors");
         }
@@ -288,19 +289,19 @@ namespace DataAggregator
         public void LoadObjectTopics(string schema_name)
         {
             string sql_string = @"INSERT INTO ob.object_topics(object_id, 
-            topic_type_id, mesh_coded, topic_code, topic_value, 
-            topic_qualcode, topic_qualvalue, original_ct_id, original_ct_code,
-            original_value, comments)
+            topic_type_id, mesh_coded, mesh_code, mesh_value, 
+            mesh_qualcode, mesh_qualvalue, 
+            original_ct_id, original_ct_code, original_value)
             SELECT t.object_id, 
-            topic_type_id, mesh_coded, topic_code, topic_value, 
-            topic_qualcode, topic_qualvalue, original_ct_id, original_ct_code,
-            original_value, comments
+            topic_type_id, mesh_coded, mesh_code, mesh_value, 
+            mesh_qualcode, mesh_qualvalue, 
+            original_ct_id, original_ct_code, original_value
             FROM " + schema_name + @".object_topics s
                     INNER JOIN nk.temp_objects_to_add t
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_topics", "");
-            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_topics");
+            _logger.Information("Loaded records - " + res.ToString() + " object_topics");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_topics");
         }
@@ -309,37 +310,36 @@ namespace DataAggregator
         public void LoadObjectDescriptions(string schema_name)
         {
             string sql_string = @"INSERT INTO ob.object_descriptions(object_id, 
-            description_type_id, label, description_text, lang_code, 
-            contains_html)
+            description_type_id, label, description_text, lang_code)
             SELECT t.object_id,
-            description_type_id, label, description_text, lang_code, 
-            contains_html
+            description_type_id, label, description_text, lang_code
             FROM " + schema_name + @".object_descriptions s
                     INNER JOIN nk.temp_objects_to_add t
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_descriptions", "");
-            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_descriptions");
+            _logger.Information("Loaded records - " + res.ToString() + " object_descriptions");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_descriptions");
         }
 
 
-
         public void LoadObjectIdentifiers(string schema_name)
         {
             string sql_string = @"INSERT INTO ob.object_identifiers(object_id,  
-            identifier_value, identifier_type_id, identifier_org_id, identifier_org,
+            identifier_value, identifier_type_id, 
+            identifier_org_id, identifier_org, identifier_org_ror_id,
             identifier_date)
             SELECT t.object_id,
-            identifier_value, identifier_type_id, identifier_org_id, identifier_org,
+            identifier_value, identifier_type_id, 
+            identifier_org_id, identifier_org, identifier_org_ror_id,
             identifier_date
             FROM " + schema_name + @".object_identifiers s
                     INNER JOIN nk.temp_objects_to_add t
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_identifiers", "");
-            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_identifiers");
+            _logger.Information("Loaded records - " + res.ToString() + " object_identifiers");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_identifiers");
         }
@@ -359,7 +359,7 @@ namespace DataAggregator
             // NEED TO DO UPDATE OF TARGET SEPARATELY
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_relationships", "");
-            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_relationships");
+            _logger.Information("Loaded records - " + res.ToString() + " object_relationships");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_relationships");
         }
@@ -377,7 +377,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_rights", "");
-            logging_repo.LogLine("Loaded records - " + res.ToString() + " object_rights");
+            _logger.Information("Loaded records - " + res.ToString() + " object_rights");
 
             db.Update_SourceTable_ExportDate(schema_name, "object_rights");
         }
@@ -385,7 +385,7 @@ namespace DataAggregator
 
         public void DropTempObjectIdsTable()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_object_ids;
                           DROP TABLE IF EXISTS nk.temp_objects_to_add;";

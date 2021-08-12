@@ -14,7 +14,7 @@ namespace DataAggregator
         public lookup object_class { get; set; }
         public lookup object_type { get; set; }
         public int? publication_year { get; set; }
-        public lookup managing_organisation { get; set; }
+        public organisation managing_organisation { get; set; }
         public string lang_code { get; set; }
         public lookup access_type { get; set; }
         public object_access access_details { get; set; }
@@ -38,7 +38,7 @@ namespace DataAggregator
 
         public JSONDataObject(int _id, string _doi, string _display_title, string _version,
                     lookup _object_class, lookup _object_type, int? _publication_year,
-                    lookup _managing_organisation, string _lang_code,
+                    organisation _managing_organisation, string _lang_code,
                     lookup _access_type, object_access _access_details,
                     int? _eosc_category, string _provenance_string)
         {
@@ -72,6 +72,21 @@ namespace DataAggregator
         {
             id = _id;
             name = _name;
+        }
+    }
+
+
+    public class organisation
+    {
+        public int? id { get; set; }
+        public string name { get; set; }
+        public string ror_id { get; set; }
+
+        public organisation(int? _id, string _name, string _ror_id)
+        {
+            id = _id;
+            name = _name;
+            ror_id = _ror_id;
         }
     }
 
@@ -246,18 +261,18 @@ namespace DataAggregator
     {
         public int id { get; set; }
         public lookup date_type { get; set; }
-        public bool? is_date_range { get; set; }
+        public bool? date_is_range { get; set; }
         public string date_as_string { get; set; }
         public sdate_as_ints start_date { get; set; }
         public edate_as_ints end_date { get; set; }
         public string comments { get; set; }
 
-        public object_date(int _id, lookup _date_type, bool? _is_date_range, string _date_as_string,
+        public object_date(int _id, lookup _date_type, bool? _date_is_range, string _date_as_string,
                         sdate_as_ints _start_date, edate_as_ints _end_date, string _comments)
         {
             id = _id;
             date_type = _date_type;
-            is_date_range = _is_date_range;
+            date_is_range = _date_is_range;
             date_as_string = _date_as_string;
             start_date = _start_date;
             end_date = _end_date;
@@ -307,29 +322,28 @@ namespace DataAggregator
     {
         public int id { get; set; }
         public lookup topic_type { get; set; }
-        public bool? mesh_coded { get; set; }
-        public string topic_code { get; set; }
-        public string topic_value { get; set; }
-        public string topic_qualcode { get; set; }
-        public string topic_qualvalue { get; set; }
+        public bool mesh_coded { get; set; }
+        public string mesh_code { get; set; }
+        public string mesh_value { get; set; }
+        public string mesh_qualcode { get; set; }
+        public string mesh_qualvalue { get; set; }
         public string original_value { get; set; }
 
         public object_topic(int _id, lookup _topic_type,
-                            bool? _mesh_coded, string _topic_code, 
-                            string _topic_value,
-                            string _topic_qualcode, string _topic_qualvalue,
-                            string _original_value)
+                             bool _mesh_coded, string _mesh_code,
+                             string _mesh_value, string _mesh_qualcode,
+                             string _mesh_qualvalue, string _original_value)
         {
             id = _id;
             topic_type = _topic_type;
             mesh_coded = _mesh_coded;
-            topic_code = _topic_code;
-            topic_value = _topic_value;
-            topic_qualcode = _topic_qualcode;
-            topic_qualvalue = _topic_qualvalue;
+            mesh_code = _mesh_code;
+            mesh_value = _mesh_value;
+            mesh_qualcode = _mesh_qualcode;
+            mesh_qualvalue = _mesh_qualvalue;
             original_value = _original_value;
         }
-        
+
     }
 
 
@@ -341,11 +355,11 @@ namespace DataAggregator
         public int id { get; set; }
         public lookup contribution_type { get; set; }
         public bool? is_individual { get; set; }
-        public lookup organisation { get; set; }
         public individual person { get; set; }
+        public organisation organisation { get; set; }
 
         public object_contributor(int _id, lookup _contribution_type, bool? _is_individual,
-                        individual _person, lookup _organisation)
+                        individual _person, organisation _organisation)
         {
             id = _id;
             contribution_type = _contribution_type;
@@ -364,16 +378,25 @@ namespace DataAggregator
         public string given_name { get; set; }
         public string full_name { get; set; }
         public string orcid { get; set; }
-        public string affiliation { get; set; }
+        public string affiliation_string { get; set; }
+        public int? affiliation_org_id { get; set; }
+        public string affiliation_org_name { get; set; }
+        public string affiliation_org_ror_id { get; set; }
+
 
         public individual(string _family_name, string _given_name, string _full_name,
-                         string _orcid, string _affiliation)
+                         string _orcid, string _affiliation_string,
+                         int? _affiliation_org_id, string _affiliation_org_name,
+                         string _affiliation_org_ror_id)
         {
             family_name = _family_name;
             given_name = _given_name;
             full_name = _full_name;
             orcid = _orcid;
-            affiliation = _affiliation;
+            affiliation_string = _affiliation_string;
+            affiliation_org_id = _affiliation_org_id;
+            affiliation_org_name = _affiliation_org_name;
+            affiliation_org_ror_id = _affiliation_org_ror_id;
         }
     }
 
@@ -388,18 +411,16 @@ namespace DataAggregator
         public string description_label { get; set; }
         public string description_text { get; set; }
         public string lang_code { get; set; }
-        public bool? contains_html { get; set; }
 
         public object_description(int _id, lookup _description_type,
                                   string _description_label, string _description_text,
-                                  string _lang_code, bool? _contains_html)
+                                  string _lang_code)
         {
             id = _id;
             description_type = _description_type;
             description_label = _description_label;
             description_text = _description_text;
             lang_code = _lang_code;
-            contains_html = _contains_html;
         }
     }
 
@@ -412,11 +433,11 @@ namespace DataAggregator
         public int id { get; set; }
         public string identifier_value { get; set; }
         public lookup identifier_type { get; set; }
-        public lookup identifier_org { get; set; }
+        public organisation identifier_org { get; set; }
         public string identifier_date { get; set; }
 
         public object_identifier(int _id, string _identifier_value, 
-                                 lookup _identifier_type, lookup _identifier_org,
+                                 lookup _identifier_type, organisation _identifier_org,
                                  string _identifier_date)
         {
             id = _id;
@@ -490,6 +511,7 @@ namespace DataAggregator
         public string lang_code { get; set; }
         public int? managing_org_id { get; set; }
         public string managing_org { get; set; }
+        public string managing_org_ror_id { get; set; }
         public int? access_type_id { get; set; }
         public string access_type { get; set; }
         public string access_details { get; set; }
@@ -565,7 +587,7 @@ namespace DataAggregator
         public int id { get; set; }
         public int? date_type_id { get; set; }
         public string date_type { get; set; }
-        public bool? is_date_range { get; set; }
+        public bool? date_is_range { get; set; }
         public string date_as_string { get; set; }
         public int? start_year { get; set; }
         public int? start_month { get; set; }
@@ -585,6 +607,7 @@ namespace DataAggregator
         public string identifier_type { get; set; }
         public int? identifier_org_id { get; set; }
         public string identifier_org { get; set; }
+        public string identifier_org_ror_id { get; set; }
         public string identifier_date { get; set; }
     }
 
@@ -596,17 +619,15 @@ namespace DataAggregator
         public int? contrib_type_id { get; set; }
         public string contrib_type { get; set; }
         public bool is_individual { get; set; }
-        public int? organisation_id { get; set; }
-        public string organisation_name { get; set; }
         public int? person_id { get; set; }
         public string person_given_name { get; set; }
         public string person_family_name { get; set; }
         public string person_full_name { get; set; }
-        public string person_identifier { get; set; }
-        public string identifier_type { get; set; }
-        public string affiliation { get; set; }
-        public string affil_org_id { get; set; }
-        public string affil_org_id_type { get; set; }
+        public string orcid_id { get; set; }
+        public string person_affiliation { get; set; }
+        public int? organisation_id { get; set; }
+        public string organisation_name { get; set; }
+        public string organisation_ror_id { get; set; }
     }
 
 
@@ -617,15 +638,14 @@ namespace DataAggregator
         public int? topic_type_id { get; set; }
         public string topic_type { get; set; }
         public bool mesh_coded { get; set; }
-        public string topic_code { get; set; }
-        public string topic_value { get; set; }
-        public string topic_qualcode { get; set; }
-        public string topic_qualvalue { get; set; }
+        public string mesh_code { get; set; }
+        public string mesh_value { get; set; }
+        public string mesh_qualcode { get; set; }
+        public string mesh_qualvalue { get; set; }
         public int original_ct_id { get; set; }
         public string original_ct { get; set; }
         public string original_ct_code { get; set; }
         public string original_value { get; set; }
-        public string comments { get; set; }
     }
 
 
@@ -638,7 +658,6 @@ namespace DataAggregator
         public string label { get; set; }
         public string description_text { get; set; }
         public string lang_code { get; set; }
-        public bool? contains_html { get; set; }
     }
 
 

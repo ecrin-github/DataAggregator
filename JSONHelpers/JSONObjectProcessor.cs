@@ -1,16 +1,17 @@
 ﻿using System.Collections.Generic;
+using Serilog;
 
 namespace DataAggregator
 {
     class JSONObjectProcessor
     {
         JSONObjectDataLayer repo;
-        LoggingDataLayer logging_repo;
+        ILogger _logger;
 
         private DBDataObject ob;
         private lookup object_class;
         private lookup object_type;
-        private lookup managing_organisation;
+        private organisation managing_organisation;
         private lookup access_type;
         private object_access access_details;
         private record_keys ds_record_keys;
@@ -28,10 +29,10 @@ namespace DataAggregator
         private List<object_relationship> object_relationships;
         private List<int> linked_studies;
 
-        public JSONObjectProcessor(JSONObjectDataLayer _repo, LoggingDataLayer _logging_repo)
+        public JSONObjectProcessor(JSONObjectDataLayer _repo, ILogger logger)
         {
             repo = _repo;
-            logging_repo = _logging_repo;
+            _logger = logger;
         }
 
         public JSONDataObject CreateObject(int id)
@@ -71,7 +72,7 @@ namespace DataAggregator
                 // May occur in a few hundred cases, therefore
                 // if it does need to investigate further !!!!!!!
                 // Possible (minor) error in data object linkage with journal articles.
-                logging_repo.LogError("object " + ob.id + " does not appear to be linked to studies");
+                _logger.Error("object " + ob.id + " does not appear to be linked to studies");
                 return null;
             }
 
@@ -81,7 +82,7 @@ namespace DataAggregator
             object_type = new lookup(ob.object_type_id, ob.object_type);
             if (ob.managing_org != null)
             {
-                managing_organisation = new lookup(ob.managing_org_id, ob.managing_org);
+                managing_organisation = new organisation(ob.managing_org_id, ob.managing_org, ob.managing_org_ror_id);
             }
             if (ob.access_type_id != null)
             {
@@ -180,7 +181,7 @@ namespace DataAggregator
                     {
                         end_date = new edate_as_ints(d.end_year, d.end_month, d.end_day);
                     }
-                    object_dates.Add(new object_date(d.id, new lookup(d.date_type_id, d.date_type), d.is_date_range,
+                    object_dates.Add(new object_date(d.id, new lookup(d.date_type_id, d.date_type), d.date_is_range,
                                                 d.date_as_string, start_date, end_date, d.comments));
                 }
             }
@@ -191,7 +192,7 @@ namespace DataAggregator
             var db_object_contributors = new List<DBObjectContributor>(repo.FetchObjectContributors(id,  ob.add_study_contribs));
             if (db_object_contributors.Count > 0)
             {
-                individual person; lookup org;
+                individual person; organisation org;
                 object_contributors = new List<object_contributor>();
 
                 foreach (DBObjectContributor c in db_object_contributors)
@@ -200,11 +201,12 @@ namespace DataAggregator
                     if (c.is_individual)
                     {
                         person = new individual(c.person_family_name, c.person_given_name, c.person_full_name,
-                                                c.person_identifier, c.affiliation);
+                                                c.orcid_id, c.person_affiliation, 
+                                                c.organisation_id, c.organisation_name, c.organisation_ror_id);
                     }
                     else
                     {
-                        org = new lookup(c.organisation_id, c.organisation_name);
+                        org = new organisation(c.organisation_id, c.organisation_name, c.organisation_ror_id);
                     }
                     object_contributors.Add(new object_contributor(c.id, new lookup(c.contrib_type_id, c.contrib_type),
                                                 c.is_individual, person, org));
@@ -215,15 +217,15 @@ namespace DataAggregator
             // Get object topics - 
             // source will depend on boolean flag, itself dependent on the type of object.
 
-            var db_object_topics = new List<DBObjectTopic>(repo.FetchObjectTopics(id,  ob.add_study_topics));
+            var db_object_topics = new List<DBObjectTopic>(repo.FetchObjectTopics(id, ob.add_study_topics));
             if (db_object_topics.Count > 0)
             {
                 object_topics = new List<object_topic>();
                 foreach (DBObjectTopic t in db_object_topics)
                 {
                     object_topics.Add(new object_topic(t.id, new lookup(t.topic_type_id, t.topic_type), 
-                                          t.mesh_coded, t.topic_code, t.topic_value, t.topic_qualcode,
-                                          t.topic_qualvalue, t.original_value));
+                                          t.mesh_coded, t.mesh_code, t.mesh_value, t.mesh_qualcode,
+                                          t.mesh_qualvalue, t.original_value));
                 }
             }
 
@@ -238,7 +240,8 @@ namespace DataAggregator
                 {
                     object_identifiers.Add(new object_identifier(i.id, i.identifier_value, 
                                           new lookup(i.identifier_type_id, i.identifier_type),
-                                          new lookup(i.identifier_org_id, i.identifier_org), i.identifier_date));
+                                          new organisation(i.identifier_org_id, i.identifier_org, i.identifier_org_ror_id),
+                                          i.identifier_date));
                 }
             }
 
@@ -252,7 +255,7 @@ namespace DataAggregator
                 foreach (DBObjectDescription i in db_object_descriptions)
                 {
                     object_descriptions.Add(new object_description(i.id, new lookup(i.description_type_id, i.description_type),
-                                         i.label, i.description_text, i.lang_code, i.contains_html));
+                                         i.label, i.description_text, i.lang_code));
                 }
             }
 

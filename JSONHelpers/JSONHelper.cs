@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.IO;
+using Serilog;
 
 namespace DataAggregator
 {
@@ -8,19 +9,19 @@ namespace DataAggregator
     {
         string connString;
         DBUtilities db;
-        LoggingDataLayer logging_repo;
+        ILogger _logger;
 
-        public JSONHelper(string _connString, LoggingDataLayer _logging_repo)
+        public JSONHelper(string _connString, ILogger logger)
         {
             connString = _connString;
-            logging_repo = _logging_repo;
-            db = new DBUtilities(connString, logging_repo);
+            _logger = logger;
+            db = new DBUtilities(connString, _logger);
         }
 
 
         public void CreateJSONStudyData(bool also_do_files, bool create_table = true, int offset = 0)
         {
-            JSONStudyDataLayer repo = new JSONStudyDataLayer(logging_repo);
+            JSONStudyDataLayer repo = new JSONStudyDataLayer(_logger, connString);
 
             if (create_table)
             {
@@ -41,7 +42,7 @@ namespace DataAggregator
 
         public void CreateJSONObjectData(bool also_do_files, bool create_table = true, int offset = 0)
         {
-            JSONObjectDataLayer repo = new JSONObjectDataLayer(logging_repo);
+            JSONObjectDataLayer repo = new JSONObjectDataLayer(_logger, connString);
 
             if (create_table)
             {
@@ -115,7 +116,7 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records processed");
+                    if (k % 1000 == 0) _logger.Information(k.ToString() + " records processed");
                 }
             }
         }
@@ -123,7 +124,7 @@ namespace DataAggregator
 
         public void LoopThroughObjectRecords(JSONObjectDataLayer repo, int min_id, int max_id, bool also_do_files, int offset)
         {
-            JSONObjectProcessor processor = new JSONObjectProcessor(repo, logging_repo);
+            JSONObjectProcessor processor = new JSONObjectProcessor(repo, _logger);
 
             // Do 10,000 ids at a time
             int batch = 10000;
@@ -179,7 +180,7 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) logging_repo.LogLine(k.ToString() + " records processed");
+                    if (k % 1000 == 0) _logger.Information(k.ToString() + " records processed");
                 }
             }
         }

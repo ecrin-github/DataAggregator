@@ -6,8 +6,6 @@ namespace DataAggregator
     {
         JSONStudyDataLayer repo;
 
-        private text_block brief_description;
-        private text_block data_sharing_statement;
         private lookup study_type;
         private lookup study_status;
         private lookup study_gender_elig;
@@ -29,8 +27,6 @@ namespace DataAggregator
         public JSONStudy CreateStudyObject(int id)
         {
             // Re-initialise these compound properties.
-            brief_description = null;
-            data_sharing_statement = null;
             study_type = null;
             study_status = null;
             study_gender_elig = null;
@@ -49,14 +45,6 @@ namespace DataAggregator
             var s = repo.FetchDbStudy(id);
 
             // Instantiate the top level lookup types
-            if (s.brief_description != null)
-            {
-                brief_description = new text_block(s.brief_description, s.bd_contains_html);
-            }
-            if (s.data_sharing_statement != null)
-            {
-                data_sharing_statement = new text_block(s.data_sharing_statement, s.dss_contains_html);
-            }
             if (s.study_type_id != null)
             {
                 study_type = new lookup(s.study_type_id, s.study_type);
@@ -81,9 +69,10 @@ namespace DataAggregator
             // instantiate a (json) study object and
             // fill it with study level details
 
-            JSONStudy jst = new JSONStudy(s.id, s.display_title, brief_description,
-                         data_sharing_statement, study_type, study_status, s.study_enrolment,
+            JSONStudy jst = new JSONStudy(s.id, s.display_title, s.brief_description,
+                         s.data_sharing_statement, study_type, study_status, s.study_enrolment,
                          study_gender_elig, min_age, max_age, s.provenance_string);
+
 
             // add the study identifier details
 
@@ -95,7 +84,7 @@ namespace DataAggregator
                 {
                     study_identifiers.Add(new study_identifier(t.id, t.identifier_value,
                                           new lookup(t.identifier_type_id, t.identifier_type),
-                                          new lookup(t.identifier_org_id, t.identifier_org),
+                                          new organisation(t.identifier_org_id, t.identifier_org, t.identifier_org_ror_id),
                                           t.identifier_date, t.identifier_link));
                 }
             }
@@ -136,8 +125,8 @@ namespace DataAggregator
                 foreach (DBStudyTopic t in db_study_topics)
                 {
                     study_topics.Add(new study_topic(t.id, new lookup(t.topic_type_id, t.topic_type),
-                                         t.mesh_coded, t.topic_code, t.topic_value, t.topic_qualcode,
-                                         t.topic_qualvalue, t.original_value));
+                                         t.mesh_coded, t.mesh_code, t.mesh_value, t.mesh_qualcode,
+                                         t.mesh_qualvalue, t.original_value));
                 }
             }
 

@@ -1,4 +1,6 @@
-﻿namespace DataAggregator
+﻿using Serilog;
+
+namespace DataAggregator
 {
     public class SchemaBuilder
     {
@@ -6,16 +8,13 @@
         private StudyTableBuilder study_tablebuilder;
         private ObjectTableBuilder object_tablebuilder;
         private LinkTableBuilder link_tablebuilder;
-        private CoreTableBuilder core_tablebuilder;
-        LoggingDataLayer logging_repo;
 
-        public SchemaBuilder(string _connString, LoggingDataLayer _logging_repo)
+        public SchemaBuilder(string _connString)
         {
             connString = _connString;
-            logging_repo = _logging_repo;
-            study_tablebuilder = new StudyTableBuilder(connString, logging_repo);
-            object_tablebuilder = new ObjectTableBuilder(connString, logging_repo);
-            link_tablebuilder = new LinkTableBuilder(connString, logging_repo);
+            study_tablebuilder = new StudyTableBuilder(connString);
+            object_tablebuilder = new ObjectTableBuilder(connString);
+            link_tablebuilder = new LinkTableBuilder(connString);
         }
 
         public void DeleteStudyTables()
@@ -105,62 +104,6 @@
             link_tablebuilder.create_table_temp_study_ids();
         }
 
-
-        public void DeleteCoreTables()
-        {
-            // dropping routines include 'if exists'
-            core_tablebuilder = new CoreTableBuilder(connString);
-
-            core_tablebuilder.drop_table("studies");
-            core_tablebuilder.drop_table("study_identifiers");
-            core_tablebuilder.drop_table("study_titles");
-            core_tablebuilder.drop_table("study_contributors");
-            core_tablebuilder.drop_table("study_topics");
-            core_tablebuilder.drop_table("study_features");
-            core_tablebuilder.drop_table("study_relationships"); 
-            
-            core_tablebuilder.drop_table("data_objects");
-            core_tablebuilder.drop_table("object_datasets");
-            core_tablebuilder.drop_table("object_dates");
-            core_tablebuilder.drop_table("object_instances");
-            core_tablebuilder.drop_table("object_titles");
-            core_tablebuilder.drop_table("object_contributors");
-            core_tablebuilder.drop_table("object_topics");
-            core_tablebuilder.drop_table("object_descriptions");
-            core_tablebuilder.drop_table("object_identifiers");
-            core_tablebuilder.drop_table("object_relationships");
-            core_tablebuilder.drop_table("object_rights");
-
-            core_tablebuilder.drop_table("study_object_links");
-            logging_repo.LogLine("Core tables dropped");
-        }
-
-
-        public void BuildNewCoreTables()
-        {
-            core_tablebuilder.create_table_studies();
-            core_tablebuilder.create_table_study_identifiers();
-            core_tablebuilder.create_table_study_titles();
-            core_tablebuilder.create_table_study_topics();
-            core_tablebuilder.create_table_study_features();
-            core_tablebuilder.create_table_study_contributors();
-            core_tablebuilder.create_table_study_relationships();
-
-            core_tablebuilder.create_table_data_objects();
-            core_tablebuilder.create_table_object_instances();
-            core_tablebuilder.create_table_object_titles();
-            core_tablebuilder.create_table_object_datasets();
-            core_tablebuilder.create_table_object_dates();
-            core_tablebuilder.create_table_object_relationships();
-            core_tablebuilder.create_table_object_rights();
-            core_tablebuilder.create_table_object_contributors();
-            core_tablebuilder.create_table_object_topics();
-            core_tablebuilder.create_table_object_descriptions();
-            core_tablebuilder.create_table_object_identifiers();
-
-            core_tablebuilder.create_table_study_object_links();
-            logging_repo.LogLine("Core tables created");
-        }
     }
 }
 

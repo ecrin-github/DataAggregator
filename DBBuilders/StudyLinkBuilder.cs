@@ -6,15 +6,15 @@ namespace DataAggregator
 {
     public class StudyLinkBuilder
     {
-        DataLayer repo;
         LinksDataHelper slh;
-        LoggingDataLayer logging_repo;
+        string _mdr_connString;
+        ICredentials _credentials;
 
-        public StudyLinkBuilder(DataLayer _repo, LoggingDataLayer _logging_repo)
+        public StudyLinkBuilder(ICredentials credentials)
         {
-           repo = _repo;
-           logging_repo = _logging_repo;
-           slh = new LinksDataHelper(repo, logging_repo);
+            _credentials = credentials;
+            _mdr_connString = _credentials.GetConnectionString("mdr", false);
+            slh = new LinksDataHelper(_mdr_connString);
         }
             
         public void CollectStudyStudyLinks(IEnumerable<Source> sources)
@@ -32,7 +32,8 @@ namespace DataAggregator
                 // in the Collector table (asumingthe source has study data)
                 if (s.has_study_tables)
                 {
-                    IEnumerable<StudyLink> links = slh.FetchLinks(s.id, s.database_name);
+                    string source_conn_string = _credentials.GetConnectionString(s.database_name, false);
+                    IEnumerable<StudyLink> links = slh.FetchLinks(s.id, source_conn_string);
                     slh.StoreLinksInTempTable(CopyHelpers.links_helper, links);
                 }
             }

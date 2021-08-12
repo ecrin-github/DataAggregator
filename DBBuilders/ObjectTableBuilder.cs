@@ -7,12 +7,10 @@ namespace DataAggregator
     public class ObjectTableBuilder
     {
         string db_conn;
-        LoggingDataLayer logging_repo;
 
-        public ObjectTableBuilder(string _db_conn, LoggingDataLayer _logging_repo)
+        public ObjectTableBuilder(string _db_conn)
         {
             db_conn = _db_conn;
-            logging_repo = _logging_repo;
         }
 
         public void drop_table(string table_name)
@@ -38,6 +36,7 @@ namespace DataAggregator
               , object_type_id         INT             NULL
               , managing_org_id        INT             NULL
               , managing_org           VARCHAR         NULL
+              , managing_org_ror_id    VARCHAR         NULL
               , lang_code              VARCHAR         NULL
               , access_type_id         INT             NULL
               , access_details         VARCHAR         NULL
@@ -94,7 +93,7 @@ namespace DataAggregator
                 id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , date_type_id           INT             NULL
-              , is_date_range          BOOLEAN         NULL
+              , date_is_range          BOOLEAN         NULL
               , date_as_string         VARCHAR         NULL
               , start_year             INT             NULL
               , start_month            INT             NULL
@@ -147,17 +146,15 @@ namespace DataAggregator
               , object_id              INT             NOT NULL
               , contrib_type_id        INT             NULL
               , is_individual          BOOLEAN         NULL
-              , organisation_id        INT             NULL
-              , organisation_name      VARCHAR         NULL
               , person_id              INT             NULL
               , person_given_name      VARCHAR         NULL
               , person_family_name     VARCHAR         NULL
               , person_full_name       VARCHAR         NULL
-              , person_identifier      VARCHAR         NULL
-              , identifier_type        VARCHAR         NULL
+              , orcid_id               VARCHAR         NULL
               , person_affiliation     VARCHAR         NULL
-              , affil_org_id           VARCHAR         NULL
-              , affil_org_id_type      VARCHAR         NULL
+              , organisation_id        INT             NULL
+              , organisation_name      VARCHAR         NULL
+              , organisation_ror_id    VARCHAR         NULL
               , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
             );
             CREATE INDEX object_contributors_object_id ON ob.object_contributors(object_id);";
@@ -198,14 +195,13 @@ namespace DataAggregator
               , object_id              INT             NOT NULL
               , topic_type_id          INT             NULL
               , mesh_coded             BOOLEAN         NULL
-              , topic_code             VARCHAR         NULL
-              , topic_value            VARCHAR         NULL
-              , topic_qualcode         VARCHAR         NULL
-              , topic_qualvalue        VARCHAR         NULL
+              , mesh_code              VARCHAR         NULL
+              , mesh_value             VARCHAR         NULL
+              , mesh_qualcode          VARCHAR         NULL
+              , mesh_qualvalue         VARCHAR         NULL
               , original_ct_id         INT             NULL
               , original_ct_code       VARCHAR         NULL
               , original_value         VARCHAR         NULL
-              , comments               VARCHAR         NULL
               , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
             );
             CREATE INDEX object_topics_object_id ON ob.object_topics(object_id);";
@@ -226,7 +222,6 @@ namespace DataAggregator
               , label                  VARCHAR         NULL
               , description_text       VARCHAR         NULL
               , lang_code              VARCHAR         NULL
-              , contains_html          BOOLEAN         NULL
               , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
             );
             CREATE INDEX object_descriptions_object_id ON ob.object_descriptions(object_id);";
@@ -241,12 +236,13 @@ namespace DataAggregator
         public void create_table_object_identifiers()
         {
             string sql_string = @"CREATE TABLE ob.object_identifiers(
-                id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 20000001 INCREMENT BY 4) PRIMARY KEY
+                id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , identifier_value       VARCHAR         NULL
               , identifier_type_id     INT             NULL
               , identifier_org_id      INT             NULL
               , identifier_org         VARCHAR         NULL
+              , identifier_org_ror_id  VARCHAR         NULL
               , identifier_date        VARCHAR         NULL
               , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
             );

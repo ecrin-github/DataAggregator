@@ -7,22 +7,18 @@ namespace DataAggregator
 {
     public class LinksDataHelper
     {
-        DataLayer repo;
-        string connString;
-        LoggingDataLayer logging_repo;
+        string _mdr_connString;
 
-        public LinksDataHelper(DataLayer _repo, LoggingDataLayer _logging_repo)
+        public LinksDataHelper(string mdr_connString)
         {
-            repo = _repo;
-            connString = repo.ConnString;
-            logging_repo = _logging_repo;
+            _mdr_connString = mdr_connString;
         }
 
 
         public void SetUpTempPreferencesTable(IEnumerable<Source> sources)
         {
             string sql_string;
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 sql_string = @"DROP TABLE IF EXISTS nk.temp_preferences;
                       CREATE TABLE IF NOT EXISTS nk.temp_preferences(
@@ -45,7 +41,7 @@ namespace DataAggregator
 
         public void SetUpTempLinkCollectorTable()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_study_links_collector;
                         CREATE TABLE nk.temp_study_links_collector(
@@ -60,7 +56,7 @@ namespace DataAggregator
 
         public void SetUpTempLinkSortedTable()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_study_links_sorted;
                         CREATE TABLE nk.temp_study_links_sorted(
@@ -73,11 +69,9 @@ namespace DataAggregator
         }
 
     
-        public IEnumerable<StudyLink> FetchLinks(int source_id, string database_name)
+        public IEnumerable<StudyLink> FetchLinks(int source_id, string source_conn_string)
         {
-            string conn_string = repo.GetConnString(database_name);
-
-            using (var conn = new NpgsqlConnection(conn_string))
+            using (var conn = new NpgsqlConnection(source_conn_string))
             {
                 string sql_string = @"select " + source_id.ToString() + @" as source_1, 
                     sd_sid as sd_sid_1, 
@@ -94,7 +88,7 @@ namespace DataAggregator
 
         public ulong StoreLinksInTempTable(PostgreSQLCopyHelper<StudyLink> copyHelper, IEnumerable<StudyLink> entities)
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 conn.Open();
                 return copyHelper.SaveAll(conn, entities);
@@ -105,7 +99,7 @@ namespace DataAggregator
         public void TidyIds1()
         {
             string sql_string = "";
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 sql_string = @"DELETE from nk.temp_study_links_collector
                 where sd_sid_2 ilike 'U1111%' or sd_sid_2 ilike 'UTRN%'";
@@ -155,7 +149,7 @@ namespace DataAggregator
         public void TidyIds2()
         {
             string sql_string = "";
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 sql_string = @"UPDATE nk.temp_study_links_collector
                 SET sd_sid_2 = replace(sd_sid_2, ' ', '')
@@ -248,7 +242,7 @@ namespace DataAggregator
         public void TidyIds3()
         {
             string sql_string = "";
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 sql_string = @"UPDATE nk.temp_study_links_collector
                 set sd_sid_2 = replace(sd_sid_2, 'ID ', '')
@@ -325,7 +319,7 @@ namespace DataAggregator
 
         public void TransferLinksToSortedTable()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 // needs to be done twice to keep the ordering of sources correct
                 // A lower rating means 'more preferred' - i.e. should be used in preference
@@ -368,7 +362,7 @@ namespace DataAggregator
             // The nk.temp_study_links_sorted table will have 
             // many duplicates... create a distinct version of the data
 
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_distinct_links;
                            CREATE TABLE nk.temp_distinct_links 
@@ -394,7 +388,7 @@ namespace DataAggregator
             // of studies in each group, can be from the LHS or the RHS 
             // of the distinct links table
 
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_grouping_studies;
                     CREATE TABLE nk.temp_grouping_studies 
@@ -435,7 +429,7 @@ namespace DataAggregator
         {
             string sql_string;
 
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 // create a table that takes the rows from the linked 
                 // studies table that match the 'L' grouping studies
@@ -513,7 +507,7 @@ namespace DataAggregator
         public void DeleteGroupedStudyLinkRecords()
         {
             string sql_string; 
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 // Now need to delete these grouped records from the links table...
 
@@ -567,7 +561,7 @@ namespace DataAggregator
             //    having a 'missing link'
 
             string sql_string;
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 // First identify the studies that have more than one 'preferred' option
                 // cutting across more than one source. 
@@ -660,7 +654,7 @@ namespace DataAggregator
 
         public void CascadeLinksInDistinctLinksTable()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 // telescope the preferred links to the most preferred
                 // i.e. A -> B, B -> C becomes A -> C, B -> C
@@ -722,7 +716,7 @@ namespace DataAggregator
             // A distinct selection is required because the most recent
             // link cascade may have generated duplicates
 
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 string sql_string = @"Insert into nk.study_study_links
                       (source_id, sd_sid, preferred_sd_sid, preferred_source_id)
@@ -735,7 +729,7 @@ namespace DataAggregator
 
         public int ObtainTotalOfNewLinks()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 string sql_string = @"SELECT COUNT(*) FROM nk.temp_distinct_links";
                 return conn.ExecuteScalar<int>(sql_string);
@@ -745,7 +739,7 @@ namespace DataAggregator
 
         public void DropTempTables()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_preferences;
                 DROP TABLE IF EXISTS nk.temp_study_links_collector;
@@ -761,7 +755,7 @@ namespace DataAggregator
             // for the linked sources / sd_sids, using 
             // nk.linked_study_groups as the source
 
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_mdr_connString))
             {
                 string sql_string = @"Insert into st.study_relationships
                       (study_id, relationship_type_id, target_study_id)

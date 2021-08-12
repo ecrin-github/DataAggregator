@@ -3,6 +3,7 @@ using Dapper.Contrib.Extensions;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 using PostgreSQLCopyHelper;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,122 +11,30 @@ using System.Linq;
 
 namespace DataAggregator
 {
-    public class LoggingDataLayer
+    public class MonitorDataLayer : IMonitorDataLayer
     {
+
         private string connString;
         private string mdr_connString;
         private Source source;
-        private string sql_file_select_string;
-        private string host;
-        private string user;
-        private string password;
+        NpgsqlConnectionStringBuilder builder;
 
-        private string logfile_startofpath;
-        private string logfile_path;
-        private StreamWriter sw;
-
-        /// <summary>
-        /// Parameterless constructor is used to automatically build
-        /// the connection string, using an appsettings.json file that 
-        /// has the relevant credentials (but which is not stored in GitHub).
-        /// </summary>
-        /// 
-        public LoggingDataLayer()
+        public MonitorDataLayer(ILogger logger, ICredentials credentials)
         {
-            IConfigurationRoot settings = new ConfigurationBuilder()
-                .SetBasePath(AppContext.BaseDirectory)
-                .AddJsonFile("appsettings.json")
-                .Build();
+            builder = new NpgsqlConnectionStringBuilder();
+            builder.Host = credentials.Host;
+            builder.Username = credentials.Username;
+            builder.Password = credentials.Password;
 
-            NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder();
-
-            host = settings["host"];
-            user = settings["user"];
-            password = settings["password"];
-
-            builder.Host = host;
-            builder.Username = user;
-            builder.Password = password;
             builder.Database = "mon";
             connString = builder.ConnectionString;
 
             builder.Database = "mdr";
             mdr_connString = builder.ConnectionString;
-
-            logfile_startofpath = settings["logfilepath"];
-
-            sql_file_select_string = "select id, source_id, sd_id, remote_url, last_revised, ";
-            sql_file_select_string += " assume_complete, download_status, local_path, last_saf_id, last_downloaded, ";
-            sql_file_select_string += " last_harvest_id, last_harvested, last_import_id, last_imported ";
         }
 
-        public Source SourceParameter => source;
+        public Source SourceParameters => source;
 
-
-        public void LogParameters(Options opts)
-        {
-            LogHeader("Setup");
-            LogLine("transfer data =  " + opts.transfer_data);
-            LogLine("create core =  " + opts.create_core);
-            LogLine("create json =  " + opts.create_json);
-            LogLine("also do json files =  " + opts.also_do_files);
-            LogLine("do statistics =  " + opts.do_statistics);
-        }
-
-
-        public void OpenLogFile(Options opts)
-        {
-            string dt_string = DateTime.Now.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
-                              .Replace("-", "").Replace(":", "").Replace("T", " ");
-            logfile_path = logfile_startofpath + "AGGREG";
-            if (opts.transfer_data) logfile_path += " -D";
-            if (opts.create_core) logfile_path += " -C";
-            if (opts.do_statistics) logfile_path += " -S";
-            if (opts.create_json) logfile_path += " -J";
-            if (opts.also_do_files) logfile_path += " -F";
-            logfile_path += " " + dt_string + ".log";
-            sw = new StreamWriter(logfile_path, true, System.Text.Encoding.UTF8);
-        }
-
-        public void LogLine(string message, string identifier = "")
-        {
-            string dt_string = DateTime.Now.ToShortDateString() + " : " + DateTime.Now.ToShortTimeString() + " :   ";
-            string feedback = dt_string + message + identifier;
-            Transmit(feedback);
-        }
-
-        public void LogHeader(string message)
-        {
-            string dt_string = DateTime.Now.ToShortDateString() + " : " + DateTime.Now.ToShortTimeString() + " :   ";
-            string header = dt_string + "**** " + message + " ****";
-            Transmit("");
-            Transmit(header);
-        }
-
-        public void LogError(string message, string identifier = "")
-        {
-            string dt_string = DateTime.Now.ToShortDateString() + " : " + DateTime.Now.ToShortTimeString() + " :   ";
-            string error_message = dt_string + "***ERROR*** " + message;
-            Transmit("");
-            Transmit("+++++++++++++++++++++++++++++++++++++++");
-            Transmit(error_message);
-            Transmit("+++++++++++++++++++++++++++++++++++++++");
-            Transmit("");
-        }
-
-        public void CloseLog()
-        {
-            LogHeader("Closing Log");
-            sw.Flush();
-            sw.Close();
-        }
-
-
-        private void Transmit(string message)
-        {
-            sw.WriteLine(message);
-            Console.WriteLine(message);
-        }
 
         public Source FetchSourceParameters(int source_id)
         {
@@ -135,6 +44,137 @@ namespace DataAggregator
                 return source;
             }
         }
+
+
+
+        public void SetUpTempContextFTWs(ICredentials credentials)
+        {
+            using (var conn = new NpgsqlConnection(mdr_connString))
+            {
+                string username = credentials.Username;
+                string password = credentials.Password;
+
+                string sql_string = @"CREATE EXTENSION IF NOT EXISTS postgres_fdw
+                                     schema sf;";
+                conn.Execute(sql_string);
+
+                sql_string = @"CREATE SERVER IF NOT EXISTS context
+                               FOREIGN DATA WRAPPER postgres_fdw
+                               OPTIONS (host 'localhost', dbname 'context');";
+                conn.Execute(sql_string);
+
+                sql_string = @"CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER
+                     SERVER context"
+                     + @" OPTIONS (user '" + username + "', password '" + password + "');";
+                conn.Execute(sql_string);
+
+                sql_string = @"DROP SCHEMA IF EXISTS context_lup cascade;
+                     CREATE SCHEMA context_lup;
+                     IMPORT FOREIGN SCHEMA lup
+                     FROM SERVER context 
+                     INTO context_lup;";
+                conn.Execute(sql_string);
+
+                sql_string = @"DROP SCHEMA IF EXISTS context_ctx cascade;
+                     CREATE SCHEMA context_ctx;
+                     IMPORT FOREIGN SCHEMA ctx
+                     FROM SERVER context 
+                     INTO context_ctx;";
+                conn.Execute(sql_string);
+            }
+        }
+
+
+        public void DropTempContextFTWs()
+        {
+            using (var conn = new NpgsqlConnection(mdr_connString))
+            {
+                string sql_string = @"DROP USER MAPPING IF EXISTS FOR CURRENT_USER
+                     SERVER context;";
+                conn.Execute(sql_string);
+
+                sql_string = @"DROP SERVER IF EXISTS context CASCADE;";
+                conn.Execute(sql_string);
+
+                sql_string = @"DROP SCHEMA IF EXISTS context_lup;";
+                conn.Execute(sql_string);
+                sql_string = @"DROP SCHEMA IF EXISTS context_ctx;";
+                conn.Execute(sql_string);
+            }
+        }
+
+
+        public string SetUpTempFTW(ICredentials credentials, string database_name)
+        {
+            using (var conn = new NpgsqlConnection(mdr_connString))
+            {
+                string username = credentials.Username;
+                string password = credentials.Password;     
+                
+                string sql_string = @"CREATE EXTENSION IF NOT EXISTS postgres_fdw
+                                     schema core;";
+                conn.Execute(sql_string);
+
+                sql_string = @"CREATE SERVER IF NOT EXISTS " + database_name
+                           + @" FOREIGN DATA WRAPPER postgres_fdw
+                             OPTIONS (host 'localhost', dbname '" + database_name + "');";
+                conn.Execute(sql_string);
+
+                sql_string = @"CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER
+                     SERVER " + database_name
+                     + @" OPTIONS (user '" + username + "', password '" + password + "');";
+                conn.Execute(sql_string);
+                string schema_name = "";
+                if (database_name == "mon")
+                {
+                    schema_name = database_name + "_sf";
+                    sql_string = @"DROP SCHEMA IF EXISTS " + schema_name + @" cascade;
+                     CREATE SCHEMA " + schema_name + @";
+                     IMPORT FOREIGN SCHEMA sf
+                     FROM SERVER " + database_name +
+                         @" INTO " + schema_name + ";";
+                }
+                else
+                {
+                    schema_name = database_name + "_ad";
+                    sql_string = @"DROP SCHEMA IF EXISTS " + schema_name + @" cascade;
+                     CREATE SCHEMA " + schema_name + @";
+                     IMPORT FOREIGN SCHEMA ad
+                     FROM SERVER " + database_name +
+                         @" INTO " + schema_name + ";";
+                }
+                conn.Execute(sql_string);
+                return schema_name;
+            }
+         }
+
+
+        public void DropTempFTW(string database_name)
+        {
+            using (var conn = new NpgsqlConnection(mdr_connString))
+            {
+                string schema_name = "";
+                if (database_name == "mon")
+                {
+                    schema_name = database_name + "_sf";
+                }
+                else
+                {
+                    schema_name = database_name + "_ad";
+                }
+
+                string sql_string = @"DROP USER MAPPING IF EXISTS FOR CURRENT_USER
+                     SERVER " + database_name + ";";
+                conn.Execute(sql_string);
+
+                sql_string = @"DROP SERVER IF EXISTS " + database_name + " CASCADE;";
+                conn.Execute(sql_string);
+
+                sql_string = @"DROP SCHEMA IF EXISTS " + schema_name;
+                conn.Execute(sql_string);
+            }
+        }
+
 
 
         public int GetNextAggEventId()
@@ -157,6 +197,7 @@ namespace DataAggregator
             }
         }
 
+
         public int StoreAggregationEvent(AggregationEvent aggregation)
         {
             aggregation.time_ended = DateTime.Now;
@@ -176,7 +217,7 @@ namespace DataAggregator
                                   has_object_datasets, has_object_dates, has_object_rights,
                                   has_object_relationships, has_object_pubmed_set 
                                 from sf.source_parameters
-                                where id > 100115
+                                where id > 100115 and id < 900000
                                 order by preference_rating;";
 
             using (var conn = new NpgsqlConnection(connString))
@@ -185,16 +226,7 @@ namespace DataAggregator
             }
         }
 
-
-        public string FetchConnString(string database_name)
-        {
-            NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder();
-            builder.Host = host;
-            builder.Username = user;
-            builder.Password = password;
-            builder.Database = database_name;
-            return builder.ConnectionString;
-        }
+       
 
         public void DeleteSameEventDBStats(int agg_event_id)
         {
@@ -304,6 +336,7 @@ namespace DataAggregator
 
         }
 
+
         public void RecreateStudyStudyLinksTable()
         {
             using (var conn = new NpgsqlConnection(connString))
@@ -323,7 +356,6 @@ namespace DataAggregator
                 conn.Execute(sql_string);
             }
         }
-
 
         public List<StudyStudyLinkData> GetStudyStudyLinkData(int aggregation_event_id)
         {
@@ -367,18 +399,6 @@ namespace DataAggregator
             }
         }
 
-
-
-        // Stores an 'extraction note', e.g. an unusual occurence found and
-        // logged during the extraction, in the associated table.
-
-        public void StoreExtractionNote(ExtractionNote ext_note)
-        {
-            using (var conn = new NpgsqlConnection(connString))
-            {
-                conn.Insert<ExtractionNote>(ext_note);
-            }
-        }
 
 
         public ulong StoreObjectNumbers(PostgreSQLCopyHelper<AggregationObjectNum> copyHelper, 

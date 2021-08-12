@@ -4,14 +4,15 @@ using Npgsql;
 using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
+using Serilog;
 
 namespace DataAggregator
 {
     public class JSONStudyDataLayer
     {
-        private string connString;
-        private string study_json_folder;
-        LoggingDataLayer logging_repo;
+        private string _connString;
+        private string _study_json_folder;
+        ILogger _logger;
 
         // These strings are used as the base of each query.
         // They are constructed once in the class constructor,
@@ -22,32 +23,28 @@ namespace DataAggregator
         private string study_object_link_query_string, study_relationship_query_string;
         private string study_feature_query_string, study_topics_query_string;
 
-        public JSONStudyDataLayer(LoggingDataLayer _logging_repo)
+        public JSONStudyDataLayer(ILogger logger, string connString)
         {
+            _logger = logger;
+            _connString = connString;
+
             IConfigurationRoot settings = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json")
             .Build();
 
-            NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder();
-            builder.Host = settings["host"];
-            builder.Username = settings["user"];
-            builder.Password = settings["password"];
-            builder.Database = "mdr";
-
-            connString = builder.ConnectionString;
+            _study_json_folder = settings["study json folder"];
 
             ConstructStudyQueryStrings();
-            study_json_folder = settings["study json folder"];
-            logging_repo = _logging_repo;
+
         }
 
-        public string ConnString => connString;
-        public string StudyJsonFolder => study_json_folder;
+        public string ConnString => _connString;
+        public string StudyJsonFolder => _study_json_folder;
 
         public int ExecuteSQL(string sql_string)
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 try
                 {
@@ -55,7 +52,7 @@ namespace DataAggregator
                 }
                 catch (Exception e)
                 {
-                    logging_repo.LogError("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
+                    _logger.Error("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
                     return 0;
                 }
             }
@@ -64,7 +61,7 @@ namespace DataAggregator
         public int FetchMinId()
         {
             string sql_string = @"select min(id) from core.studies";
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 return conn.ExecuteScalar<int>(sql_string);
             }
@@ -73,7 +70,7 @@ namespace DataAggregator
         public int FetchMaxId()
         {
             string sql_string = @"select max(id) from core.studies";
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 return conn.ExecuteScalar<int>(sql_string);
             }
@@ -84,7 +81,7 @@ namespace DataAggregator
             string sql_string = @"select id from core.studies
                      where id between " + n.ToString() + @" 
                      and " + (n + batch - 1).ToString();
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 return conn.Query<int>(sql_string);
             }
@@ -94,8 +91,7 @@ namespace DataAggregator
         {
             // study query string
             study_query_string = @"Select s.id, display_title, title_lang_code,
-                brief_description, bd_contains_html, 
-                data_sharing_statement, dss_contains_html,
+                brief_description, data_sharing_statement, 
                 study_type_id, st.name as study_type,
                 study_status_id, ss.name as study_status,
                 study_enrolment, 
@@ -116,7 +112,7 @@ namespace DataAggregator
             study_identifier_query_string = @"select
                 si.id, identifier_value,
                 identifier_type_id, it.name as identifier_type,
-                identifier_org_id, identifier_org,
+                identifier_org_id, identifier_org, identifier_org_ror_id
                 identifier_date, identifier_link
                 from core.study_identifiers si
                 left join context_lup.identifier_types it on si.identifier_type_id = it.id
@@ -135,7 +131,7 @@ namespace DataAggregator
             // study topics query string
             study_topics_query_string = @"select
                 st.id, topic_type_id, tt.name as topic_type, mesh_coded,
-                topic_code, topic_value, topic_qualcode, topic_qualvalue,
+                mesh_code, mesh_value, mesh_qualcode, mesh_qualvalue,
                 original_value
                 from core.study_topics st
                 left join context_lup.topic_types tt on st.topic_type_id = tt.id
@@ -172,7 +168,7 @@ namespace DataAggregator
 
         public DBStudy FetchDbStudy(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = study_query_string + id.ToString();
                 return Conn.QueryFirstOrDefault<DBStudy>(sql_string);
@@ -182,7 +178,7 @@ namespace DataAggregator
 
         public IEnumerable<DBStudyIdentifier> FetchDbStudyIdentifiers(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = study_identifier_query_string + id.ToString();
                 return Conn.Query<DBStudyIdentifier>(sql_string);
@@ -192,7 +188,7 @@ namespace DataAggregator
 
         public IEnumerable<DBStudyTitle> FetchDbStudyTitles(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = study_title_query_string + id.ToString();
                 return Conn.Query<DBStudyTitle>(sql_string);
@@ -202,7 +198,7 @@ namespace DataAggregator
 
         public IEnumerable<DBStudyFeature> FetchDbStudyFeatures(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = study_feature_query_string + id.ToString();
                 return Conn.Query<DBStudyFeature>(sql_string);
@@ -212,7 +208,7 @@ namespace DataAggregator
 
         public IEnumerable<DBStudyTopic> FetchDbStudyTopics(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = study_topics_query_string + id.ToString();
                 return Conn.Query<DBStudyTopic>(sql_string);
@@ -222,7 +218,7 @@ namespace DataAggregator
 
         public IEnumerable<DBStudyRelationship> FetchDbStudyRelationships(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = study_relationship_query_string + id.ToString();
                 return Conn.Query<DBStudyRelationship>(sql_string);
@@ -232,7 +228,7 @@ namespace DataAggregator
 
         public IEnumerable<DBStudyObjectLink> FetchDbStudyObjectLinks(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = study_object_link_query_string + id.ToString();
                 return Conn.Query<DBStudyObjectLink>(sql_string);
@@ -242,7 +238,7 @@ namespace DataAggregator
 
         public void StoreJSONStudyInDB(int id, string study_json)
         { 
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             { 
                 Conn.Open();
 

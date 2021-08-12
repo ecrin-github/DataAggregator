@@ -1,58 +1,67 @@
 ﻿using System.Collections.Generic;
+using Serilog;
 
 namespace DataAggregator
 {
     public class StatisticsBuilder
     {
-        int agg_event_id;
-        LoggingDataLayer logging_repo;
+        int _agg_event_id;
+        IMonitorDataLayer _mon_repo;
+        ILogger _logger;
+        ICredentials _credentials;
 
-        public StatisticsBuilder(int _agg_event_id, LoggingDataLayer _logging_repo)
+        public StatisticsBuilder(int agg_event_id, ICredentials credentials, 
+            IMonitorDataLayer mon_repo, ILogger logger)
         {
-            logging_repo = _logging_repo;
-            agg_event_id = _agg_event_id;
+            _agg_event_id = agg_event_id;
+            _credentials = credentials;
+            _mon_repo = mon_repo;
+            _logger = logger;
         }
 
 
         public void GetStatisticsBySource()
         {
             // get the list of sources
-            IEnumerable<Source> sources = logging_repo.RetrieveDataSources();
+            IEnumerable<Source> sources = _mon_repo.RetrieveDataSources();
             // Loop through and...
             // derive a connection string for each source,
             // then get the records contained in each ad table
             // and store it in the database.
-            logging_repo.DeleteSameEventDBStats(agg_event_id);
-            logging_repo.LogHeader("Statistics for each source database");
+            _mon_repo.DeleteSameEventDBStats(_agg_event_id);
+
+            _logger.Information("");
+            _logger.Information("STATISTICS FOR EACH SOURCE DATABASE");
+            _logger.Information("");
 
             foreach (Source s in sources)
             {
-                string conn_string = logging_repo.FetchConnString(s.database_name);
-                SourceSummary sm = new SourceSummary(agg_event_id, s.database_name);
+                string conn_string = _credentials.GetConnectionString(s.database_name, false);
+                SourceSummary sm = new SourceSummary(_agg_event_id, s.database_name);
 
-                sm.study_recs = logging_repo.GetRecNum("studies", conn_string);
-                sm.study_identifiers_recs = logging_repo.GetRecNum("study_identifiers", conn_string);
-                sm.study_titles_recs = logging_repo.GetRecNum("study_titles", conn_string);
-                sm.study_contributors_recs = logging_repo.GetRecNum("study_contributors", conn_string);
-                sm.study_topics_recs = logging_repo.GetRecNum("study_topics", conn_string);
-                sm.study_features_recs = logging_repo.GetRecNum("study_features", conn_string);
-                sm.study_references_recs = logging_repo.GetRecNum("study_references", conn_string);
-                sm.study_relationships_recs = logging_repo.GetRecNum("study_relationships", conn_string);
+                sm.study_recs = _mon_repo.GetRecNum("studies", conn_string);
+                sm.study_identifiers_recs = _mon_repo.GetRecNum("study_identifiers", conn_string);
+                sm.study_titles_recs = _mon_repo.GetRecNum("study_titles", conn_string);
+                sm.study_contributors_recs = _mon_repo.GetRecNum("study_contributors", conn_string);
+                sm.study_topics_recs = _mon_repo.GetRecNum("study_topics", conn_string);
+                sm.study_features_recs = _mon_repo.GetRecNum("study_features", conn_string);
+                sm.study_references_recs = _mon_repo.GetRecNum("study_references", conn_string);
+                sm.study_relationships_recs = _mon_repo.GetRecNum("study_relationships", conn_string);
                 
-                sm.data_object_recs = logging_repo.GetRecNum("data_objects", conn_string);
-                sm.object_datasets_recs = logging_repo.GetRecNum("object_datasets", conn_string);
-                sm.object_instances_recs = logging_repo.GetRecNum("object_instances", conn_string);
-                sm.object_titles_recs = logging_repo.GetRecNum("object_titles", conn_string);
-                sm.object_dates_recs = logging_repo.GetRecNum("object_dates", conn_string);
-                sm.object_contributors_recs = logging_repo.GetRecNum("object_contributors", conn_string);
-                sm.object_topics_recs = logging_repo.GetRecNum("object_topics", conn_string);
-                sm.object_identifiers_recs = logging_repo.GetRecNum("object_identifiers", conn_string);
-                sm.object_descriptions_recs = logging_repo.GetRecNum("object_descriptions", conn_string);
-                sm.object_rights_recs = logging_repo.GetRecNum("object_rights", conn_string);
-                sm.object_relationships_recs = logging_repo.GetRecNum("object_relationships", conn_string);
+                sm.data_object_recs = _mon_repo.GetRecNum("data_objects", conn_string);
+                sm.object_datasets_recs = _mon_repo.GetRecNum("object_datasets", conn_string);
+                sm.object_instances_recs = _mon_repo.GetRecNum("object_instances", conn_string);
+                sm.object_titles_recs = _mon_repo.GetRecNum("object_titles", conn_string);
+                sm.object_dates_recs = _mon_repo.GetRecNum("object_dates", conn_string);
+                sm.object_contributors_recs = _mon_repo.GetRecNum("object_contributors", conn_string);
+                sm.object_topics_recs = _mon_repo.GetRecNum("object_topics", conn_string);
+                sm.object_identifiers_recs = _mon_repo.GetRecNum("object_identifiers", conn_string);
+                sm.object_descriptions_recs = _mon_repo.GetRecNum("object_descriptions", conn_string);
+                sm.object_rights_recs = _mon_repo.GetRecNum("object_rights", conn_string);
+                sm.object_relationships_recs = _mon_repo.GetRecNum("object_relationships", conn_string);
 
-                logging_repo.StoreSourceSummary(sm);
-                logging_repo.LogLine("Summary stats generated for " + s.database_name + " tables");
+                _mon_repo.StoreSourceSummary(sm);
+                _logger.Information("Summary stats generated for " + s.database_name + " tables");
             }
         }
 
@@ -60,49 +69,55 @@ namespace DataAggregator
         public void GetSummaryStatistics()
         {
             // Obtains figures for aggrgeate tables
-            string conn_string = logging_repo.FetchConnString("mdr");
-            AggregationSummary sm = new AggregationSummary(agg_event_id);
-            logging_repo.LogHeader("Statistics for core tables");
-            logging_repo.DeleteSameEventSummaryStats(agg_event_id);
+            string conn_string = _credentials.GetConnectionString("mdr", false);
+            AggregationSummary sm = new AggregationSummary(_agg_event_id);
 
-            sm.study_recs = logging_repo.GetAggregateRecNum("studies", "st", conn_string);
-            sm.study_identifiers_recs = logging_repo.GetAggregateRecNum("study_identifiers", "st", conn_string);
-            sm.study_titles_recs = logging_repo.GetAggregateRecNum("study_titles", "st", conn_string);
-            sm.study_contributors_recs = logging_repo.GetAggregateRecNum("study_contributors", "st", conn_string);
-            sm.study_topics_recs = logging_repo.GetAggregateRecNum("study_topics", "st", conn_string);
-            sm.study_features_recs = logging_repo.GetAggregateRecNum("study_features", "st", conn_string);
-            sm.study_relationships_recs = logging_repo.GetAggregateRecNum("study_relationships", "st", conn_string);
+            _logger.Information("");
+            _logger.Information("STATISTICS FOR CORE TABLES");
+            _logger.Information("");
 
-            sm.data_object_recs = logging_repo.GetAggregateRecNum("data_objects", "ob", conn_string);
-            sm.object_datasets_recs = logging_repo.GetAggregateRecNum("object_datasets", "ob", conn_string);
-            sm.object_instances_recs = logging_repo.GetAggregateRecNum("object_instances", "ob", conn_string);
-            sm.object_titles_recs = logging_repo.GetAggregateRecNum("object_titles", "ob", conn_string);
-            sm.object_dates_recs = logging_repo.GetAggregateRecNum("object_dates", "ob", conn_string);
-            sm.object_contributors_recs = logging_repo.GetAggregateRecNum("object_contributors", "ob", conn_string);
-            sm.object_topics_recs = logging_repo.GetAggregateRecNum("object_topics", "ob", conn_string);
-            sm.object_identifiers_recs = logging_repo.GetAggregateRecNum("object_identifiers", "ob", conn_string);
-            sm.object_descriptions_recs = logging_repo.GetAggregateRecNum("object_descriptions", "ob", conn_string);
-            sm.object_rights_recs = logging_repo.GetAggregateRecNum("object_rights", "ob", conn_string);
-            sm.object_relationships_recs = logging_repo.GetAggregateRecNum("object_relationships", "ob", conn_string);
-            sm.study_object_link_recs = logging_repo.GetAggregateRecNum("all_ids_data_objects", "nk", conn_string);
-            logging_repo.StoreAggregationSummary(sm);
-            logging_repo.LogLine("Statistics done for mdr central schemas");
+            _mon_repo.DeleteSameEventSummaryStats(_agg_event_id);
 
-            logging_repo.LogHeader("Summary object and study stats");
+            sm.study_recs = _mon_repo.GetAggregateRecNum("studies", "st", conn_string);
+            sm.study_identifiers_recs = _mon_repo.GetAggregateRecNum("study_identifiers", "st", conn_string);
+            sm.study_titles_recs = _mon_repo.GetAggregateRecNum("study_titles", "st", conn_string);
+            sm.study_contributors_recs = _mon_repo.GetAggregateRecNum("study_contributors", "st", conn_string);
+            sm.study_topics_recs = _mon_repo.GetAggregateRecNum("study_topics", "st", conn_string);
+            sm.study_features_recs = _mon_repo.GetAggregateRecNum("study_features", "st", conn_string);
+            sm.study_relationships_recs = _mon_repo.GetAggregateRecNum("study_relationships", "st", conn_string);
+
+            sm.data_object_recs = _mon_repo.GetAggregateRecNum("data_objects", "ob", conn_string);
+            sm.object_datasets_recs = _mon_repo.GetAggregateRecNum("object_datasets", "ob", conn_string);
+            sm.object_instances_recs = _mon_repo.GetAggregateRecNum("object_instances", "ob", conn_string);
+            sm.object_titles_recs = _mon_repo.GetAggregateRecNum("object_titles", "ob", conn_string);
+            sm.object_dates_recs = _mon_repo.GetAggregateRecNum("object_dates", "ob", conn_string);
+            sm.object_contributors_recs = _mon_repo.GetAggregateRecNum("object_contributors", "ob", conn_string);
+            sm.object_topics_recs = _mon_repo.GetAggregateRecNum("object_topics", "ob", conn_string);
+            sm.object_identifiers_recs = _mon_repo.GetAggregateRecNum("object_identifiers", "ob", conn_string);
+            sm.object_descriptions_recs = _mon_repo.GetAggregateRecNum("object_descriptions", "ob", conn_string);
+            sm.object_rights_recs = _mon_repo.GetAggregateRecNum("object_rights", "ob", conn_string);
+            sm.object_relationships_recs = _mon_repo.GetAggregateRecNum("object_relationships", "ob", conn_string);
+            sm.study_object_link_recs = _mon_repo.GetAggregateRecNum("all_ids_data_objects", "nk", conn_string);
+            _mon_repo.StoreAggregationSummary(sm);
+            _logger.Information("Statistics done for mdr central schemas");
+
+            _logger.Information("");
+            _logger.Information("SUMMARY OBJECT AND STUDY STATS");
+            _logger.Information("");
 
             // get and store data object types
-            logging_repo.DeleteSameEventObjectStats(agg_event_id);
-            List<AggregationObjectNum> object_numbers = logging_repo.GetObjectTypes(agg_event_id);
-            logging_repo.StoreObjectNumbers(CopyHelpers.object_numbers_helper, object_numbers);
-            logging_repo.LogLine("Statistics done for different data objects");
+            _mon_repo.DeleteSameEventObjectStats(_agg_event_id);
+            List<AggregationObjectNum> object_numbers = _mon_repo.GetObjectTypes(_agg_event_id);
+            _mon_repo.StoreObjectNumbers(CopyHelpers.object_numbers_helper, object_numbers);
+            _logger.Information("Statistics done for different data objects");
 
             // get study-study linkage
-            logging_repo.RecreateStudyStudyLinksTable();
-            List<StudyStudyLinkData> study_link_numbers = logging_repo.GetStudyStudyLinkData(agg_event_id);
-            logging_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
-            study_link_numbers = logging_repo.GetStudyStudyLinkData2(agg_event_id);
-            logging_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
-            logging_repo.LogLine("Statistics done for study-study links");
+            _mon_repo.RecreateStudyStudyLinksTable();
+            List<StudyStudyLinkData> study_link_numbers = _mon_repo.GetStudyStudyLinkData(_agg_event_id);
+            _mon_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
+            study_link_numbers = _mon_repo.GetStudyStudyLinkData2(_agg_event_id);
+            _mon_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
+            _logger.Information("Statistics done for study-study links");
         }
     }
 }

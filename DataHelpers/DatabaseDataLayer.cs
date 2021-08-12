@@ -69,7 +69,7 @@ namespace DataAggregator
             return builder.ConnectionString;
         }
 
-
+        /*
         public string SetUpTempFTW(string database_name)
         {
             using (var conn = new NpgsqlConnection(connString))
@@ -137,8 +137,9 @@ namespace DataAggregator
                 conn.Execute(sql_string);
             }
         }
+        */
 
-
+        /*
         public void SetUpTempContextFTWs()
         {
             using (var conn = new NpgsqlConnection(connString))
@@ -191,7 +192,7 @@ namespace DataAggregator
                 conn.Execute(sql_string);
             }
         }
-
+        */
     }
 }
 

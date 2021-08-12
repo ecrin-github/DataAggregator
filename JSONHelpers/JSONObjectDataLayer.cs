@@ -4,14 +4,15 @@ using Npgsql;
 using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
+using Serilog;
 
 namespace DataAggregator
 {
     public class JSONObjectDataLayer
     {
-        private string connString;
-        private string object_json_folder;
-        LoggingDataLayer logging_repo;
+        private string _connString;
+        private string _object_json_folder;
+        ILogger _logger;
 
         // These strings are used as the base of each query.
         // They are constructed once in the class constructor,
@@ -27,33 +28,28 @@ namespace DataAggregator
         private string object_description_query_string, object_relationships_query_string;
         private string object_rights_query_string;
 
-        public JSONObjectDataLayer(LoggingDataLayer _logging_repo)
+        public JSONObjectDataLayer(ILogger logger, string connString)
         {
-                IConfigurationRoot settings = new ConfigurationBuilder()
+            _logger = logger;
+            _connString = connString;
+
+            IConfigurationRoot settings = new ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory)
                 .AddJsonFile("appsettings.json")
                 .Build();
 
-            NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder();
-            builder.Host = settings["host"];
-            builder.Username = settings["user"];
-            builder.Password = settings["password"];
-            builder.Database = "mdr";
-
-            connString = builder.ConnectionString;
+            _object_json_folder = settings["object json folder"];
 
             ConstructObjectQueryStrings();
-            object_json_folder = settings["object json folder"];
 
-            logging_repo = _logging_repo;
         }
 
-        public string ConnString => connString;
-        public string ObjectJsonFolder => object_json_folder;
+        public string ConnString => _connString;
+        public string ObjectJsonFolder => _object_json_folder;
 
         public int ExecuteSQL(string sql_string)
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 try
                 {
@@ -61,7 +57,7 @@ namespace DataAggregator
                 }
                 catch (Exception e)
                 {
-                    logging_repo.LogError("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
+                    _logger.Error("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
                     return 0;
                 }
             }
@@ -70,7 +66,7 @@ namespace DataAggregator
         public int FetchMinId()
         {
             string sql_string = @"select min(id) from core.data_objects";
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 return conn.ExecuteScalar<int>(sql_string);
             }
@@ -79,7 +75,7 @@ namespace DataAggregator
         public int FetchMaxId()
         {
             string sql_string = @"select max(id) from core.data_objects";
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 return conn.ExecuteScalar<int>(sql_string);
             }
@@ -90,7 +86,7 @@ namespace DataAggregator
             string sql_string = @"select id from core.data_objects
                      where id between " + n.ToString() + @" 
                      and " + (n + batch - 1).ToString();
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 return conn.Query<int>(sql_string);
             }
@@ -105,7 +101,7 @@ namespace DataAggregator
                 dob.object_class_id, oc.name as object_class,
                 dob.object_type_id, ot.name as object_type,
                 dob.publication_year, dob.lang_code, 
-                dob.managing_org_id, dob.managing_org,
+                dob.managing_org_id, dob.managing_org, dob.managing_org_ror_id,
                 dob.access_type_id, oat.name as access_type,
                 dob.access_details, dob.access_details_url, dob.url_last_checked,
                 dob.eosc_category, dob.add_study_contribs, dob.add_study_topics,
@@ -157,7 +153,7 @@ namespace DataAggregator
 
             // object date query string
             object_date_query_string = @"select
-                od.id, date_type_id, dt.name as date_type, is_date_range,
+                od.id, date_type_id, dt.name as date_type, date_is_range,
                 date_as_string, start_year, start_month, start_day,
                 end_year, end_month, end_day, details as comments
                 from core.object_dates od
@@ -167,10 +163,10 @@ namespace DataAggregator
             
             // object contributor (using study contributors only)
             object_study_contrib_query_string = @"select
-                sc.id, contrib_type_id, ct.name as contrib_type,
-                is_individual, organisation_id, organisation_name,
+                sc.id, contrib_type_id, ct.name as contrib_type, is_individual, 
                 person_given_name, person_family_name, person_full_name,
-                person_identifier, person_affiliation
+                orcid_id, person_affiliation,
+                organisation_id, organisation_name, organisation_ror_id
                 from core.study_object_links k
                 inner join core.study_contributors sc on k.study_id = sc.study_id
                 left join context_lup.contribution_types ct on sc.contrib_type_id = ct.id
@@ -179,10 +175,10 @@ namespace DataAggregator
 
             // object contributor (using object contributors AND study organisations) - part 1
             object_contrib_query_string1 = @"select
-                oc.id, contrib_type_id, ct.name as contrib_type,
-                is_individual, organisation_id, organisation_name,
+                oc.id, contrib_type_id, ct.name as contrib_type, is_individual, 
                 person_given_name, person_family_name, person_full_name,
-                person_identifier, person_affiliation
+                orcid_id, person_affiliation,
+                organisation_id, organisation_name, organisation_ror_id
                 from core.object_contributors oc
                 left join context_lup.contribution_types ct on oc.contrib_type_id = ct.id
                 where object_id = ";
@@ -190,9 +186,10 @@ namespace DataAggregator
 
             // object contributor (using object contributors AND study organisations) - part 2
             object_contrib_query_string2 = @"select
-                sc.id, contrib_type_id, ct.name as contrib_type,
-                is_individual, organisation_id, organisation_name,
-                null, null, null, null, null
+                sc.id, contrib_type_id, ct.name as contrib_type, is_individual, 
+                person_given_name, person_family_name, person_full_name,
+                orcid_id, person_affiliation,
+                organisation_id, organisation_name, organisation_ror_id
                 from core.study_object_links k
                 inner join core.study_contributors sc on k.study_id = sc.study_id
                 left join context_lup.contribution_types ct on sc.contrib_type_id = ct.id
@@ -202,7 +199,7 @@ namespace DataAggregator
             // object topics (using study objects)
             object_study_topics_query_string = @"select
                 st.id, topic_type_id, tt.name as topic_type, mesh_coded,
-                topic_code, topic_value, topic_qualcode, topic_qualvalue,
+                mesh_code, mesh_value, mesh_qualcode, mesh_qualvalue,
                 original_value
                 from core.study_object_links k
                 inner join core.study_topics st on k.study_id = st.study_id
@@ -213,7 +210,7 @@ namespace DataAggregator
             // object topics (using object topics)
             object_topics_query_string = @"select
                 ot.id, topic_type_id, tt.name as topic_type, mesh_coded,
-                topic_code, topic_value, topic_qualcode, topic_qualvalue,
+                mesh_code, mesh_value, mesh_qualcode, mesh_qualvalue,
                 original_value
                 from core.object_topics ot
                 left join context_lup.topic_types tt on ot.topic_type_id = tt.id
@@ -224,7 +221,8 @@ namespace DataAggregator
             object_identifier_query_string = @"select
                 oi.id, identifier_value, 
                 identifier_type_id, it.name as identifier_type,
-                identifier_org_id, identifier_org, identifier_date
+                identifier_org_id, identifier_org, 
+                identifier_org_ror_id, identifier_date
                 from core.object_identifiers oi
                 left join context_lup.identifier_types it on oi.identifier_type_id = it.id
                 where object_id = ";
@@ -233,7 +231,7 @@ namespace DataAggregator
             // object description query string 
             object_description_query_string = @"select
                 od.id, description_type_id, dt.name as description_type,
-                label, description_text, lang_code, contains_html 
+                label, description_text, lang_code 
                 from core.object_descriptions od
                 left join context_lup.description_types dt
                 on od.description_type_id = dt.id
@@ -269,7 +267,7 @@ namespace DataAggregator
 
         public DBDataObject FetchDbDataObject(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = data_object_query_string + id.ToString();
                 return Conn.QueryFirstOrDefault<DBDataObject>(sql_string);
@@ -282,7 +280,7 @@ namespace DataAggregator
 
         public DBDatasetProperties FetchDbDatasetProperties(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = data_set_query_string + id.ToString();
                 return Conn.QueryFirstOrDefault<DBDatasetProperties>(sql_string);
@@ -294,7 +292,7 @@ namespace DataAggregator
 
         public IEnumerable<DBObjectInstance> FetchObjectInstances(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = object_instance_query_string + id.ToString();
                 return Conn.Query<DBObjectInstance>(sql_string);
@@ -306,7 +304,7 @@ namespace DataAggregator
 
         public IEnumerable<int> FetchLinkedStudies(int Id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = object_link_query_string + Id.ToString();
                 return Conn.Query<int>(sql_string);
@@ -319,7 +317,7 @@ namespace DataAggregator
 
         public IEnumerable<DBObjectTitle> FetchObjectTitles(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = object_title_query_string + id.ToString();
                 return Conn.Query<DBObjectTitle>(sql_string);
@@ -331,7 +329,7 @@ namespace DataAggregator
 
         public IEnumerable<DBObjectDate> FetchObjectDates(int Id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = object_date_query_string + Id.ToString();
                 return Conn.Query<DBObjectDate>(sql_string);
@@ -349,7 +347,7 @@ namespace DataAggregator
 
         public IEnumerable<DBObjectContributor> FetchObjectContributors(int id, bool? add_study_contribs)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string;
                 if ((bool)add_study_contribs)
@@ -374,7 +372,7 @@ namespace DataAggregator
 
         public IEnumerable<DBObjectTopic> FetchObjectTopics(int id, bool? use_study_topics)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string;
                 if ((bool)use_study_topics)
@@ -393,7 +391,7 @@ namespace DataAggregator
 
         public IEnumerable<DBObjectIdentifier> FetchObjectIdentifiers(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = object_identifier_query_string + id.ToString();
                 return Conn.Query<DBObjectIdentifier>(sql_string);
@@ -403,7 +401,7 @@ namespace DataAggregator
 
         public IEnumerable<DBObjectDescription> FetchObjectDescriptions(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = object_description_query_string + id.ToString();
                 return Conn.Query<DBObjectDescription>(sql_string);
@@ -412,7 +410,7 @@ namespace DataAggregator
 
         public IEnumerable<DBObjectRelationship> FetchObjectRelationships(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = object_relationships_query_string + id.ToString();
                 return Conn.Query<DBObjectRelationship>(sql_string);
@@ -422,7 +420,7 @@ namespace DataAggregator
 
         public IEnumerable<DBObjectRight> FetchObjectRights(int id)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = object_rights_query_string + id.ToString();
                 return Conn.Query<DBObjectRight>(sql_string);
@@ -432,7 +430,7 @@ namespace DataAggregator
 
         public void StoreJSONObjectInDB(int id, string object_json)
         {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(connString))
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
                 Conn.Open();
 

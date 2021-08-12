@@ -8,11 +8,11 @@ namespace DataAggregator
         public string file_type { get; set; }
         public int id { get; set; }
         public string display_title { get; set; }
-        public text_block brief_description { get; set; }
-        public text_block data_sharing_statement { get; set; }
+        public string brief_description { get; set; }
+        public string data_sharing_statement { get; set; }
         public lookup study_type { get; set; }
         public lookup study_status { get; set; }
-        public int? study_enrolment { get; set; }
+        public string study_enrolment { get; set; }
         public lookup study_gender_elig { get; set; }
         public age_param min_age { get; set; }
         public age_param max_age { get; set; }
@@ -25,9 +25,9 @@ namespace DataAggregator
         public List<study_relationship> study_relationships { get; set; }
         public List<int> linked_data_objects { get; set; }
 
-        public JSONStudy(int _id, string _display_title, 
-                         text_block _brief_description, text_block _data_sharing_statement,
-                         lookup _study_type, lookup _study_status, int? _study_enrolment,
+        public JSONStudy(int _id, string _display_title,
+                         string _brief_description, string _data_sharing_statement,
+                         lookup _study_type, lookup _study_status, string _study_enrolment,
                          lookup _study_gender_elig, age_param _min_age, age_param _max_age,
                          string _provenance_string)
         {
@@ -43,21 +43,9 @@ namespace DataAggregator
             min_age = _min_age;
             max_age = _max_age;
             provenance_string = _provenance_string;
-    }
-
-    }
-
-    public class text_block
-    {
-        public string text { get; set; }
-        public bool? contains_html { get; set; }
-
-        public text_block(string _text, bool? _contains_html)
-        {
-            text = _text;
-            contains_html = _contains_html;
         }
     }
+
 
     public class age_param
     {
@@ -78,12 +66,12 @@ namespace DataAggregator
         public int id { get; set; }
         public string identifier_value { get; set; }
         public lookup identifier_type { get; set; }
-        public lookup identifier_org { get; set; }
+        public organisation identifier_org { get; set; }
         public string identifier_date { get; set; }
         public string identifier_link { get; set; }
 
         public study_identifier(int _id, string _identifier_value,
-                           lookup _identifier_type, lookup _identifier_org,
+                           lookup _identifier_type, organisation _identifier_org,
                            string _identifier_date, string _identifier_link)
         {
             id = _id;
@@ -121,24 +109,24 @@ namespace DataAggregator
         public int id { get; set; }
         public lookup topic_type { get; set; }
         public bool mesh_coded { get; set; }
-        public string topic_code { get; set; }
-        public string topic_value { get; set; }
-        public string topic_qualcode { get; set; }
-        public string topic_qualvalue { get; set; }
+        public string mesh_code { get; set; }
+        public string mesh_value { get; set; }
+        public string mesh_qualcode { get; set; }
+        public string mesh_qualvalue { get; set; }
         public string original_value { get; set; }
 
         public study_topic(int _id, lookup _topic_type,
-                             bool _mesh_coded, string _topic_code,
-                             string _topic_value, string _topic_qualcode,
-                             string _topic_qualvalue, string _original_value)
+                             bool _mesh_coded, string _mesh_code,
+                             string _mesh_value, string _mesh_qualcode,
+                             string _mesh_qualvalue, string _original_value)
         {
             id = _id;
             topic_type = _topic_type;
             mesh_coded = _mesh_coded;
-            topic_code = _topic_code;
-            topic_value = _topic_value;
-            topic_qualcode = _topic_qualcode;
-            topic_qualvalue = _topic_qualvalue;
+            mesh_code = _mesh_code;
+            mesh_value = _mesh_value;
+            mesh_qualcode = _mesh_qualcode;
+            mesh_qualvalue = _mesh_qualvalue;
             original_value = _original_value;
         }
     }
@@ -188,14 +176,12 @@ namespace DataAggregator
         public string display_title { get; set; }
         public string title_lang_code { get; set; }
         public string brief_description { get; set; }
-        public bool? bd_contains_html { get; set; }        
         public string data_sharing_statement { get; set; }
-        public bool? dss_contains_html { get; set; }
         public int? study_type_id { get; set; }
         public string study_type { get; set; }
         public int? study_status_id { get; set; }
         public string study_status { get; set; }
-        public int? study_enrolment { get; set; }
+        public string study_enrolment { get; set; }
         public int? study_gender_elig_id { get; set; }
         public string study_gender_elig { get; set; }
         public int? min_age { get; set; }
@@ -216,6 +202,7 @@ namespace DataAggregator
         public string identifier_type { get; set; }
         public int? identifier_org_id { get; set; }
         public string identifier_org { get; set; }
+        public string identifier_org_ror_id { get; set; }
         public string identifier_date { get; set; }
         public string identifier_link { get; set; }
     }
@@ -241,10 +228,10 @@ namespace DataAggregator
         public int? topic_type_id { get; set; }
         public string topic_type { get; set; }
         public bool mesh_coded { get; set; }
-        public string topic_code { get; set; }
-        public string topic_value { get; set; }
-        public string topic_qualcode { get; set; }
-        public string topic_qualvalue { get; set; }
+        public string mesh_code { get; set; }
+        public string mesh_value { get; set; }
+        public string mesh_qualcode { get; set; }
+        public string mesh_qualvalue { get; set; }
         public string original_value { get; set; }
     }
 

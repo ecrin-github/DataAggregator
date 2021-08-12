@@ -14,15 +14,7 @@ namespace DataAggregator
         private string pubmed_connString;
         private string user;
         private string password;
-
-        /// <summary>
-        /// Parameterless constructor is used to automatically build
-        /// the connection string, using an appsettings.json file that 
-        /// has the relevant credentials (but which is not stored in GitHub).
-        /// The json file also includes the root folder path, which is
-        /// stored in the class's folder_base property.
-        /// </summary>
-        /// 
+        
         public PubmedTransferHelper()
         {
             IConfigurationRoot settings = new ConfigurationBuilder()
@@ -78,7 +70,7 @@ namespace DataAggregator
                 conn.Execute(sql_string);
             }
         }
-
+         
 
         public IEnumerable<PMIDLink> FetchBankPMIDs()
         {
@@ -94,7 +86,7 @@ namespace DataAggregator
                         on k.sd_oid = a.sd_oid
                         inner join context_ctx.nlm_databanks d
                         on k.db_name = d.nlm_abbrev
-                        where bank_type <> 'databank'";
+                        where d.id not in (100156, 100157, 100158)";
                 return conn.Query<PMIDLink>(sql_string);
             }
         }
@@ -581,15 +573,16 @@ namespace DataAggregator
             }
         }
 
-
+        
         public void DropTempPMIDTable()
         {
             using (var conn = new NpgsqlConnection(connString))
             {
-                string sql_string = "DROP TABLE IF EXISTS pp.temp_pmids";
+                string sql_string = "DROP TABLE IF EXISTS nk.temp_pmids";
                 conn.Execute(sql_string);
             }
         }
+        
 
 
         

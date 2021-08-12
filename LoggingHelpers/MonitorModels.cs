@@ -4,24 +4,34 @@ using System;
 namespace DataAggregator
 {
     [Table("sf.source_parameters")]
-    public class Source
+    public class Source : ISource
     {
-        public int id { get; set; }
-        public int? preference_rating { get; set; }
-        public string database_name { get; set; }
-        public bool has_study_tables { get; set; }
-        public bool has_study_topics { get; set; }
-        public bool has_study_features { get; set; }
-        public bool has_study_contributors { get; set; }
-        public bool has_study_references { get; set; }
-        public bool has_study_relationships { get; set; }
-        public bool has_study_links { get; set; }
-        public bool has_study_ipd_available { get; set; }
-        public bool has_object_datasets { get; set; }
-        public bool has_object_dates { get; set; }
-        public bool has_object_rights { get; set; }
-        public bool has_object_relationships { get; set; }
-        public bool has_object_pubmed_set { get; set; }
+        public int id { get; }
+        public string source_type { get; }
+        public string database_name { get; }
+        public string db_conn { get; set; }
+        public int? preference_rating { get; }
+        public int default_harvest_type_id { get; }
+        public int harvest_chunk { get; }
+        public bool uses_who_harvest { get; }
+        public string local_folder { get; }
+        public string local_file_prefix { get; }
+        public bool? local_files_grouped { get; }
+        public int? grouping_range_by_id { get; }
+        public bool requires_file_name { get; }
+        public bool has_study_tables { get; }
+        public bool has_study_contributors { get; }
+        public bool has_study_topics { get; }
+        public bool has_study_features { get; }
+        public bool has_study_ipd_available { get; }
+        public bool has_study_links { get; }
+        public bool has_study_references { get; }
+        public bool has_study_relationships { get; }
+        public bool has_object_datasets { get; }
+        public bool has_object_dates { get; }
+        public bool has_object_relationships { get; }
+        public bool has_object_rights { get; }
+        public bool has_object_pubmed_set { get; }
     }
 
 
@@ -160,30 +170,5 @@ namespace DataAggregator
 
         }
     }
-
-
-    [Table("sf.extraction_notes")]
-    public class ExtractionNote
-    {
-        public int id { get; set; }
-        public int source_id { get; set; }
-        public string sd_id { get; set; }
-        public string event_type { get; set; }
-        public int event_type_id { get; set; }
-        public int? note_type_id { get; set; }
-        public string note { get; set; }
-
-        public ExtractionNote(int _source_id, string _sd_id, string _event_type,
-                              int _event_type_id, int? _note_type_id, string _note)
-        {
-            source_id = _source_id;
-            sd_id = _sd_id;
-            event_type = _event_type;
-            event_type_id = _event_type_id;
-            note_type_id = _note_type_id;
-            note = _note;
-        }
-    }
-
 
 }

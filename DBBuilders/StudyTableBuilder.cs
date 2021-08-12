@@ -7,12 +7,10 @@ namespace DataAggregator
     public class StudyTableBuilder
     {
         string db_conn;
-        LoggingDataLayer logging_repo;
 
-        public StudyTableBuilder(string _db_conn, LoggingDataLayer _logging_repo)
+        public StudyTableBuilder(string _db_conn)
         {
             db_conn = _db_conn;
-            logging_repo = _logging_repo;
         }
 
         public void drop_table(string table_name)
@@ -31,14 +29,12 @@ namespace DataAggregator
               , display_title          VARCHAR         NULL
               , title_lang_code        VARCHAR         NULL
               , brief_description      VARCHAR         NULL
-              , bd_contains_html       BOOLEAN         NULL
               , data_sharing_statement VARCHAR         NULL
-              , dss_contains_html      BOOLEAN         NULL
               , study_start_year       INT             NULL
               , study_start_month      INT             NULL
               , study_type_id          INT             NULL
               , study_status_id        INT             NULL
-              , study_enrolment        INT             NULL
+              , study_enrolment        VARCHAR         NULL
               , study_gender_elig_id   INT             NULL
               , min_age                INT             NULL
               , min_age_units_id       INT             NULL
@@ -63,6 +59,7 @@ namespace DataAggregator
               , identifier_value       VARCHAR         NULL
               , identifier_org_id      INT             NULL
               , identifier_org         VARCHAR         NULL
+              , identifier_org_ror_id  VARCHAR         NULL
               , identifier_date        VARCHAR         NULL
               , identifier_link        VARCHAR         NULL
               , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
@@ -124,17 +121,15 @@ namespace DataAggregator
               , study_id               INT             NOT NULL
               , contrib_type_id        INT             NULL
               , is_individual          BOOLEAN         NULL
-              , organisation_id        INT             NULL
-              , organisation_name      VARCHAR         NULL
               , person_id              INT             NULL
               , person_given_name      VARCHAR         NULL
               , person_family_name     VARCHAR         NULL
               , person_full_name       VARCHAR         NULL
-              , person_identifier      VARCHAR         NULL
-              , identifier_type        VARCHAR         NULL
+              , orcid_id               VARCHAR         NULL
               , person_affiliation     VARCHAR         NULL
-              , affil_org_id           VARCHAR         NULL
-              , affil_org_id_type      VARCHAR         NULL
+              , organisation_id        INT             NULL
+              , organisation_name      VARCHAR         NULL
+              , organisation_ror_id    VARCHAR         NULL
               , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
             );
             CREATE INDEX study_contributors_study_id ON st.study_contributors(study_id);";
@@ -153,14 +148,13 @@ namespace DataAggregator
               , study_id               INT             NOT NULL
               , topic_type_id          INT             NULL
               , mesh_coded             BOOLEAN         NULL
-              , topic_code             VARCHAR         NULL
-              , topic_value            VARCHAR         NULL
-              , topic_qualcode         VARCHAR         NULL
-              , topic_qualvalue        VARCHAR         NULL
+              , mesh_code              VARCHAR         NULL
+              , mesh_value             VARCHAR         NULL
+              , mesh_qualcode          VARCHAR         NULL
+              , mesh_qualvalue         VARCHAR         NULL
               , original_ct_id         INT             NULL
               , original_ct_code       VARCHAR         NULL
               , original_value         VARCHAR         NULL
-              , comments               VARCHAR         NULL
               , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
             );
             CREATE INDEX study_topics_study_id ON st.study_topics(study_id);";
