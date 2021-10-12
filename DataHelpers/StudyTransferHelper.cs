@@ -256,7 +256,6 @@ namespace DataAggregator
             _logger.Information("Loaded records - " + res.ToString() + " study_titles, new studies");
 
             // For 'existing studies' study Ids add only new titles.
-            // Also, all titles must be non-default (default will be from the preferred source)
 
             sql_string = @"DROP TABLE IF EXISTS nk.source_data;
                            CREATE TABLE nk.source_data as 
@@ -265,6 +264,13 @@ namespace DataAggregator
                            INNER JOIN nk.existing_studies es
                            ON d.sd_sid = es.sd_sid";
             db.ExecuteSQL(sql_string);
+
+            // Also, all non preferred titles must be non-default (default will be from the preferred source)
+
+            sql_string = @"UPDATE nk.source_data 
+                           SET is_default = false;";
+            db.ExecuteSQL(sql_string);
+
 
             sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
                            CREATE TABLE nk.existing_data as 
@@ -275,6 +281,19 @@ namespace DataAggregator
                            ON c.study_id = es.study_id;";
             db.ExecuteSQL(sql_string);
 
+            // for titles which are the same as some that already exist
+            // the comments field should be updated to reflect this...
+
+            sql_string = @"UPDATE st.study_titles t
+                           set comments = t.comments || '; ' || s.comments 
+                           FROM nk.source_data s
+                           WHERE t.study_id = s.study_id
+                           AND lower(t.title_text) = lower(s.title_text);";
+            db.ExecuteSQL(sql_string);
+
+            // for titles which are new to the study
+            // simply add them
+
             sql_string = @"INSERT INTO st.study_titles(" + destination_field_list + @")
                            SELECT s.study_id, " + source_field_list + @" 
                            FROM nk.source_data s
@@ -284,7 +303,9 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
             res = db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "existing studies");
-            _logger.Information("Loaded records - " + res.ToString() + " study_titles, existing studies");            
+            _logger.Information("Loaded records - " + res.ToString() + " study_titles, existing studies");
+
+
 
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
             db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
@@ -397,13 +418,11 @@ namespace DataAggregator
         {
             string destination_field_list = @"study_id, 
                     topic_type_id, mesh_coded, mesh_code, mesh_value, 
-                    mesh_qualcode, mesh_qualvalue,
                     original_ct_id, original_ct_code, original_value ";
 
             string source_field_list = @" 
                     s.topic_type_id, s.mesh_coded, s.mesh_code, s.mesh_value, 
-                    s.mesh_qualcode, s.mesh_qualvalue,
-                    s.original_ct_id, s.original_ct_code, s.original_value ";
+                    original_ct_id, original_ct_code, s.original_value ";
 
             // For 'preferred' study Ids add all topics.
 

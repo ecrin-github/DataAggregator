@@ -9,105 +9,75 @@ namespace DataAggregator
 {
     public class TestingDataLayer : ITestingDataLayer
     {
-        ICredentials _credentials;
-        NpgsqlConnectionStringBuilder builder;
-        private string _db_conn;
-        ILogger _logger;
 
-        /// <summary>
-        /// Constructor is used to build the connection string, 
-        /// using a credentials object that has the relevant credentials 
-        /// from the app settings, themselves derived from a json file.
-        /// </summary>
-        /// 
+        ILogger _logger;
+        ADStudyTableBuilder _study_builder;
+        ADObjectTableBuilder _object_builder;
+
         public TestingDataLayer(ILogger logger, ICredentials credentials)
         {
-            builder = new NpgsqlConnectionStringBuilder();
-
-            builder.Host = credentials.Host;
-            builder.Username = credentials.Username;
-            builder.Password = credentials.Password;
-
-            builder.Database = "test";
-            _db_conn = builder.ConnectionString;
-
-            _credentials = credentials;
-
             _logger = logger;
-        }
-
-        public Credentials Credentials => (Credentials)_credentials;
-
-
-        public int EstablishExpectedData()
-        {
-            try
-            {
-                _logger.Information("STARTING EXPECTED DATA ASSEMBLY");
-                /*
-                TestSchemaBuilder tsb = new TestSchemaBuilder(_db_conn);
-
-                tsb.SetUpMonSchema();
-                _logger.Information("mon_sf link established");
-
-                tsb.SetUpExpectedTables();
-                _logger.Information("Expected Data tables recreated");
-
-                tsb.SetUpSDCompositeTables();
-                _logger.Information("SD composite test data tables recreated");
-
-                ExpectedDataBuilder edb = new ExpectedDataBuilder(_db_conn);
-
-                edb.InitialiseTestStudiesList();
-                _logger.Information("List of test studies inserted");
-
-                edb.LoadInitialInputTables();
-                _logger.Information("Data loaded from manual inspections");
-
-                edb.CalculateAndAddOIDs();
-                _logger.Information("OIDs calculated and inserted");
-
-                tsb.TearDownForeignSchema();
-                _logger.Information("mon_sf link deleted");
-                */
-                return 0;
-            }
-
-            catch (Exception e)
-            {
-                _logger.Error(e.Message);
-                _logger.Error(e.StackTrace);
-                _logger.Information("Closing Log");
-                return -1;
-            }
+            string _db_conn = credentials.GetConnectionString("test", true);
+            _study_builder = new ADStudyTableBuilder(_db_conn);
+            _object_builder = new ADObjectTableBuilder(_db_conn);
         }
 
 
-        public void TransferTestSDData(ISource source)
+        public void BuildNewADTables()
         {
-            /*
-            TransferSDDataBuilder tdb = new TransferSDDataBuilder(source);
-            tdb.DeleteExistingStudyData();
-            tdb.DeleteExistingObjectData();
-            _logger.Information("Any existing SD test data for source " + source.id + " removed from CompSD");
+            // create ALL study tables
+            // ensures that they are present, to be truncated / refilled
+            // whatever previous actions
 
-            tdb.TransferStudyData();
-            tdb.TransferObjectData();
-            _logger.Information("New SD test data for source " + source.id + " added to CompSD");
-        */
-       }
+            _study_builder.create_ad_schema();
+            _study_builder.create_table_studies();
+            _study_builder.create_table_study_identifiers();
+            _study_builder.create_table_study_titles();
+            _study_builder.create_table_study_topics();
+            _study_builder.create_table_study_features();
+            _study_builder.create_table_study_contributors();
+            _study_builder.create_table_study_references();
+            _study_builder.create_table_study_relationships();
+            _study_builder.create_table_study_links();
+            _study_builder.create_table_ipd_available();
+            _study_builder.create_table_study_hashes();
 
+            _logger.Information("Rebuilt test AD study tables");
 
-        public IEnumerable<int> ObtainTestSourceIDs()
-        {
-            string sql_string = @"select distinct source_id 
-                                 from expected.source_studies;";
+            // Similarly, create ALL study tables
 
-            using (var conn = new NpgsqlConnection(_db_conn))
-            {
-                return conn.Query<int>(sql_string);
-            }
+            _object_builder.create_table_data_objects();
+            _object_builder.create_table_object_instances();
+            _object_builder.create_table_object_titles();
+            _object_builder.create_table_object_hashes();
+
+            _object_builder.create_table_object_datasets();
+            _object_builder.create_table_object_dates();
+            _object_builder.create_table_object_relationships();
+            _object_builder.create_table_object_rights();
+            
+            _object_builder.create_table_object_contributors();
+            _object_builder.create_table_object_topics();
+            _object_builder.create_table_object_comments();
+            _object_builder.create_table_object_descriptions();
+            _object_builder.create_table_object_identifiers();
+            _object_builder.create_table_object_db_links();
+            _object_builder.create_table_object_publication_types();
+           
+            _logger.Information("Rebuilt test AD Object tables");
         }
 
+
+        public void TransferADTableData(ISource source)
+        {
+            RetrieveADDataBuilder tdb = new RetrieveADDataBuilder(source);
+            tdb.DeleteExistingADStudyData();
+            tdb.DeleteExistingADObjectData();
+            _logger.Information("Any existing AD test data for source " + source.id + " removed from AD tables");
+
+            tdb.RetrieveStudyData();
+            tdb.RetrieveObjectData();
+            _logger.Information("New AD test data for source " + source.id + " added to AD tables");
+        }
     }
 }

@@ -89,11 +89,9 @@ namespace DataAggregator
         {
             string sql_string = @"INSERT INTO core.study_topics(id, study_id, 
                     topic_type_id, mesh_coded, mesh_code, mesh_value, 
-                    mesh_qualcode, mesh_qualvalue,
                     original_ct_id, original_ct_code, original_value)
                     SELECT id, study_id,
                     topic_type_id, mesh_coded, mesh_code, mesh_value, 
-                    mesh_qualcode, mesh_qualvalue,
                     original_ct_id, original_ct_code, original_value
                     FROM st.study_topics";
 
@@ -236,12 +234,10 @@ namespace DataAggregator
         {
             string sql_string = @"INSERT INTO core.object_topics(id, object_id,  
             topic_type_id, mesh_coded, mesh_code, mesh_value, 
-            mesh_qualcode, mesh_qualvalue, original_ct_id, original_ct_code,
-            original_value)
+            original_ct_id, original_ct_code, original_value)
             SELECT id, object_id, 
             topic_type_id, mesh_coded, mesh_code, mesh_value, 
-            mesh_qualcode, mesh_qualvalue, original_ct_id, original_ct_code,
-            original_value
+            original_ct_id, original_ct_code, original_value
             FROM ob.object_topics";
 
             return db.ExecuteCoreTransferSQL(sql_string, "ob.object_topics");
@@ -314,7 +310,8 @@ namespace DataAggregator
         public void GenerateStudyProvenanceData()
         {
             string sql_string = "";
-            sql_string = @"CREATE table nk.temp_study_provenance
+            sql_string = @"DROP TABLE IF EXISTS nk.temp_study_provenance;
+                CREATE table nk.temp_study_provenance
                      as
                      select s.study_id, 
                      'Data retrieved from ' || string_agg(d.repo_name || ' at ' || to_char(s.datetime_of_data_fetch, 'HH24:MI, dd Mon yyyy'), ', ' ORDER BY s.datetime_of_data_fetch) as provenance
@@ -346,7 +343,8 @@ namespace DataAggregator
         public void GenerateObjectProvenanceData()
         {
             string sql_string = "";
-            sql_string = @"create table nk.temp_object_provenance
+            sql_string = @"DROP TABLE IF EXISTS nk.temp_object_provenance;
+                create table nk.temp_object_provenance
                      as
                      select s.object_id, 
                      'Data retrieved from ' || string_agg(d.repo_name || ' at ' || to_char(s.datetime_of_data_fetch, 'HH24:MI, dd Mon yyyy'), ', ' ORDER BY s.datetime_of_data_fetch) as provenance

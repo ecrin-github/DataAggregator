@@ -9,39 +9,21 @@ namespace DataAggregator
 {
     class PubmedTransferHelper
     {
-        NpgsqlConnectionStringBuilder builder;
-        private string connString;
-        private string pubmed_connString;
-        private string user;
-        private string password;
-        
-        public PubmedTransferHelper()
+        private string _connString;
+        private string _schema_name;
+
+
+        public PubmedTransferHelper(string schema_name, string dest_conn_string)
         {
-            IConfigurationRoot settings = new ConfigurationBuilder()
-                .SetBasePath(AppContext.BaseDirectory)
-                .AddJsonFile("appsettings.json")
-                .Build();
-
-            builder = new NpgsqlConnectionStringBuilder();
-            builder.Host = settings["host"];
-            builder.Username = settings["user"];
-            builder.Password = settings["password"];
-            builder.Database = "mdr";
-            
-            user = settings["user"];
-            password = settings["password"];
-
-            connString = builder.ConnectionString;
-
-            builder.Database = "pubmed";
-            pubmed_connString = builder.ConnectionString;
+            _schema_name = schema_name;
+            _connString = dest_conn_string;
         }
 
         // Tables and functions used for the PMIDs collected from DB Sources
 
         public void SetupTempPMIDTable()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_pmids;
                       CREATE TABLE IF NOT EXISTS nk.temp_pmids(
@@ -57,7 +39,7 @@ namespace DataAggregator
 
         public void SetupDistinctPMIDTable()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.distinct_pmids;
                       CREATE TABLE IF NOT EXISTS nk.distinct_pmids(
@@ -74,15 +56,15 @@ namespace DataAggregator
 
         public IEnumerable<PMIDLink> FetchBankPMIDs()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"select 
                         100135 as source_id, 
                         d.id as parent_study_source_id, 
                         k.sd_oid, k.id_in_db as parent_study_sd_sid, 
                         a.datetime_of_data_fetch
-                        from pubmed_ad.object_db_links k
-                        inner join pubmed_ad.data_objects a 
+                        from " + _schema_name + @".object_db_links k
+                        inner join " + _schema_name + @".data_objects a 
                         on k.sd_oid = a.sd_oid
                         inner join context_ctx.nlm_databanks d
                         on k.db_name = d.nlm_abbrev
@@ -92,9 +74,10 @@ namespace DataAggregator
         }
 
 
-        public ulong StorePMIDLinks(PostgreSQLCopyHelper<PMIDLink> copyHelper, IEnumerable<PMIDLink> entities)
+        public ulong StorePMIDLinks(PostgreSQLCopyHelper<PMIDLink> copyHelper, 
+                                    IEnumerable<PMIDLink> entities)
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 conn.Open();
                 return copyHelper.SaveAll(conn, entities);
@@ -102,12 +85,48 @@ namespace DataAggregator
         }
 
 
-        public IEnumerable<PMIDLink> FetchSourceReferences(int source_id, string db_name)
+        public void TransferReferencesData(int source_id)
         {
-            builder.Database = db_name;
-            string db_conn_string = builder.ConnectionString;
+            // This called only during testing
+            // Transfers the study and study refernce records so that they can be used to
+            // obtain pmids, in imitation of the normal process
 
-            using (var conn = new NpgsqlConnection(db_conn_string))
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = @"truncate table ad.studies; 
+                    INSERT INTO ad.studies (sd_sid, display_title,
+                    title_lang_code, brief_description, data_sharing_statement,
+                    study_start_year, study_start_month, study_type_id,
+                    study_status_id, study_enrolment, study_gender_elig_id, 
+                    min_age, min_age_units_id, max_age, max_age_units_id, datetime_of_data_fetch,
+                    record_hash, study_full_hash) 
+                    SELECT sd_sid, display_title,
+                    title_lang_code, brief_description, data_sharing_statement,
+                    study_start_year, study_start_month, study_type_id, 
+                    study_status_id, study_enrolment, study_gender_elig_id, 
+                    min_age, min_age_units_id, max_age, max_age_units_id, datetime_of_data_fetch,
+                    record_hash, study_full_hash 
+                    FROM adcomp.studies
+                    where source_id = " + source_id.ToString();
+                conn.Execute(sql_string);
+
+
+                sql_string = @"truncate table ad.study_references; 
+                    INSERT INTO ad.study_references(sd_sid,
+                       pmid, citation, doi, comments, record_hash)
+                    SELECT sd_sid,
+                       pmid, citation, doi, comments, record_hash
+                       FROM adcomp.study_references
+                       where source_id = " + source_id.ToString();
+                conn.Execute(sql_string);
+            }
+
+
+        }
+
+        public IEnumerable<PMIDLink> FetchSourceReferences(int source_id, string source_conn_string)
+        {
+            using (var conn = new NpgsqlConnection(source_conn_string))
             {
                 string sql_string = @"select 
                         100135 as source_id, " +
@@ -125,7 +144,7 @@ namespace DataAggregator
 
         public void FillDistinctPMIDsTable()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 // First ensure that any PMIDs (sd_oids) are in the same format
                 // Some have a 'tail' of spaces after them, as the standard 
@@ -165,7 +184,7 @@ namespace DataAggregator
         public void CleanPMIDsdsidData1()
         {
             string sql_string = "";
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 sql_string = @"UPDATE nk.distinct_pmids
                         SET parent_study_sd_sid = 'ACTRN' || parent_study_sd_sid
@@ -216,7 +235,7 @@ namespace DataAggregator
         public void CleanPMIDsdsidData2()
         {
             string sql_string = "";
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 sql_string = @"UPDATE nk.distinct_pmids
                      SET parent_study_sd_sid = Replace(parent_study_sd_sid, '/', '-')
@@ -298,7 +317,7 @@ namespace DataAggregator
         public void CleanPMIDsdsidData3()
         {
             string sql_string = "";
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 sql_string = @"UPDATE nk.distinct_pmids
                    SET parent_study_sd_sid = Replace(parent_study_sd_sid, ' ', '')
@@ -383,7 +402,7 @@ namespace DataAggregator
         public void CleanPMIDsdsidData4()
         {
             string sql_string = "";
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 sql_string = @"UPDATE nk.distinct_pmids
                    SET parent_study_sd_sid = replace(parent_study_sd_sid, ' ', '')
@@ -460,7 +479,7 @@ namespace DataAggregator
 
         public void TransferPMIDLinksToObjectIds()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"INSERT INTO nk.temp_object_ids(
                          source_id, sd_oid, parent_study_source_id, 
@@ -476,7 +495,7 @@ namespace DataAggregator
 
         public void InputPreferredSDSIDS()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 // replace any LHS sd_sids with the 'preferred' RHS
 
@@ -543,7 +562,7 @@ namespace DataAggregator
 
         public void ResetIdsOfDuplicatedPMIDs()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 // Find the minimum object_id for each PMID in the table
                 // source id for PubMed = 100135
@@ -576,7 +595,7 @@ namespace DataAggregator
         
         public void DropTempPMIDTable()
         {
-            using (var conn = new NpgsqlConnection(connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = "DROP TABLE IF EXISTS nk.temp_pmids";
                 conn.Execute(sql_string);

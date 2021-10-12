@@ -9,11 +9,14 @@ namespace DataAggregator
         LinksDataHelper slh;
         string _mdr_connString;
         ICredentials _credentials;
+        bool _testing;
 
-        public StudyLinkBuilder(ICredentials credentials)
+        public StudyLinkBuilder(ICredentials credentials, string mdr_connString, bool testing)
         {
             _credentials = credentials;
-            _mdr_connString = _credentials.GetConnectionString("mdr", false);
+            _mdr_connString = mdr_connString;
+            _testing = testing;
+
             slh = new LinksDataHelper(_mdr_connString);
         }
             
@@ -26,20 +29,29 @@ namespace DataAggregator
             slh.SetUpTempPreferencesTable(sources);
             slh.SetUpTempLinkCollectorTable();
             slh.SetUpTempLinkSortedTable();
-            foreach (Source s in sources)
+
+            foreach (Source source in sources)
             {
-                // Fetch the study-study links and store them
-                // in the Collector table (asumingthe source has study data)
-                if (s.has_study_tables)
+                // need to populate the ad tables in a test situation with 
+                // the relevant data, as the source_conn_string will always 
+                // point to 'test' - at least get the study identifiers data!
+
+                if (_testing)
                 {
-                    string source_conn_string = _credentials.GetConnectionString(s.database_name, false);
-                    IEnumerable<StudyLink> links = slh.FetchLinks(s.id, source_conn_string);
+                    slh.TransferTestIdentifiers(source.id);
+                }
+
+                // Fetch the study-study links and store them
+                // in the Collector table (asuming the source has study data)
+                if (source.has_study_tables)
+                {
+                    string source_conn_string = _credentials.GetConnectionString(source.database_name, _testing);
+                    IEnumerable<StudyLink> links = slh.FetchLinks(source.id, source_conn_string);
                     slh.StoreLinksInTempTable(CopyHelpers.links_helper, links);
                 }
             }
 
-            // Tidy up common format errors and then store links in the 'correct' 
-            // arrangement, i.e. lower rated sources in the 'preferred' fields.
+            // Tidy up common format errors.
 
             slh.TidyIds1();
             slh.TidyIds2();

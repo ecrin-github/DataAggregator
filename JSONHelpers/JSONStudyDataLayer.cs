@@ -112,7 +112,7 @@ namespace DataAggregator
             study_identifier_query_string = @"select
                 si.id, identifier_value,
                 identifier_type_id, it.name as identifier_type,
-                identifier_org_id, identifier_org, identifier_org_ror_id
+                identifier_org_id, identifier_org, identifier_org_ror_id,
                 identifier_date, identifier_link
                 from core.study_identifiers si
                 left join context_lup.identifier_types it on si.identifier_type_id = it.id
@@ -130,9 +130,9 @@ namespace DataAggregator
 
             // study topics query string
             study_topics_query_string = @"select
-                st.id, topic_type_id, tt.name as topic_type, mesh_coded,
-                mesh_code, mesh_value, mesh_qualcode, mesh_qualvalue,
-                original_value
+                st.id, topic_type_id, tt.name as topic_type, 
+                mesh_coded, mesh_code, mesh_value, 
+                original_ct_id, original_ct_code, original_value
                 from core.study_topics st
                 left join context_lup.topic_types tt on st.topic_type_id = tt.id
                 where study_id = ";

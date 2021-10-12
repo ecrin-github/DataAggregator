@@ -290,11 +290,9 @@ namespace DataAggregator
         {
             string sql_string = @"INSERT INTO ob.object_topics(object_id, 
             topic_type_id, mesh_coded, mesh_code, mesh_value, 
-            mesh_qualcode, mesh_qualvalue, 
             original_ct_id, original_ct_code, original_value)
             SELECT t.object_id, 
             topic_type_id, mesh_coded, mesh_code, mesh_value, 
-            mesh_qualcode, mesh_qualvalue, 
             original_ct_id, original_ct_code, original_value
             FROM " + schema_name + @".object_topics s
                     INNER JOIN nk.temp_objects_to_add t

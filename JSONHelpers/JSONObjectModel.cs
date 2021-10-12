@@ -325,22 +325,22 @@ namespace DataAggregator
         public bool mesh_coded { get; set; }
         public string mesh_code { get; set; }
         public string mesh_value { get; set; }
-        public string mesh_qualcode { get; set; }
-        public string mesh_qualvalue { get; set; }
+        public int original_ct_id { get; set; }
+        public string original_ct_code { get; set; }
         public string original_value { get; set; }
 
         public object_topic(int _id, lookup _topic_type,
                              bool _mesh_coded, string _mesh_code,
-                             string _mesh_value, string _mesh_qualcode,
-                             string _mesh_qualvalue, string _original_value)
+                             string _mesh_value, int _original_ct_id,
+                             string _original_ct_code, string _original_value)
         {
             id = _id;
             topic_type = _topic_type;
             mesh_coded = _mesh_coded;
             mesh_code = _mesh_code;
             mesh_value = _mesh_value;
-            mesh_qualcode = _mesh_qualcode;
-            mesh_qualvalue = _mesh_qualvalue;
+            original_ct_id = _original_ct_id;
+            original_ct_code = _original_ct_code;
             original_value = _original_value;
         }
 
@@ -640,10 +640,7 @@ namespace DataAggregator
         public bool mesh_coded { get; set; }
         public string mesh_code { get; set; }
         public string mesh_value { get; set; }
-        public string mesh_qualcode { get; set; }
-        public string mesh_qualvalue { get; set; }
         public int original_ct_id { get; set; }
-        public string original_ct { get; set; }
         public string original_ct_code { get; set; }
         public string original_value { get; set; }
     }

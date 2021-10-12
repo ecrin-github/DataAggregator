@@ -125,8 +125,8 @@ namespace DataAggregator
                 foreach (DBStudyTopic t in db_study_topics)
                 {
                     study_topics.Add(new study_topic(t.id, new lookup(t.topic_type_id, t.topic_type),
-                                         t.mesh_coded, t.mesh_code, t.mesh_value, t.mesh_qualcode,
-                                         t.mesh_qualvalue, t.original_value));
+                                         t.mesh_coded, t.mesh_code, t.mesh_value,
+                                         t.original_ct_id, t.original_ct_code, t.original_value));
                 }
             }
 

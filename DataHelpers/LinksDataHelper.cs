@@ -772,5 +772,29 @@ namespace DataAggregator
             }
         }
 
+
+        public void TransferTestIdentifiers(int source_id)
+        {
+            // This called only during testing
+            // Transfers the study identifier records so that they can be used to
+            // obtain links, in imitation of the normal process
+
+            using (var conn = new NpgsqlConnection(_mdr_connString))
+            {
+                string sql_string = @"truncate table ad.study_identifiers; 
+                            INSERT into ad.study_identifiers (sd_sid, identifier_type_id, 
+                            identifier_value, identifier_org, identifier_org_id, identifier_org_ror_id,
+                            identifier_date, identifier_link)
+                            SELECT sd_sid, identifier_type_id,
+                            identifier_value, identifier_org, identifier_org_id, identifier_org_ror_id,
+                            identifier_date, identifier_link 
+                            from adcomp.study_identifiers
+                            where source_id = " + source_id.ToString();
+                conn.Execute(sql_string);
+            }
+
+        }
+
+
     }
 }

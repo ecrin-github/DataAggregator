@@ -7,11 +7,11 @@ namespace DataAggregator
 {
     public interface IMonitorDataLayer
     {
-        void SetUpTempContextFTWs(ICredentials credentials);
-        void DropTempContextFTWs();
+        void SetUpTempContextFTWs(ICredentials credentials, string connString);
+        void DropTempContextFTWs(string connString);
 
-        string SetUpTempFTW(ICredentials credentials, string database_name);
-        void DropTempFTW(string database_name);
+        string SetUpTempFTW(ICredentials credentials, string database_name, string dest_conn_string);
+        void DropTempFTW(string database_name, string dest_conn_string);
 
         Source FetchSourceParameters(int source_id);
         int GetNextAggEventId();
@@ -27,11 +27,11 @@ namespace DataAggregator
         void StoreSourceSummary(SourceSummary sm);
         void StoreAggregationSummary(AggregationSummary asm);
         void DeleteSameEventObjectStats(int agg_event_id);
-        List<AggregationObjectNum> GetObjectTypes(int aggregation_event_id);
+        List<AggregationObjectNum> GetObjectTypes(int aggregation_event_id, string dest_conn_string);
         void RecreateStudyStudyLinksTable();
 
-        List<StudyStudyLinkData> GetStudyStudyLinkData(int aggregation_event_id);
-        List<StudyStudyLinkData> GetStudyStudyLinkData2(int aggregation_event_id);
+        List<StudyStudyLinkData> GetStudyStudyLinkData(int aggregation_event_id, string dest_conn_string);
+        List<StudyStudyLinkData> GetStudyStudyLinkData2(int aggregation_event_id, string dest_conn_string);
 
         ulong StoreObjectNumbers(PostgreSQLCopyHelper<AggregationObjectNum> copyHelper,
                                          IEnumerable<AggregationObjectNum> entities);

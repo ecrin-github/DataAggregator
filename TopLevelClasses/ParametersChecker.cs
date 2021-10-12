@@ -42,21 +42,38 @@ namespace DataAggregator
         {
             try
             {
-                // Need at least one of D, C, J or S to be true
-                // F only valid if J is present (but F option being dropped)
 
-                // Need to add in a test option
+                if (opts.testing)
+                {
+                    // no particular requirement here
+                    // can drop straight through to run the program
+                    // but set the other parameters as true so all functions are tested
 
-                if ((opts.transfer_data == false)
+                    opts.transfer_data = true;
+                    opts.create_core = true;
+                    opts.create_json = true;
+                    opts.do_statistics = true;
+                }
+                else if ((opts.transfer_data == false)
                     && (opts.create_core == false)
                     && (opts.create_json == false)
                     && (opts.do_statistics == false))
                 {
-                    throw new Exception("None of the allowed parameters appear to be present!");
+                    // If not testing need at least one of D, C, J or S to be true
+
+                    throw new Exception("None of the allowed optional parameters appear to be present!");
                 }
+                else if (opts.also_do_files)
+                {
+                    // F only valid if J is present (but F option being dropped)
 
+                    if(opts.create_json == false)
+                    {
+                        throw new Exception("F parameter can only be provided if J paramewter also provided");
+                    }
+                }
+    
                 return true;    // OK the program can run!
-
             }
 
             catch (Exception e)
@@ -117,6 +134,9 @@ namespace DataAggregator
 
         [Option('S', "do statistics", Required = false, HelpText = "Summarises record numbers, of each sort, in different sources and in the summary and core tables")]
         public bool do_statistics { get; set; }
+
+        [Option('T', "use test data", Required = false, HelpText = "Carry out D, C, S and J but usiung test data only, in the test database")]
+        public bool testing { get; set; }
     }
 
 }

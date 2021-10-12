@@ -9,14 +9,16 @@ namespace DataAggregator
         IMonitorDataLayer _mon_repo;
         ILogger _logger;
         ICredentials _credentials;
+        bool _testing;
 
         public StatisticsBuilder(int agg_event_id, ICredentials credentials, 
-            IMonitorDataLayer mon_repo, ILogger logger)
+            IMonitorDataLayer mon_repo, ILogger logger, bool testing)
         {
             _agg_event_id = agg_event_id;
             _credentials = credentials;
             _mon_repo = mon_repo;
             _logger = logger;
+            _testing = testing;
         }
 
 
@@ -69,7 +71,7 @@ namespace DataAggregator
         public void GetSummaryStatistics()
         {
             // Obtains figures for aggrgeate tables
-            string conn_string = _credentials.GetConnectionString("mdr", false);
+            string conn_string = _credentials.GetConnectionString("mdr", _testing);
             AggregationSummary sm = new AggregationSummary(_agg_event_id);
 
             _logger.Information("");
@@ -107,15 +109,15 @@ namespace DataAggregator
 
             // get and store data object types
             _mon_repo.DeleteSameEventObjectStats(_agg_event_id);
-            List<AggregationObjectNum> object_numbers = _mon_repo.GetObjectTypes(_agg_event_id);
+            List<AggregationObjectNum> object_numbers = _mon_repo.GetObjectTypes(_agg_event_id, conn_string);
             _mon_repo.StoreObjectNumbers(CopyHelpers.object_numbers_helper, object_numbers);
             _logger.Information("Statistics done for different data objects");
 
             // get study-study linkage
             _mon_repo.RecreateStudyStudyLinksTable();
-            List<StudyStudyLinkData> study_link_numbers = _mon_repo.GetStudyStudyLinkData(_agg_event_id);
+            List<StudyStudyLinkData> study_link_numbers = _mon_repo.GetStudyStudyLinkData(_agg_event_id, conn_string);
             _mon_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
-            study_link_numbers = _mon_repo.GetStudyStudyLinkData2(_agg_event_id);
+            study_link_numbers = _mon_repo.GetStudyStudyLinkData2(_agg_event_id, conn_string);
             _mon_repo.StoreStudyLinkNumbers(CopyHelpers.study_link_numbers_helper, study_link_numbers);
             _logger.Information("Statistics done for study-study links");
         }

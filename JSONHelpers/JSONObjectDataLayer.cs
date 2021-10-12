@@ -198,9 +198,9 @@ namespace DataAggregator
 
             // object topics (using study objects)
             object_study_topics_query_string = @"select
-                st.id, topic_type_id, tt.name as topic_type, mesh_coded,
-                mesh_code, mesh_value, mesh_qualcode, mesh_qualvalue,
-                original_value
+                st.id, topic_type_id, tt.name as topic_type, 
+                mesh_coded, mesh_code, mesh_value, 
+                original_ct_id, original_ct_code, original_value
                 from core.study_object_links k
                 inner join core.study_topics st on k.study_id = st.study_id
                 left join context_lup.topic_types tt on st.topic_type_id = tt.id
@@ -209,9 +209,9 @@ namespace DataAggregator
 
             // object topics (using object topics)
             object_topics_query_string = @"select
-                ot.id, topic_type_id, tt.name as topic_type, mesh_coded,
-                mesh_code, mesh_value, mesh_qualcode, mesh_qualvalue,
-                original_value
+                ot.id, topic_type_id, tt.name as topic_type, 
+                mesh_coded, mesh_code, mesh_value, 
+                original_ct_id, original_ct_code, original_value
                 from core.object_topics ot
                 left join context_lup.topic_types tt on ot.topic_type_id = tt.id
                 where ot.object_id = ";

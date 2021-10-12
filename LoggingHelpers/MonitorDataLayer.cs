@@ -28,9 +28,6 @@ namespace DataAggregator
 
             builder.Database = "mon";
             connString = builder.ConnectionString;
-
-            builder.Database = "mdr";
-            mdr_connString = builder.ConnectionString;
         }
 
         public Source SourceParameters => source;
@@ -47,9 +44,9 @@ namespace DataAggregator
 
 
 
-        public void SetUpTempContextFTWs(ICredentials credentials)
+        public void SetUpTempContextFTWs(ICredentials credentials, string connString)
         {
-            using (var conn = new NpgsqlConnection(mdr_connString))
+            using (var conn = new NpgsqlConnection(connString))
             {
                 string username = credentials.Username;
                 string password = credentials.Password;
@@ -85,9 +82,9 @@ namespace DataAggregator
         }
 
 
-        public void DropTempContextFTWs()
+        public void DropTempContextFTWs(string connString)
         {
-            using (var conn = new NpgsqlConnection(mdr_connString))
+            using (var conn = new NpgsqlConnection(connString))
             {
                 string sql_string = @"DROP USER MAPPING IF EXISTS FOR CURRENT_USER
                      SERVER context;";
@@ -104,9 +101,9 @@ namespace DataAggregator
         }
 
 
-        public string SetUpTempFTW(ICredentials credentials, string database_name)
+        public string SetUpTempFTW(ICredentials credentials, string database_name, string connString)
         {
-            using (var conn = new NpgsqlConnection(mdr_connString))
+            using (var conn = new NpgsqlConnection(connString))
             {
                 string username = credentials.Username;
                 string password = credentials.Password;     
@@ -149,9 +146,9 @@ namespace DataAggregator
          }
 
 
-        public void DropTempFTW(string database_name)
+        public void DropTempFTW(string database_name, string connString)
         {
-            using (var conn = new NpgsqlConnection(mdr_connString))
+            using (var conn = new NpgsqlConnection(connString))
             {
                 string schema_name = "";
                 if (database_name == "mon")
@@ -316,7 +313,7 @@ namespace DataAggregator
         }
 
 
-        public List<AggregationObjectNum> GetObjectTypes(int aggregation_event_id)
+        public List<AggregationObjectNum> GetObjectTypes(int aggregation_event_id, string dest_conn_string)
         {
             string sql_string = @"SELECT "
                     + aggregation_event_id.ToString() + @" as aggregation_event_id, 
@@ -329,7 +326,7 @@ namespace DataAggregator
                     group by object_type_id, t.name
                     order by count(d.id) desc";
 
-            using (var conn = new NpgsqlConnection(mdr_connString))
+            using (var conn = new NpgsqlConnection(dest_conn_string))
             {
                 return conn.Query<AggregationObjectNum>(sql_string).ToList();
             }
@@ -357,7 +354,7 @@ namespace DataAggregator
             }
         }
 
-        public List<StudyStudyLinkData> GetStudyStudyLinkData(int aggregation_event_id)
+        public List<StudyStudyLinkData> GetStudyStudyLinkData(int aggregation_event_id, string dest_conn_string)
         {
             string sql_string = @"SELECT 
                     k.source_id, 
@@ -372,13 +369,13 @@ namespace DataAggregator
                     on k.preferred_source_id = d2.id
                     group by source_id, preferred_source_id, d1.default_name, d2.default_name;";
 
-            using (var conn = new NpgsqlConnection(mdr_connString))
+            using (var conn = new NpgsqlConnection(dest_conn_string))
             {
                 return conn.Query<StudyStudyLinkData>(sql_string).ToList();
             }
         }
 
-        public List<StudyStudyLinkData> GetStudyStudyLinkData2(int aggregation_event_id)
+        public List<StudyStudyLinkData> GetStudyStudyLinkData2(int aggregation_event_id, string dest_conn_string)
         {
             string sql_string = @"SELECT 
                     k.preferred_source_id as source_id, 
@@ -393,7 +390,7 @@ namespace DataAggregator
                     on k.preferred_source_id = d2.id
                     group by preferred_source_id, source_id, d2.default_name, d1.default_name;;";
 
-            using (var conn = new NpgsqlConnection(mdr_connString))
+            using (var conn = new NpgsqlConnection(dest_conn_string))
             {
                 return conn.Query<StudyStudyLinkData>(sql_string).ToList();
             }

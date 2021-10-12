@@ -37,8 +37,11 @@ namespace DataAggregator
 
                 // set up the context DB as two sets of foreign tables
                 // as it is used in several places
+                // N.B. When testing mdr_conn_string points to the test database
+                // If not testing it points to the 'core' mdr database
 
-                _mon_repo.SetUpTempContextFTWs(_credentials);
+                string dest_conn_string = _credentials.GetConnectionString("mdr", opts.testing);
+                _mon_repo.SetUpTempContextFTWs(_credentials, dest_conn_string);
 
                 if (opts.transfer_data)
                 {
@@ -46,8 +49,7 @@ namespace DataAggregator
                     // for the three schemas st, ob, nk (schemas should already exist)
 
                     _logger_helper.LogHeader("Establishing aggregate schemas");
-                    string mdr_conn_string = _credentials.GetConnectionString("mdr", false);
-                    SchemaBuilder sb = new SchemaBuilder(mdr_conn_string);
+                    SchemaBuilder sb = new SchemaBuilder(dest_conn_string);
                     sb.DeleteStudyTables();
                     sb.DeleteObjectTables();
                     sb.DeleteLinkTables();
@@ -71,7 +73,7 @@ namespace DataAggregator
                     // Then use the study link builder to create
                     // a record of all current study - study links
 
-                    StudyLinkBuilder slb = new StudyLinkBuilder(_credentials);
+                    StudyLinkBuilder slb = new StudyLinkBuilder(_credentials, dest_conn_string, opts.testing);
                     slb.CollectStudyStudyLinks(sources);
                     slb.ProcessStudyStudyLinks();
                     _logger.Information("Study-study links identified");
@@ -85,17 +87,34 @@ namespace DataAggregator
 
                     int num_studies_imported = 0;
                     int num_objects_imported = 0;
+                    if (opts.testing)
+                    {
+                        // ensure all AD tables are present for use in the test db
+                        _test_repo.BuildNewADTables();
+                    }
 
                     foreach (Source source in sources)
                     {
-                        // schema name is the ad tables in a FTW - i.e. <db name>_ad
+                        string source_conn_string = _credentials.GetConnectionString(source.database_name, opts.testing);
+                        source.db_conn = source_conn_string;
+
+                        // in normal non-testing environment schema name is the ad tables in a FTW - i.e. <db name>_ad
                         // also use credentials here to get the connection string for the source database
+                        // In testing environment source schema name will simply be 'ad', and the ad table data
+                        // all has to be transferred from adcomp before each source transfer...
 
-                        string schema_name = _mon_repo.SetUpTempFTW(_credentials, source.database_name);
-                        string source_conn_string = _credentials.GetConnectionString(source.database_name, false);
+                        string schema_name = "";
+                        if (opts.testing)
+                        {
+                            schema_name = "ad";
+                            _test_repo.TransferADTableData(source);
+                        }
+                        else
+                        {
+                            schema_name = _mon_repo.SetUpTempFTW(_credentials, source.database_name, dest_conn_string);
+                        }
 
-                        DataTransferBuilder tb = new DataTransferBuilder(source, schema_name, 
-                            source_conn_string, mdr_conn_string, _logger);
+                        DataTransferBuilder tb = new DataTransferBuilder(source, schema_name, dest_conn_string, _logger);
                         if (source.has_study_tables)
                         {
                             tb.ProcessStudyIds();
@@ -104,10 +123,10 @@ namespace DataAggregator
                         }
                         else
                         {
-                            tb.ProcessStandaloneObjectIds(sources);
+                            tb.ProcessStandaloneObjectIds(sources, _credentials, opts.testing);
                         }
                         num_objects_imported += tb.TransferObjectData();
-                        _mon_repo.DropTempFTW(source.database_name);
+                        _mon_repo.DropTempFTW(source.database_name, dest_conn_string);
                     }
 
                     // Also use the study groups data to insert additional study_relationship records
@@ -118,19 +137,22 @@ namespace DataAggregator
                     agg_event.num_studies_imported = num_studies_imported;
                     agg_event.num_objects_imported = num_objects_imported;
 
-                    agg_event.num_total_studies = _mon_repo.GetAggregateRecNum("studies", "st", mdr_conn_string);
-                    agg_event.num_total_objects = _mon_repo.GetAggregateRecNum("data_objects", "ob", mdr_conn_string);
-                    agg_event.num_total_study_object_links = _mon_repo.GetAggregateRecNum("all_ids_data_objects", "nk", mdr_conn_string);
+                    agg_event.num_total_studies = _mon_repo.GetAggregateRecNum("studies", "st", dest_conn_string);
+                    agg_event.num_total_objects = _mon_repo.GetAggregateRecNum("data_objects", "ob", dest_conn_string);
+                    agg_event.num_total_study_object_links = _mon_repo.GetAggregateRecNum("all_ids_data_objects", "nk", dest_conn_string);
 
-                    _mon_repo.StoreAggregationEvent(agg_event);
+                    if (!opts.testing)
+                    {
+                        _mon_repo.StoreAggregationEvent(agg_event);
+                    }
                 }
 
 
                 if (opts.create_core)
                 {
                     // create core tables
-                    string mdr_conn_string = _credentials.GetConnectionString("mdr", false);
-                    CoreBuilder cb = new CoreBuilder(mdr_conn_string);
+
+                    CoreBuilder cb = new CoreBuilder(dest_conn_string);
                     _logger_helper.LogHeader("Set up");
                     cb.DeleteCoreTables();
                     _logger.Information("Core tables dropped");
@@ -138,7 +160,7 @@ namespace DataAggregator
                     _logger.Information("Core tables created");
 
                     // transfer data to core tables
-                    CoreTransferBuilder ctb = new CoreTransferBuilder(mdr_conn_string, _logger);
+                    CoreTransferBuilder ctb = new CoreTransferBuilder(dest_conn_string, _logger);
                     _logger_helper.LogHeader("Transferring study data");
                     ctb.TransferCoreStudyData();
                     _logger_helper.LogHeader("Transferring object data");
@@ -149,25 +171,28 @@ namespace DataAggregator
                     // Include generation of data provenance strings
                     // Need an additional temporary FTW link to mon
 
-                    _logger_helper.LogHeader("Finish");
-                    _mon_repo.SetUpTempFTW(_credentials, "mon");
+                    _logger_helper.LogHeader("Finishing data transfer tasks");
+                    _mon_repo.SetUpTempFTW(_credentials, "mon", dest_conn_string);
                     ctb.GenerateProvenanceData();
-                    _mon_repo.DropTempFTW("mon");
+                    _mon_repo.DropTempFTW("mon", dest_conn_string);
                 }
 
 
                 if (opts.do_statistics)
                 {
                     int last_agg_event_id = _mon_repo.GetLastAggEventId();
-                    StatisticsBuilder stb = new StatisticsBuilder(last_agg_event_id, _credentials, _mon_repo, _logger);
-                    stb.GetStatisticsBySource();
+                    StatisticsBuilder stb = new StatisticsBuilder(last_agg_event_id, _credentials, _mon_repo, _logger, opts.testing);
+                    if (!opts.testing)
+                    {
+                        stb.GetStatisticsBySource();
+                    }
                     stb.GetSummaryStatistics();
                 }
 
 
                 if (opts.create_json)
                 {
-                    string conn_string = _credentials.GetConnectionString("mdr", false);
+                    string conn_string = _credentials.GetConnectionString("mdr", opts.testing);
                     JSONHelper jh = new JSONHelper(conn_string, _logger);
 
                     // Create json fields.
@@ -183,7 +208,7 @@ namespace DataAggregator
                     jh.CreateJSONObjectData(opts.also_do_files);
                 }
 
-                _mon_repo.DropTempContextFTWs();
+                _mon_repo.DropTempContextFTWs(dest_conn_string);
 
                 _logger_helper.LogHeader("Closing Log");
                 return 0;

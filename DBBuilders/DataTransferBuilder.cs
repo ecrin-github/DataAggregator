@@ -9,23 +9,24 @@ namespace DataAggregator
         ILogger _logger;
         string _schema_name;
         string _source_conn_string;
+        string _dest_conn_string;
 
         StudyDataTransferrer st_tr;
         ObjectDataTransferrer ob_tr;
 
         int source_id;
 
-        public DataTransferBuilder(ISource source, string schema_name, 
-            string source_conn_string, string connString, ILogger logger)
+        public DataTransferBuilder(ISource source, string schema_name, string dest_conn_string, ILogger logger)
         {
             _source = source;
             _logger = logger;
             _schema_name = schema_name;
-            _source_conn_string = source_conn_string;
+            _source_conn_string = source.db_conn;
+            _dest_conn_string = dest_conn_string;
 
             source_id = _source.id;
-            st_tr = new StudyDataTransferrer(connString, _logger);
-            ob_tr = new ObjectDataTransferrer(connString, _logger);
+            st_tr = new StudyDataTransferrer(_dest_conn_string, _logger);
+            ob_tr = new ObjectDataTransferrer(_dest_conn_string, _logger);
 
         }
 
@@ -99,7 +100,7 @@ namespace DataAggregator
         }
 
 
-        public void ProcessStandaloneObjectIds(IEnumerable<Source> sources)
+        public void ProcessStandaloneObjectIds(IEnumerable<Source> sources, ICredentials credentials, bool testing)
         {
             ob_tr.SetUpTempObjectIdsTables();
 
@@ -117,7 +118,7 @@ namespace DataAggregator
                 // This needs to be combined with the references in those sources 
                 // that conbtain study_reference tables
 
-                PubmedTransferHelper pm_tr = new PubmedTransferHelper();
+                PubmedTransferHelper pm_tr = new PubmedTransferHelper(_schema_name, _dest_conn_string);
                 pm_tr.SetupTempPMIDTable();
                 pm_tr.SetupDistinctPMIDTable();
                 
@@ -127,11 +128,16 @@ namespace DataAggregator
 
                 // Loop threough the study databases that hold
                 // study_reference tables, i.e. with pmid ids
-                foreach (Source s in sources)
+                foreach (Source source in sources)
                 {
-                    if (s.has_study_references)
+                    if (source.has_study_references)
                     {
-                        IEnumerable<PMIDLink> source_references = pm_tr.FetchSourceReferences(s.id, s.database_name);
+                        string source_conn_string = credentials.GetConnectionString(source.database_name, testing);
+                        if (testing)
+                        {
+                            pm_tr.TransferReferencesData(source.id);
+                        }
+                        IEnumerable<PMIDLink> source_references = pm_tr.FetchSourceReferences(source.id, source_conn_string);
                         pm_tr.StorePMIDLinks(CopyHelpers.pmid_links_helper, source_references);
                     }
                 }

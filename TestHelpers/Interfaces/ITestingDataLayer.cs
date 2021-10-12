@@ -6,10 +6,8 @@ namespace DataAggregator
 {
     public interface ITestingDataLayer
     {
-        Credentials Credentials { get; }
+        void BuildNewADTables();
+        void TransferADTableData(ISource source);
 
-        int EstablishExpectedData();
-        void TransferTestSDData(ISource source);
-        IEnumerable<int> ObtainTestSourceIDs();
     }
 }
