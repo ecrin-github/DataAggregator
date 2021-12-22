@@ -6,11 +6,13 @@ namespace DataAggregator
     {
         private string connString;
         private CoreTableBuilder core_tablebuilder;
+        ILogger _logger;
 
-        public CoreBuilder(string _connString)
+        public CoreBuilder(string _connString, ILogger logger)
         {
+            _logger = logger; 
             connString = _connString;
-            core_tablebuilder = new CoreTableBuilder(connString);
+            core_tablebuilder = new CoreTableBuilder(connString, _logger);
         }
 
         public void DeleteCoreTables()
@@ -23,8 +25,9 @@ namespace DataAggregator
             core_tablebuilder.drop_table("study_contributors");
             core_tablebuilder.drop_table("study_topics");
             core_tablebuilder.drop_table("study_features");
-            core_tablebuilder.drop_table("study_relationships"); 
-            
+            core_tablebuilder.drop_table("study_relationships");
+            core_tablebuilder.drop_table("study_search");
+
             core_tablebuilder.drop_table("data_objects");
             core_tablebuilder.drop_table("object_datasets");
             core_tablebuilder.drop_table("object_dates");
@@ -50,6 +53,7 @@ namespace DataAggregator
             core_tablebuilder.create_table_study_features();
             core_tablebuilder.create_table_study_contributors();
             core_tablebuilder.create_table_study_relationships();
+            core_tablebuilder.create_table_study_search();
 
             core_tablebuilder.create_table_data_objects();
             core_tablebuilder.create_table_object_instances();

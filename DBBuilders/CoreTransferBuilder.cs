@@ -7,13 +7,13 @@ namespace DataAggregator
     {
         string _connString;
         ILogger _logger;
-        CoreDataTransferrer core_tr;
+        CoreTransferHelper core_tr;
 
         public CoreTransferBuilder(string connString, ILogger logger)
         {
             _logger = logger;
             _connString = connString;
-            core_tr = new CoreDataTransferrer(_connString, _logger);
+            core_tr = new CoreTransferHelper(_connString, _logger);
         }
 
         public void TransferCoreStudyData()

@@ -3,14 +3,14 @@ using Serilog;
 
 namespace DataAggregator
 {
-    public class CoreDataTransferrer
+    public class CoreTransferHelper
     {
         string _connString;
         DBUtilities db;
         ILogger _logger;
 
 
-        public CoreDataTransferrer(string connString, ILogger logger)
+        public CoreTransferHelper(string connString, ILogger logger)
         {
             _logger = logger;
             _connString = connString;
@@ -254,7 +254,6 @@ namespace DataAggregator
 
             return db.ExecuteCoreTransferSQL(sql_string, "ob.object_descriptions");
         }
-
 
         public int LoadCoreObjectIdentifiers()
         {

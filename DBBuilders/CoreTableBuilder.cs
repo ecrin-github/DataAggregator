@@ -1,16 +1,19 @@
 ﻿using Dapper;
 using Npgsql;
-
+using System;
+using Serilog;
 
 namespace DataAggregator
 {
     public class CoreTableBuilder
     {
         string db_conn;
+        ILogger _logger;
 
-        public CoreTableBuilder(string _db_conn)
+        public CoreTableBuilder(string _db_conn, ILogger logger)
         {
             db_conn = _db_conn;
+            _logger = logger;
         }
 
         public void drop_table(string table_name)
@@ -19,6 +22,22 @@ namespace DataAggregator
             using (var conn = new NpgsqlConnection(db_conn))
             {
                 conn.Execute(sql_string);
+            }
+        }
+
+        public int ExecuteSQL(string sql_string)
+        {
+            using (var conn = new NpgsqlConnection(db_conn))
+            {
+                try
+                {
+                    return conn.Execute(sql_string);
+                }
+                catch (Exception e)
+                {
+                    _logger.Error("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
+                    return 0;
+                }
             }
         }
 
@@ -43,10 +62,7 @@ namespace DataAggregator
               , provenance_string      VARCHAR         NULL
             );";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -65,10 +81,7 @@ namespace DataAggregator
             );
             CREATE INDEX study_identifiers_study_id ON core.study_identifiers(study_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -86,10 +99,7 @@ namespace DataAggregator
             );
             CREATE INDEX study_titles_study_id ON core.study_titles(study_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -112,10 +122,7 @@ namespace DataAggregator
             );
             CREATE INDEX study_contributors_study_id ON core.study_contributors(study_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -134,10 +141,7 @@ namespace DataAggregator
             );
             CREATE INDEX study_topics_study_id ON core.study_topics(study_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -151,10 +155,7 @@ namespace DataAggregator
             );
             CREATE INDEX study_features_study_id ON core.study_features(study_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -169,10 +170,7 @@ namespace DataAggregator
             CREATE INDEX study_relationships_study_id ON core.study_relationships(study_id);
             CREATE INDEX study_relationships_target_study_id ON core.study_relationships(target_study_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -201,10 +199,7 @@ namespace DataAggregator
               , provenance_string      VARCHAR         NULL
             );";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -232,10 +227,7 @@ namespace DataAggregator
             );
             CREATE INDEX object_datasets_object_id ON core.object_datasets(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -257,10 +249,7 @@ namespace DataAggregator
             );
             CREATE INDEX object_dates_object_id ON core.object_dates(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -282,10 +271,7 @@ namespace DataAggregator
             );
             CREATE INDEX object_instances_object_id ON core.object_instances(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -309,10 +295,7 @@ namespace DataAggregator
             );
             CREATE INDEX object_contributors_object_id ON core.object_contributors(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -330,10 +313,7 @@ namespace DataAggregator
             );
             CREATE INDEX object_titles_object_id ON core.object_titles(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -352,10 +332,7 @@ namespace DataAggregator
             );
             CREATE INDEX object_topics_object_id ON core.object_topics(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -371,10 +348,7 @@ namespace DataAggregator
             );
             CREATE INDEX object_descriptions_object_id ON core.object_descriptions(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -392,10 +366,7 @@ namespace DataAggregator
             );
             CREATE INDEX object_identifiers_object_id ON core.object_identifiers(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -409,10 +380,7 @@ namespace DataAggregator
             );
             CREATE INDEX object_relationships_object_id ON core.object_relationships(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -427,10 +395,7 @@ namespace DataAggregator
             );
             CREATE INDEX object_rights_object_id ON core.object_rights(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
@@ -444,10 +409,61 @@ namespace DataAggregator
             CREATE INDEX study_object_links_studyid ON core.study_object_links(study_id);
             CREATE INDEX study_object_links_objectid ON core.study_object_links(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
+        }
+
+
+        public void create_table_study_search()
+        {
+            string sql_string = @"CREATE TABLE core.study_search(
+                id                     INT             NOT NULL PRIMARY KEY
+              , display_title          VARCHAR         NULL
+              , title_lexemes          VARCHAR         NULL
+              , topic_lexemes          VARCHAR         NULL
+              , study_start_year       INT             NULL
+              , study_start_month      INT             NULL
+              , study_type_id          INT             NULL DEFAULT 0
+              , study_status_id        INT             NULL DEFAULT 0
+              , study_gender_elig_id   INT             NULL DEFAULT 915
+              , min_age                INT             NULL
+              , min_age_units_id       INT             NULL DEFAULT 0
+              , max_age                INT             NULL
+              , max_age_units_id       INT             NULL DEFAULT 0
+              , phase_value            INT             NULL DEFAULT 140
+              , purpose_value          INT             NULL DEFAULT 215
+              , allocation_value       INT             NULL DEFAULT 325
+              , intervention_value     INT             NULL DEFAULT 445
+              , masking_value          INT             NULL DEFAULT 525
+              , obsmodel_value         INT             NULL DEFAULT 635
+              , timepersp_value        INT             NULL DEFAULT 720
+              , biospec_value          INT             NULL DEFAULT 815
+              , has_reg_entry          BOOL            NULL
+              , has_reg_results        BOOL            NULL
+              , has_article            BOOL            NULL
+              , has_protocol           BOOL            NULL
+              , has_overview           BOOL            NULL
+              , has_pif                BOOL            NULL
+              , has_ecrfs              BOOL            NULL
+              , has_manual             BOOL            NULL
+              , has_sap                BOOL            NULL
+              , has_csr                BOOL            NULL
+              , has_data_desc          BOOL            NULL
+              , has_ipd                BOOL            NULL
+              , has_agg_data           BOOL            NULL
+              , has_other_studyres     BOOL            NULL
+              , has_conf_material      BOOL            NULL
+              , has_other_article      BOOL            NULL
+              , has_chapter            BOOL            NULL
+              , has_other_info         BOOL            NULL
+              , has_website            BOOL            NULL
+              , has_software           BOOL            NULL
+              , has_other              BOOL            NULL
+ 
+           );
+           CREATE INDEX study_search_id ON core.study_search(id);";
+
+           ExecuteSQL(sql_string);
+
         }
     }
 }

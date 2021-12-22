@@ -152,7 +152,8 @@ namespace DataAggregator
                 {
                     // create core tables
 
-                    CoreBuilder cb = new CoreBuilder(dest_conn_string);
+                    CoreBuilder cb = new CoreBuilder(dest_conn_string, _logger);
+                    
                     _logger_helper.LogHeader("Set up");
                     cb.DeleteCoreTables();
                     _logger.Information("Core tables dropped");
@@ -167,14 +168,20 @@ namespace DataAggregator
                     ctb.TransferCoreObjectData();
                     _logger_helper.LogHeader("Transferring link data");
                     ctb.TransferCoreLinkData();
-
-                    // Include generation of data provenance strings
+                    
+                    // Generation of data provenance strings
                     // Need an additional temporary FTW link to mon
-
-                    _logger_helper.LogHeader("Finishing data transfer tasks");
+                    _logger_helper.LogHeader("Generating provenance data");
                     _mon_repo.SetUpTempFTW(_credentials, "mon", dest_conn_string);
                     ctb.GenerateProvenanceData();
                     _mon_repo.DropTempFTW("mon", dest_conn_string);
+
+                    // set up study search data
+                    CoreSearchBuilder csb = new CoreSearchBuilder(dest_conn_string, _logger);
+                    _logger_helper.LogHeader("Setting up Study Text Search data");
+                    csb.CreateStudyFeatureSearchData();
+                    csb.CreateStudyObjectSearchData();
+                    csb.CreateStudyTextSearchData();
                 }
 
 

@@ -48,7 +48,6 @@ namespace DataAggregator
             }
         }
 
-
         public ulong StoreStudyIds(PostgreSQLCopyHelper<StudyId> copyHelper, IEnumerable<StudyId> entities)
         {
             // stores the study id data in a temporary table
@@ -58,7 +57,6 @@ namespace DataAggregator
                 return copyHelper.SaveAll(conn, entities);
             }
         }
-
 
         public void CheckStudyLinks()
         {
