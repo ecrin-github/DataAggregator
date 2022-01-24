@@ -21,10 +21,10 @@ namespace DataAggregator
         
         public int GenerateStudySearchData()
         {
-            string sql_string = @"INSERT INTO core.study_search(id, study_start_year, study_start_month, 
+            string sql_string = @"INSERT INTO core.study_search(id, display_title, study_start_year, study_start_month, 
                                   study_type_id, study_status_id, study_gender_elig_id, 
                                   min_age, min_age_units_id, max_age, max_age_units_id)
-                                  select id, study_start_year, study_start_month, 
+                                  select id, display_title, study_start_year, study_start_month, 
                                   study_type_id, study_status_id, study_gender_elig_id, 
                                   min_age, min_age_units_id, max_age, max_age_units_id
                                   from core.studies ";
@@ -51,56 +51,56 @@ namespace DataAggregator
 
         public int UpdateStudySearchDataWithPhaseData()
         {
-            string sql_string = @"UPDATE core.study_search ss
+            string sql_string = @"UPDATE core.study_search s
                    set phase_value = feature_value_id from core.study_features sf
-                   where ss.id = sf.study_id and feature_type_id = 20 ";
+                   where s.id = sf.study_id and feature_type_id = 20 ";
 
-            return db.ExecuteCoreSearchSQL(sql_string, "phase", min_studies_id, max_studies_id);
+            return db.TransferFeatureData(sql_string, "phase", min_studies_id, max_studies_id);
         }
 
         public int UpdateStudySearchDataWithPurposeData()
         {
-            string sql_string = @"UPDATE core.study_search ss
+            string sql_string = @"UPDATE core.study_search s
                    set purpose_value = feature_value_id from core.study_features sf
-                   where ss.id = sf.study_id and feature_type_id = 21 ";
+                   where s.id = sf.study_id and feature_type_id = 21 ";
 
-            return db.ExecuteCoreSearchSQL(sql_string, "study purpose", min_studies_id, max_studies_id);
+            return db.TransferFeatureData(sql_string, "study purpose", min_studies_id, max_studies_id);
         }
 
         public int UpdateStudySearchDataWithAllocationData()
         {
-            string sql_string = @"UPDATE core.study_search ss
+            string sql_string = @"UPDATE core.study_search s
                    set allocation_value = feature_value_id from core.study_features sf
-                   where ss.id = sf.study_id and feature_type_id = 22 ";
+                   where s.id = sf.study_id and feature_type_id = 22 ";
 
-            return db.ExecuteCoreSearchSQL(sql_string, "allocation", min_studies_id, max_studies_id);
+            return db.TransferFeatureData(sql_string, "allocation", min_studies_id, max_studies_id);
         }
 
         public int UpdateStudySearchDataWithInterventionData()
         {
-            string sql_string = @"UPDATE core.study_search ss
+            string sql_string = @"UPDATE core.study_search s
                    set intervention_value = feature_value_id from core.study_features sf
-                   where ss.id = sf.study_id and feature_type_id = 23 ";
+                   where s.id = sf.study_id and feature_type_id = 23 ";
 
-            return db.ExecuteCoreSearchSQL(sql_string, "intervention", min_studies_id, max_studies_id);
+            return db.TransferFeatureData(sql_string, "intervention", min_studies_id, max_studies_id);
         }
 
         public int UpdateStudySearchDataWithMaskingData()
         {
-            string sql_string = @"UPDATE core.study_search ss
+            string sql_string = @"UPDATE core.study_search s
                    set masking_value = feature_value_id from core.study_features sf
-                   where ss.id = sf.study_id and feature_type_id = 24 ";
+                   where s.id = sf.study_id and feature_type_id = 24 ";
 
-            return db.ExecuteCoreSearchSQL(sql_string, "masking", min_studies_id, max_studies_id);
+            return db.TransferFeatureData(sql_string, "masking", min_studies_id, max_studies_id);
         }
 
         public int UpdateStudySearchDataWithObsModelData()
         {
-            string sql_string = @"UPDATE core.study_search ss
+            string sql_string = @"UPDATE core.study_search s
                    set obsmodel_value = feature_value_id from core.study_features sf
-                   where ss.id = sf.study_id and feature_type_id = 30 ";
+                   where s.id = sf.study_id and feature_type_id = 30 ";
 
-            return db.ExecuteCoreSearchSQL(sql_string, "observation model", min_studies_id, max_studies_id);
+            return db.TransferFeatureData(sql_string, "observation model", min_studies_id, max_studies_id);
         }
 
         public int UpdateStudySearchDataWithTimePerspData()
@@ -109,7 +109,7 @@ namespace DataAggregator
                    set timepersp_value = feature_value_id from core.study_features sf
                    where s.id = sf.study_id and feature_type_id = 31 ";
 
-            return db.ExecuteCoreSearchSQL(sql_string, "time perspective", min_studies_id, max_studies_id);
+            return db.TransferFeatureData(sql_string, "time perspective", min_studies_id, max_studies_id);
         }
 
         public int UpdateStudySearchDataWithBioSpecData()
@@ -118,7 +118,7 @@ namespace DataAggregator
                    set biospec_value = feature_value_id from core.study_features sf
                    where s.id = sf.study_id and feature_type_id = 32 ";
 
-            return db.ExecuteCoreSearchSQL(sql_string, "biospecimen", min_studies_id, max_studies_id);
+            return db.TransferFeatureData(sql_string, "biospecimen", min_studies_id, max_studies_id);
         }
 
 
@@ -139,107 +139,107 @@ namespace DataAggregator
 
         public int UpdateStudySearchDataIfHasRegEntry()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (13)", "reg_entry");
+            return db.TransferObjectData("b.object_type_id in (13)", "reg_entry");
         }
 
         public int UpdateStudySearchDataIfHasRegResults()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (28)", "reg_results");
+            return db.TransferObjectData("b.object_type_id in (28)", "reg_results");
         }
 
         public int UpdateStudySearchDataIfHasArticle()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (12, 100, 117, 135, 152)", "article");
+            return db.TransferObjectData("b.object_type_id in (12, 100, 117, 135, 152)", "article");
         }
 
         public int UpdateStudySearchDataIfHasProtocol()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (11, 42, 74, 75, 76)", "protocol");
+            return db.TransferObjectData("b.object_type_id in (11, 42, 74, 75, 76)", "protocol");
         }
 
         public int UpdateStudySearchDataIfHasOverview()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (38)", "overview");
+            return db.TransferObjectData("b.object_type_id in (38)", "overview");
         }
 
         public int UpdateStudySearchDataIfHasPIF()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (18, 19, 75, 76)", "pif");
+            return db.TransferObjectData("b.object_type_id in (18, 19, 75, 76)", "pif");
         }
 
         public int UpdateStudySearchDataIfHasECRFs()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (21, 30, 40)", "ecrfs");
+            return db.TransferObjectData("b.object_type_id in (21, 30, 40)", "ecrfs");
         }
 
         public int UpdateStudySearchDataIfHasManual()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (35, 36)", "manual");
+            return db.TransferObjectData("b.object_type_id in (35, 36)", "manual");
         }
 
         public int UpdateStudySearchDataIfHasSAP()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (22, 29, 43, 74, 76)", "sap");
+            return db.TransferObjectData("b.object_type_id in (22, 29, 43, 74, 76)", "sap");
         }
 
         public int UpdateStudySearchDataIfHasCSR()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (26, 27, 79, 85)", "csr");
+            return db.TransferObjectData("b.object_type_id in (26, 27, 79, 85)", "csr");
         }
 
         public int UpdateStudySearchDataIfHasDataDesc()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (20, 31, 32, 81, 82)", "data_desc");
+            return db.TransferObjectData("b.object_type_id in (20, 31, 32, 81, 82)", "data_desc");
         }
 
         public int UpdateStudySearchDataIfHasIPD()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (80, 153) or b.object_type_id between 51 and 68", "ipd");
+            return db.TransferObjectData("b.object_type_id in (80, 153) or b.object_type_id between 51 and 68", "ipd");
         }
 
         public int UpdateStudySearchDataIfHasAggData()
         {
-           return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (69, 70, 71, 72, 73, 154)", "agg_data");
+           return db.TransferObjectData("b.object_type_id in (69, 70, 71, 72, 73, 154)", "agg_data");
         }
 
         public int UpdateStudySearchDataIfHasOthRes()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (14, 15, 16, 17, 23, 24, 25, 33, 34, 39, 77, 78, 83, 84, 86)", "other_studyres");
+            return db.TransferObjectData("b.object_type_id in (14, 15, 16, 17, 23, 24, 25, 33, 34, 39, 77, 78, 83, 84, 86)", "other_studyres");
         }
               
         public int UpdateStudySearchDataIfHasConfMat()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (106, 107, 108, 109)", "conf_material");
+            return db.TransferObjectData("b.object_type_id in (106, 107, 108, 109)", "conf_material");
         }
         
         public int UpdateStudySearchDataIfHasOthArt()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (119, 121, 122)", "other_article");
+            return db.TransferObjectData("b.object_type_id in (119, 121, 122)", "other_article");
         }
 
         public int UpdateStudySearchDataIfHasChapter()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (101, 102, 103, 104, 105, 113)", "chapter");
+            return db.TransferObjectData("b.object_type_id in (101, 102, 103, 104, 105, 113)", "chapter");
         }
 
         public int UpdateStudySearchDataIfHasOthInfo()
        {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (112, 120, 123, 126, 127, 128)", "other_info");
+            return db.TransferObjectData("b.object_type_id in (112, 120, 123, 126, 127, 128)", "other_info");
         }
 
         public int UpdateStudySearchDataIfHasWebSite()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (134)", "website");
+            return db.TransferObjectData("b.object_type_id in (134)", "website");
         }
 
         public int UpdateStudySearchDataIfHasSoftware()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (166, 167, 168, 169, 170)", "software");
+            return db.TransferObjectData("b.object_type_id in (166, 167, 168, 169, 170)", "software");
         }
 
         public int UpdateStudySearchDataIfHasOther()
         {
-            return db.ExecuteCoreSearchObjectSQL("b.object_type_id in (37, 151, 171, 110, 111, 114, 115, 118, 124, 125, 129, 130, 131, 132, 133) or b.object_type_id between 155 and 165",
+            return db.TransferObjectData("b.object_type_id in (37, 151, 171, 110, 111, 114, 115, 118, 124, 125, 129, 130, 131, 132, 133) or b.object_type_id between 155 and 165",
                                       "other");
         }
 
@@ -318,7 +318,8 @@ namespace DataAggregator
             , lang_code VARCHAR
             , title VARCHAR
             , lex_string VARCHAR
-            );";
+            );
+            CREATE INDEX temp_titles_study_id ON core.temp_titles(study_id);";
 
             db.ExecuteSQL(sql_string);
 
@@ -332,7 +333,7 @@ namespace DataAggregator
 
             db.ExecuteSQL(sql_string);
             
-            sql_string = @"INSERT INTO core.temp_titles;
+            sql_string = @"INSERT INTO core.temp_titles
             (id, study_id, lang_code, title)
             SELECT id, study_id, lang_code, lower(title_text) from core.study_titles ";
 
@@ -351,7 +352,7 @@ namespace DataAggregator
                                    ), 
                              ' ') ";
 
-            return db.ExecuteCoreSearchSQL(sql_string, "temp_titles",
+            return db.SearchUpdateSQL(sql_string, "temp_titles lex_string",
                                            min_titles_id, max_titles_id);
 
         }
@@ -361,21 +362,25 @@ namespace DataAggregator
         {
 
             string sql_string = @"insert into core.temp_titles_by_study(study_id, lex_string)
-                         select distinct study_id, string_agg(lex_string, ' ')
-                         from core.temp_titles
-                         group by study_id ";
+                         select study_id, string_agg(lex_string, ' ')
+                         from core.temp_titles s ";
 
-            return db.ExecuteCoreSearchByStudySQL(sql_string, "temp_titles_by_study",
+            return db.SearchStudyUpdateSQL(sql_string, "temp_titles_by_study",
                                            min_studies_id, max_studies_id);
         }
 
-
+          
 
 
         public int TransferTitleDataByStudy()
         {
-            // TO DO
-            return 0;
+            string sql_string = @"UPDATE core.study_search ss
+            set title_lexemes = to_tsvector('core.mdr_english_config2', s.lex_string)
+            from core.temp_titles_by_study s 
+            where ss.id = s.study_id ";
+
+            return db.TransferSearchDataByStudy(sql_string, "temp_titles_by_study",
+                                           min_studies_id, max_studies_id);
         }
 
 
@@ -396,7 +401,8 @@ namespace DataAggregator
             , mesh_value VARCHAR
             , original_value VARCHAR
             , lex_string VARCHAR
-            );";
+            );
+            CREATE INDEX temp_topics_study_id ON core.temp_topics(study_id);";
 
             db.ExecuteSQL(sql_string);
 
@@ -429,7 +435,7 @@ namespace DataAggregator
                                    ), 
                              ' ') ";
 
-            return db.ExecuteCoreSearchSQL(sql_string, "temp_topics",
+            return db.SearchUpdateSQL(sql_string, "temp_topics lex_string",
                                            min_topics_id, max_topics_id);
         }
 
@@ -437,20 +443,24 @@ namespace DataAggregator
         public int GenerateTopicDataByStudy()
         {
             string sql_string = @"insert into core.temp_topics_by_study(study_id, lex_string)
-                         select distinct study_id, string_agg(lex_string, ' ')
-                         from core.temp_topics
-                         group by study_id ";
+                         select study_id, string_agg(lex_string, ' ')
+                         from core.temp_topics s ";
 
 
-            return db.ExecuteCoreSearchByStudySQL(sql_string, "temp_topics by study",
+            return db.SearchStudyUpdateSQL(sql_string, "temp_topics_by_study",
                                                min_studies_id, max_studies_id);
         }
 
 
         public int TransferTopicDataByStudy()
         {
-            // TO DO
-            return 0;
+            string sql_string = @"UPDATE core.study_search ss
+            set topic_lexemes = to_tsvector('core.mdr_english_config2', s.lex_string)
+            from core.temp_topics_by_study s 
+            where ss.id = s.study_id ";
+
+            return db.TransferSearchDataByStudy(sql_string, "temp_topics_by_study",
+                                           min_studies_id, max_studies_id);
         }
 
         public int IndexTopicText()

@@ -186,7 +186,7 @@ namespace DataAggregator
         }
 
 
-        public int ExecuteCoreSearchSQL(string sql_string, string data_type, int min_id, int max_id)
+        public int TransferFeatureData(string sql_string, string data_type, int min_id, int max_id)
         {
             try
             {
@@ -213,38 +213,7 @@ namespace DataAggregator
         }
 
 
-
-        public int ExecuteCoreSearchByStudySQL(string sql_string, string data_type, int min_id, int max_id)
-        {
-            // usesd study id to go through records becasue records n=must be grouped by study
-            try
-            {
-                int transferred = 0;
-                int rec_batch = 10000;
-                for (int r = min_id; r <= max_id; r += rec_batch)
-                {
-                    string batch_sql_string = sql_string + " and s.study_id >= " + r.ToString() + " and s.study_id < " + (r + rec_batch).ToString();
-                    transferred += ExecuteSQL(batch_sql_string);
-
-                    string feedback = "Updated study_search table with " + data_type + " data, " + r.ToString() + " to ";
-                    feedback += (r + rec_batch < max_id) ? (r + rec_batch - 1).ToString() : max_id.ToString();
-                    _logger.Information(feedback);
-                }
-                return transferred;
-            }
-
-            catch (Exception e)
-            {
-                string res = e.Message;
-                _logger.Error("In study search update (" + data_type + "): " + res);
-                return 0;
-            }
-        }
-
-
-
-
-        public int ExecuteCoreSearchObjectSQL(string where_string, string object_type)
+        public int TransferObjectData(string where_string, string object_type)
         {
             try
             {
@@ -292,6 +261,90 @@ namespace DataAggregator
                 return 0;
             }
         }
+
+        public int SearchUpdateSQL(string sql_string, string data_type, int min_id, int max_id)
+        {
+            try
+            {
+                int transferred = 0;
+                int rec_batch = 50000;
+                for (int r = min_id; r <= max_id; r += rec_batch)
+                {
+                    string batch_sql_string = sql_string + " where s.id >= " + r.ToString() + " and s.id < " + (r + rec_batch).ToString();
+                    transferred += ExecuteSQL(batch_sql_string);
+
+                    string feedback = "Updated " + data_type + " data, " + r.ToString() + " to ";
+                    feedback += (r + rec_batch < max_id) ? (r + rec_batch - 1).ToString() : max_id.ToString();
+                    _logger.Information(feedback);
+                }
+                return transferred;
+            }
+
+            catch (Exception e)
+            {
+                string res = e.Message;
+                _logger.Error("In study search update (" + data_type + "): " + res);
+                return 0;
+            }
+        }
+
+
+        public int SearchStudyUpdateSQL(string sql_string, string data_type, int min_id, int max_id)
+        {
+            try
+            {
+                int transferred = 0;
+                int rec_batch = 50000;
+                for (int r = min_id; r <= max_id; r += rec_batch)
+                {
+                    string batch_sql_string = sql_string + " where s.study_id >= " + r.ToString() + " and s.study_id < " + (r + rec_batch).ToString();
+                    batch_sql_string += " group by study_id";
+                    transferred += ExecuteSQL(batch_sql_string);
+
+                    string feedback = "Created " + data_type + " data, " + r.ToString() + " to ";
+                    feedback += (r + rec_batch < max_id) ? (r + rec_batch - 1).ToString() : max_id.ToString();
+                    _logger.Information(feedback);
+                }
+                return transferred;
+            }
+
+            catch (Exception e)
+            {
+                string res = e.Message;
+                _logger.Error("In study search update (" + data_type + "): " + res);
+                return 0;
+            }
+        }
+
+
+        public int TransferSearchDataByStudy(string sql_string, string data_type, int min_id, int max_id)
+        {
+            // usesd study id to go through records becasue records n=must be grouped by study
+            try
+            {
+                int transferred = 0;
+                int rec_batch = 10000;
+                for (int r = min_id; r <= max_id; r += rec_batch)
+                {
+                    string batch_sql_string = sql_string + " and ss.id >= " + r.ToString() + " and ss.id < " + (r + rec_batch).ToString();
+                    transferred += ExecuteSQL(batch_sql_string);
+
+                    string feedback = "Updated study_search table with " + data_type + " data, " + r.ToString() + " to ";
+                    feedback += (r + rec_batch < max_id) ? (r + rec_batch - 1).ToString() : max_id.ToString();
+                    _logger.Information(feedback);
+                }
+                return transferred;
+            } 
+
+            catch (Exception e)
+            {
+                string res = e.Message;
+                _logger.Error("In study search update (" + data_type + "): " + res);
+                return 0;
+            }
+        }
+
+
 
         public int ExecuteProvenanceSQL(string sql_string, string full_table_name)
         {

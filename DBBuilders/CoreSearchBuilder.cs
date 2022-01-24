@@ -101,9 +101,10 @@ namespace DataAggregator
             
             // set up
 
-            core_srch.SetupSearchMinMaxes(); // set up parameters for calls
             core_srch.CreateTSConfig1(); // ensure test search configs up to date
+            _logger.Information("Text search configuration 1 reconstructed");
             core_srch.CreateTSConfig2();
+            _logger.Information("Text search configuration 2 reconstructed");
 
             // For both titles and topics, set up temporary tables
             // do an initial transition to lexemes and then aggregate to
