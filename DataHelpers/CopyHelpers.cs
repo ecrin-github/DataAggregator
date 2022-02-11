@@ -31,11 +31,12 @@ namespace DataAggregator
              new PostgreSQLCopyHelper<ObjectId>("nk", "temp_object_ids")
                  .MapInteger("source_id", x => x.source_id)
                  .MapVarchar("sd_oid", x => x.sd_oid)
+                 .MapInteger("object_type_id", x => x.object_type_id)
+                 .MapVarchar("title", x => x.title)
                  .MapInteger("parent_study_source_id", x => x.parent_study_source_id)
                  .MapVarchar("parent_study_sd_sid", x => x.parent_study_sd_sid)
                  .MapTimeStampTz("datetime_of_data_fetch", x => x.datetime_of_data_fetch);
-
-
+        
         public static PostgreSQLCopyHelper<PMIDLink> pmid_links_helper =
              new PostgreSQLCopyHelper<PMIDLink>("nk", "temp_pmids")
                  .MapInteger("source_id", x => x.source_id)

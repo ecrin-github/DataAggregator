@@ -29,20 +29,29 @@ namespace DataAggregator
                         object_id                INT
                       , source_id                INT
                       , sd_oid                   VARCHAR
+                      , object_type_id		  	 INT            
+                      , title                    VARCHAR      
+                      , is_preferred_object      BOOLEAN
                       , parent_study_source_id   INT 
                       , parent_study_sd_sid      VARCHAR
                       , parent_study_id          INT
                       , is_preferred_study       BOOLEAN
                       , datetime_of_data_fetch   TIMESTAMPTZ
+                      , match_status             INT   default 0
                       ); ";
+
                 conn.Execute(sql_string);
 
                 sql_string = @"DROP TABLE IF EXISTS nk.temp_objects_to_add;
                       CREATE TABLE IF NOT EXISTS nk.temp_objects_to_add(
                         object_id                INT
                       , sd_oid                   VARCHAR
+                      , object_type_id		  	 INT            
+                      , title                    VARCHAR      
+                      , is_preferred_object      BOOLEAN
                       ); 
                       CREATE INDEX temp_objects_to_add_sd_oid on nk.temp_objects_to_add(sd_oid);";
+
                 conn.Execute(sql_string);
             }
         }
@@ -54,7 +63,8 @@ namespace DataAggregator
             {
                 string sql_string = @"select " + source_id.ToString() + @" as source_id, " 
                           + source_id.ToString() + @" as parent_study_source_id, 
-                          sd_oid, sd_sid as parent_study_sd_sid, datetime_of_data_fetch
+                          sd_oid, object_type_id, title, sd_sid as parent_study_sd_sid, 
+                          datetime_of_data_fetch
                           from ad.data_objects";
 
                 return conn.Query<ObjectId>(sql_string);
@@ -72,33 +82,70 @@ namespace DataAggregator
         }
 
 
-        public void UpdateObjectsWithStudyIds(int source_id)
+        public void MatchExistingObjectIds()
         {
-            // Update the object parent study_id using the 'correct'
-            // value found in the all_ids_studies table
-
             using (var conn = new NpgsqlConnection(_connString))
             {
+                // Do these source - object id combinations already exist in the system,
+                // i.e. have a known id. If they do they can be matched, to leave only 
+                // the new object ids to process
+
                 string sql_string = @"UPDATE nk.temp_object_ids t
-                           SET parent_study_id = s.study_id, 
-                           is_preferred_study = s.is_preferred
-                           FROM nk.all_ids_studies s
-                           WHERE t.parent_study_sd_sid = s.sd_sid
-                           and t.parent_study_source_id = s.source_id;";
-                conn.Execute(sql_string);
+                        SET object_id = doi.object_id, 
+                        is_preferred_object = doi.is_preferred_object,
+                        parent_study_id = doi.parent_study_id,
+                        is_preferred_study = doi.is_preferred_study,
+                        match_status = 1
+                        from nk.data_object_identifiers doi
+                        where t.source_id = doi.source_id
+                        and t.sd_oid = doi.sd_oid";
 
-                // Drop those link records that cannot be matched
+                db.ExecuteSQL(sql_string);
 
-                sql_string = @"DELETE FROM nk.temp_object_ids
-                             WHERE parent_study_id is null;";
-                conn.Execute(sql_string);
+                // also update the data_object_identifiers table
+                // Indicates has been matched and updates the 
+                // data fetch date
+
+                sql_string = @"UPDATE nk.data_object_identifiers doi
+                set match_status = 1,
+                datetime_of_data_fetch = t.datetime_of_data_fetch
+                from nk.temp_object_ids t
+                where t.source_id = doi.source_id
+                and t.sd_oid = doi.sd_oid;";
+
+                int res = db.ExecuteSQL(sql_string);
+                _logger.Information(res.ToString() + " existing objects found");
             }
         }
 
 
-        public void CheckStudyObjectsForDuplicates(int source_id)
+        public void UpdateNewObjectsWithStudyIds(int source_id)
         {
-            // TO DO - very rare at the momentt
+            // For the new objects...where match_status still 0
+            
+            // Update the object parent study_id using the 'correct'
+            // value found in the study_identifiers table
+
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = @"UPDATE nk.temp_object_ids t
+                           SET parent_study_id = si.study_id, 
+                           is_preferred_study = si.is_preferred_study
+                           FROM nk.study_identifiers si
+                           WHERE t.parent_study_sd_sid = si.sd_sid
+                           and t.parent_study_source_id = si.source_id;";
+                int res = db.ExecuteSQL(sql_string);
+                _logger.Information(res.ToString() + " new objects found");
+
+                // Drop those object records that cannot be matched
+                // N.B. study linked records - Pubmed objects do not 
+                // travel down this path
+
+                sql_string = @"DELETE FROM nk.temp_object_ids
+                             WHERE parent_study_id is null;";
+                res = db.ExecuteSQL(sql_string);
+                _logger.Information(res.ToString() + " objects dropped as no matching study found");
+            }
         }
 
 
@@ -106,33 +153,97 @@ namespace DataAggregator
         {
             using (var conn = new NpgsqlConnection(_connString))
             {
-                // Add the new object id records to the all Ids table
-                // For study based data, the assumption here is that within each source 
-                // the data object sd_oid is unique, (because they are each linked to different studies) 
-                // which means that the link is also unique.
-                // BUT FOR PUBMED and other data object based data this is not true
-                // therefore need to do the ResetIdsOfDuplicatedPMIDs later
+                // Add all the new object id records to the all Ids table
 
-                string sql_string = @"INSERT INTO nk.all_ids_data_objects
-                             (source_id, sd_oid, parent_study_source_id, parent_study_sd_sid,
-                             parent_study_id, is_preferred_study, datetime_of_data_fetch)
-                             select source_id, sd_oid, parent_study_source_id, parent_study_sd_sid,
-                             parent_study_id, is_preferred_study, datetime_of_data_fetch
-                             from nk.temp_object_ids";
+                string sql_string = @"INSERT INTO nk.data_object_identifiers
+                             (source_id, sd_oid, object_type_id, title, is_preferred_object,
+                              parent_study_source_id, parent_study_sd_sid,
+                              parent_study_id, is_preferred_study, datetime_of_data_fetch)
+                              select 
+                              source_id, sd_oid, object_type_id, title, is_preferred_object,
+                              parent_study_source_id, parent_study_sd_sid,
+                              parent_study_id, is_preferred_study, datetime_of_data_fetch
+                              from nk.temp_object_ids
+                              where match_status = 0";
                 conn.Execute(sql_string);
+                int res = db.ExecuteSQL(sql_string);
+                _logger.Information(res.ToString() + " new objects into object identifiers table");
 
-                // update the table with the object id (will always be the same as the 
-                // identity at the moment as there is no object-object checking
-                // If objects are amalgamated from different sources in the future
-                // the object-object check will need to be added at this stage
+                // For study based data, if the study is 'preferred' it is the first time
+                // that it and related data objects can be added to the database, so
+                // set the object id to the table id and set the match_status to 2
 
-                sql_string = @"UPDATE nk.all_ids_data_objects
-                            SET object_id = id
-                            WHERE source_id = " + source_id.ToString() + @"
-                            and object_id is null;";
-                conn.Execute(sql_string);
+                sql_string = @"UPDATE nk.data_object_identifiers
+                            SET object_id = id, is_preferred_object = true,
+                            match_status = 2
+                            WHERE object_id is null
+                            AND source_id = " + source_id.ToString() + @"
+                            AND is_preferred_study = true;";
 
+                res = db.ExecuteSQL(sql_string);
+
+                // For data objects from 'non-preferred' studies, there may be duplicate 
+                // data objects already in the system, but that does not apply to registry
+                // linked objects such as registry entries, results entries, web landing pages
+
+                sql_string = @"UPDATE nk.data_object_identifiers
+                            SET object_id = id, is_preferred_object = true,
+                            match_status = 2
+                            WHERE object_id is null
+                            AND source_id = " + source_id.ToString() + @"
+                            AND object_type_id in (13, 28);";
+                res += db.ExecuteSQL(sql_string);
+
+                if (source_id == 101900 || source_id == 101901)  // BioLINCC or Yoda
+                {
+                    sql_string = @"UPDATE nk.data_object_identifiers
+                            SET object_id = id, is_preferred_object = true,
+                            match_status = 2
+                            WHERE object_id is null
+                            AND source_id = " + source_id.ToString() + @"
+                            AND object_type_id in (38);";
+                    res += db.ExecuteSQL(sql_string);
+                }
+
+                _logger.Information(res.ToString() + " new objects specified as preferred, for addition");
             }
+        }
+
+
+        public void CheckNewObjectsForDuplicates(int source_id)
+        {
+            // Any more new object records to be checked
+
+            // get the set of distinct studies that are linked to
+            // object records that still have no object id
+            // if there are any, continue...
+            // by getting the instance URLs attached to the objects
+            // linked to the 'preferred' version of the studies 
+            // (which equates to thiose already in the system...)
+
+            // and by getting the URLs linked back in the source database 
+            // with these studies
+
+            // if any match in the new set - they can be ignored
+            // because they are duplicates - set match status to -1 
+
+
+            
+            
+            // duplicates may be picked up from instance URLs
+            // or by considering type and title.
+            // In the second case may be a duplicate if the same URL
+
+            // if not, and both URLs are present, may be a different instance
+            // of the same object type / title
+            // in that case the object id should be the original 'preferred'
+            // object, but the object itself shou
+
+
+
+
+
+
         }
 
 
@@ -153,15 +264,15 @@ namespace DataAggregator
         public int LoadDataObjects(string schema_name)
         {
              string sql_string = @"INSERT INTO ob.data_objects(id,
-                    display_title, version, doi, doi_status_id, publication_year,
-                    object_class_id, object_type_id, 
+                    title, version, display_title, doi, doi_status_id, 
+                    publication_year, object_class_id, object_type_id, 
                     managing_org_id, managing_org, managing_org_ror_id,
                     lang_code, access_type_id, access_details, access_details_url,
                     url_last_checked, eosc_category, add_study_contribs, 
                     add_study_topics)
                     SELECT t.object_id,
-                    s.display_title, s.version, s.doi, s.doi_status_id, s.publication_year,
-                    s.object_class_id, s.object_type_id, 
+                    s.title, s.version, s.display_title, s.doi, s.doi_status_id, 
+                    s.publication_year, s.object_class_id, s.object_type_id, 
                     s.managing_org_id, s.managing_org, s.managing_org_ror_id,
                     s.lang_code, s.access_type_id, s.access_details, s.access_details_url,
                     s.url_last_checked, s.eosc_category, s.add_study_contribs, 
@@ -173,7 +284,7 @@ namespace DataAggregator
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "data_objects", "");
             _logger.Information("Loaded records - " + res.ToString() + " data_objects");
 
-            db.Update_SourceTable_ExportDate(schema_name, "data_objects");
+            // db.Update_SourceTable_ExportDate(schema_name, "data_objects");
             return res;
         }
 
@@ -199,7 +310,7 @@ namespace DataAggregator
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_datasets", "");
             _logger.Information("Loaded records - " + res.ToString() + " object_datasets");
 
-            db.Update_SourceTable_ExportDate(schema_name, "object_datasets");
+            // db.Update_SourceTable_ExportDate(schema_name, "object_datasets");
         }
 
 
@@ -220,7 +331,7 @@ namespace DataAggregator
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_instances", "");
             _logger.Information("Loaded records - " + res.ToString() + " object_instances");
 
-            db.Update_SourceTable_ExportDate(schema_name, "object_instances");
+            // db.Update_SourceTable_ExportDate(schema_name, "object_instances");
         }
 
 
@@ -239,7 +350,7 @@ namespace DataAggregator
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_titles", "");
             _logger.Information("Loaded records - " + res.ToString() + " object_titles");
 
-            db.Update_SourceTable_ExportDate(schema_name, "object_titles");
+            // db.Update_SourceTable_ExportDate(schema_name, "object_titles");
         }
 
 
@@ -258,7 +369,7 @@ namespace DataAggregator
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_dates", "");
             _logger.Information("Loaded records - " + res.ToString() + " object_dates");
 
-            db.Update_SourceTable_ExportDate(schema_name, "object_dates");
+            // db.Update_SourceTable_ExportDate(schema_name, "object_dates");
         }
 
 
@@ -281,7 +392,7 @@ namespace DataAggregator
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_contributors", "");
             _logger.Information("Loaded records - " + res.ToString() + " object_contributors");
 
-            db.Update_SourceTable_ExportDate(schema_name, "object_contributors");
+            // db.Update_SourceTable_ExportDate(schema_name, "object_contributors");
         }
 
 
@@ -301,7 +412,7 @@ namespace DataAggregator
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_topics", "");
             _logger.Information("Loaded records - " + res.ToString() + " object_topics");
 
-            db.Update_SourceTable_ExportDate(schema_name, "object_topics");
+            // db.Update_SourceTable_ExportDate(schema_name, "object_topics");
         }
 
 
@@ -318,7 +429,7 @@ namespace DataAggregator
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_descriptions", "");
             _logger.Information("Loaded records - " + res.ToString() + " object_descriptions");
 
-            db.Update_SourceTable_ExportDate(schema_name, "object_descriptions");
+            // db.Update_SourceTable_ExportDate(schema_name, "object_descriptions");
         }
 
 
@@ -339,7 +450,7 @@ namespace DataAggregator
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_identifiers", "");
             _logger.Information("Loaded records - " + res.ToString() + " object_identifiers");
 
-            db.Update_SourceTable_ExportDate(schema_name, "object_identifiers");
+            // db.Update_SourceTable_ExportDate(schema_name, "object_identifiers");
         }
 
 
@@ -359,7 +470,7 @@ namespace DataAggregator
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_relationships", "");
             _logger.Information("Loaded records - " + res.ToString() + " object_relationships");
 
-            db.Update_SourceTable_ExportDate(schema_name, "object_relationships");
+            // db.Update_SourceTable_ExportDate(schema_name, "object_relationships");
         }
 
 
@@ -377,7 +488,7 @@ namespace DataAggregator
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_rights", "");
             _logger.Information("Loaded records - " + res.ToString() + " object_rights");
 
-            db.Update_SourceTable_ExportDate(schema_name, "object_rights");
+            // db.Update_SourceTable_ExportDate(schema_name, "object_rights");
         }
 
 

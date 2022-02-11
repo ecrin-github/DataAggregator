@@ -27,8 +27,9 @@ namespace DataAggregator
         {
             string sql_string = @"CREATE TABLE ob.data_objects(
                 id                     INT             NOT NULL PRIMARY KEY
-              , display_title          VARCHAR         NULL
+              , title                  VARCHAR         NULL
               , version                VARCHAR         NULL
+              , display_title          VARCHAR         NULL
               , doi                    VARCHAR         NULL 
               , doi_status_id          INT             NULL
               , publication_year       INT             NULL

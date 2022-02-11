@@ -44,13 +44,16 @@ namespace DataAggregator
             st_tr.StoreStudyIds(CopyHelpers.study_ids_helper, study_ids);
             _logger.Information("Study Ids stored");
 
+            // Match existing studiesm, then
             // Do the check of the temp table ids against the study_study links.
             // Change the table to reflect the 'preferred' Ids.
             // Back load the correct study ids into the temporary table.
 
-            st_tr.CheckStudyLinks();
+            st_tr.MatchExistingStudyIds();
+            st_tr.IdentifyNewLinkedStudyIds();
+            st_tr.AddNewStudyIds(source_id);
             _logger.Information("Study Ids checked");
-            st_tr.UpdateAllStudyIdsTable(source_id);
+            st_tr.CreateTempStudyIdTables(source_id);
             _logger.Information("Study Ids processed");
         }
 
@@ -82,18 +85,19 @@ namespace DataAggregator
             _logger.Information("Object Ids stored");
 
             // Update the object parent ids against the all_ids_studies table
-
-            ob_tr.UpdateObjectsWithStudyIds(source_id);
+            ob_tr.MatchExistingObjectIds();
+            ob_tr.UpdateNewObjectsWithStudyIds(source_id);
+            ob_tr.UpdateAllObjectIdsTable(source_id);
 
             // Carry out a check for (currently very rare) duplicate
             // objects (i.e. that have been imported before with the data 
             // from another source). [TO IMPLEMENT}
-            ob_tr.CheckStudyObjectsForDuplicates(source_id);
+            ob_tr.CheckNewObjectsForDuplicates(source_id);
+            _logger.Information("Object Ids updated");
 
             // Update the database all objects ids table and derive a 
             // small table that lists the object Ids for all objects
-            ob_tr.UpdateAllObjectIdsTable(source_id);
-            _logger.Information("Object Ids updated");
+
 
             ob_tr.FillObjectsToAddTable(source_id);
             _logger.Information("Object Ids processed");
@@ -158,7 +162,7 @@ namespace DataAggregator
                 // Transfer data to all_ids_data_objects table.
 
                 pm_tr.TransferPMIDLinksToObjectIds();
-                ob_tr.UpdateObjectsWithStudyIds(source_id);
+                pm_tr.UpdatePMIDObjectsWithStudyIds();
                 _logger.Information("Object Ids matched to study ids");
 
                 // Use study-study link table to get preferred sd_sid
@@ -166,7 +170,7 @@ namespace DataAggregator
                 pm_tr.InputPreferredSDSIDS();
 
                 // add in study-pmid links to all_ids_objects
-                ob_tr.UpdateAllObjectIdsTable(source_id);
+                pm_tr.UpdateAllPMIDObjectIdsTable();
                 _logger.Information("PMID Ids added to table");
 
                 // use min of ids to set all object ids the same for the same pmid

@@ -71,6 +71,7 @@ namespace DataAggregator
         }
 
 
+        /*
         public void Update_SourceTable_ExportDate(string schema_name, string table_name)
         {
             try
@@ -103,7 +104,7 @@ namespace DataAggregator
                 _logger.Error("In update export date (" + schema_name + "." + table_name + ") to aggregate table: " + res);
             }
         }
-
+        */
 
         public int ExecuteTransferSQL(string sql_string, string schema_name, string table_name, string context)
         {

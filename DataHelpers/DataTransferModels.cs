@@ -23,11 +23,12 @@ namespace DataAggregator
     {
         public int source_id { get; set; }
         public string sd_oid { get; set; }
+        public int object_type_id { get; set; }
+        public string title { get; set; }
         public int parent_study_source_id { get; set; }
         public string parent_study_sd_sid { get; set; }
         public DateTime? datetime_of_data_fetch { get; set; }
     }
-
 
     public class PMIDLink
     {

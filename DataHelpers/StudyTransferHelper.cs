@@ -11,6 +11,7 @@ namespace DataAggregator
         string _connString;
         DBUtilities db;
         ILogger _logger;
+        int nonpref_number;
 
         public StudyDataTransferrer(string connString, ILogger logger)
         {
@@ -31,6 +32,7 @@ namespace DataAggregator
                       , sd_sid                   VARCHAR
                       , is_preferred             BOOLEAN
                       , datetime_of_data_fetch   TIMESTAMPTZ
+                      , match_status             INT  default 0
                       ); ";
                 conn.Execute(sql_string);
             }
@@ -42,7 +44,8 @@ namespace DataAggregator
             {
                 string sql_string = @"select " + source_id.ToString() + @" as source_id, 
                           sd_sid, datetime_of_data_fetch
-                          from ad.studies";
+                          from ad.studies
+                          order by sd_sid";
 
                 return conn.Query<StudyId>(sql_string);
             }
@@ -58,76 +61,111 @@ namespace DataAggregator
             }
         }
 
-        public void CheckStudyLinks()
+
+        public void MatchExistingStudyIds()
         {
             using (var conn = new NpgsqlConnection(_connString))
             {
-                // Does any study id correspond to a study already in all_ids_studies 
-                // table, that is linked to it via study-study link table.
-                // Such a study will match the left hand side of the study-study 
-                // link table (the one to be replaced), and take on the study_id 
-                // used for the 'preferred' right hand side. This should already exist
-                // because addition of studies is donme in the order 'more preferred first'.
+                // Do these source - study id combinations already exist in the system,
+                // i.e. have a known id. If they do they can be matched, to leave only 
+                // the new study ids to process
 
                 string sql_string = @"UPDATE nk.temp_study_ids t
-                           SET study_id = s.study_id, is_preferred = false
-                           FROM nk.study_study_links k
-                                INNER JOIN nk.all_ids_studies s
-                                ON k.preferred_sd_sid = s.sd_sid
-                                AND k.preferred_source_id = s.source_id
-                           WHERE t.sd_sid = k.sd_sid
-                           AND t.source_id =  k.source_id;";
-                int res = db.ExecuteSQL(sql_string);
-                _logger.Information(res.ToString() + " existing studies found");
+                        SET study_id = si.study_id, is_preferred = si.is_preferred,
+                        match_status = 1
+                        from nk.study_identifiers si
+                        where t.source_id = si.source_id
+                        and t.sd_sid = si.sd_sid";
 
-                // Also create a small table that has just the study_ids and sd_sids for the 
-                // already existing studies (used in the import of any additional data
-                // from these studies
-
-                sql_string = @"DROP TABLE IF EXISTS nk.existing_studies;
-                               CREATE TABLE nk.existing_studies as 
-                                       SELECT sd_sid, study_id
-                                       FROM nk.temp_study_ids
-                                       WHERE is_preferred = false";
                 db.ExecuteSQL(sql_string);
 
+                // also update the study_identifiers table
+                // Indicates has been matched and updates the 
+                // data fetch date
+
+                sql_string = @"UPDATE nk.study_identifiers si
+                set match_status = 1,
+                datetime_of_data_fetch = t.datetime_of_data_fetch
+                from nk.temp_study_ids t
+                where t.source_id = si.source_id
+                and t.sd_sid = si.sd_sid;"; 
+
+                int res = db.ExecuteSQL(sql_string);
+                _logger.Information(res.ToString() + " existing studies found");
             }
         }
 
 
-        public void UpdateAllStudyIdsTable(int source_id)
+        public void IdentifyNewLinkedStudyIds()
+        {
+            // For the new studies...where match_status still 0
+
+            // Does any study id correspond to a study already in study_identifiers
+            // table, that is linked to it via study-study link table.
+            // Such a study will match the left hand side of the study-study 
+            // link table (the one to be replaced), and take on the study_id 
+            // used for the 'preferred' right hand side. This should already exist
+            // because addition of studies is done in the order 'more preferred first'.
+
+            string sql_string = @"UPDATE nk.temp_study_ids t
+                           SET study_id = si.study_id, is_preferred = false,
+                           match_status = 2
+                           FROM nk.study_study_links k
+                                INNER JOIN nk.study_identifiers si
+                                ON k.preferred_sd_sid = si.sd_sid
+                                AND k.preferred_source_id = si.source_id
+                           WHERE t.sd_sid = k.sd_sid
+                           AND t.source_id =  k.source_id
+                           AND t.match_status = 0;";
+
+            int res = db.ExecuteSQL(sql_string);
+            _logger.Information(res.ToString() + " existing studies found under other study source ids");
+
+        }
+
+        public void AddNewStudyIds(int source_id)
         {
             using (var conn = new NpgsqlConnection(_connString))
             {
-                // Add the new study id records to the all Ids table
+                // For the new studies...where match_status still 0
 
-                string sql_string = @"INSERT INTO nk.all_ids_studies
+                // Add all the new study id records to the all Ids table
+                // This includes those identified above (match_status = 2)
+                // and those yet to be added to the system (match_status = 0)
+
+                string sql_string = @"INSERT INTO nk.study_identifiers
                             (study_id, source_id, sd_sid, 
-                             datetime_of_data_fetch, is_preferred)
+                             datetime_of_data_fetch, is_preferred,
+                             match_status)
                              select study_id, source_id, sd_sid, 
-                             datetime_of_data_fetch, is_preferred
-                             from nk.temp_study_ids";
+                             datetime_of_data_fetch, is_preferred, 
+                             match_status
+                             from nk.temp_study_ids
+                             where match_status = 0 or match_status = 2";
 
-                conn.Execute(sql_string);
+                int res = db.ExecuteSQL(sql_string);
+                _logger.Information(res.ToString() + " completely new studies found");
 
                 // Where the study_ids are null they can take on the value of the 
-                // record id.
+                // record id. The 3 indicates they are new on this addition.
 
-                sql_string = @"UPDATE nk.all_ids_studies
-                            SET study_id = id, is_preferred = true
+                sql_string = @"UPDATE nk.study_identifiers
+                            SET study_id = id, is_preferred = true,
+                            match_status = 3
                             WHERE study_id is null
                             AND source_id = " + source_id.ToString();
 
                 conn.Execute(sql_string);
 
                 // 'Back-update' the study temp table using the newly created study_ids
-                // now all should be done...
+                // now all records in this table should have a match and preferrd status
 
                 sql_string = @"UPDATE nk.temp_study_ids t
-                           SET study_id = a.study_id, is_preferred = true
-                           FROM nk.all_ids_studies a
-                           WHERE t.source_id = a.source_id
-                           AND t.sd_sid = a.sd_sid
+                           SET study_id = si.study_id, is_preferred = true,
+                           match_status = 3
+                           FROM nk.study_identifiers si
+                           WHERE t.source_id = si.source_id
+                           AND t.sd_sid = si.sd_sid
                            AND t.study_id is null;";
 
                 conn.Execute(sql_string);
@@ -135,7 +173,38 @@ namespace DataAggregator
         }
 
 
-        
+        public void CreateTempStudyIdTables(int source_id)
+        {
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                // Create two tables that has just the study_ids and sd_sids for the 
+                // 'preferred' (new) studies (used to import all the linked data for these studies),
+                // and the non-preferred (existing) studies (used in the import any additional data
+                // from these studies)
+
+                string sql_string = @"DROP TABLE IF EXISTS nk.new_studies;
+                               CREATE TABLE nk.new_studies as 
+                                       SELECT sd_sid, study_id
+                                       FROM nk.study_identifiers
+                                       WHERE source_id = " + source_id.ToString() + @" 
+                                       and is_preferred = true";
+
+                int res = db.ExecuteSQL(sql_string);
+                _logger.Information(res.ToString() + " preferred (full data) studies found");
+
+                sql_string = @"DROP TABLE IF EXISTS nk.existing_studies;
+                               CREATE TABLE nk.existing_studies as 
+                                       SELECT sd_sid, study_id
+                                       FROM nk.study_identifiers
+                                       WHERE source_id = " + source_id.ToString() + @" 
+                                       and is_preferred = false";
+
+                res = db.ExecuteSQL(sql_string);
+                _logger.Information(res.ToString() + " non-preferred (additional data) studies found");
+                nonpref_number = res;
+            }
+        }
+
         public int LoadStudies(string schema_name)
         {
             
@@ -152,10 +221,9 @@ namespace DataAggregator
                     s.study_start_year, s.study_start_month, s.study_type_id, s.study_status_id,
                     s.study_enrolment, s.study_gender_elig_id, s.min_age, s.min_age_units_id,
                     s.max_age, s.max_age_units_id
-                    FROM nk.temp_study_ids t
+                    FROM nk.new_studies t
                     INNER JOIN " + schema_name + @".studies s
-                    on t.sd_sid = s.sd_sid
-                    WHERE t.is_preferred = true ";
+                    on t.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "studies", "new studies");
             _logger.Information("Loaded records - " + res.ToString() + " studies, new studies");
@@ -164,7 +232,7 @@ namespace DataAggregator
             // (because they equate to existing studies) but which were new in the 
             // source data.
 
-            db.Update_SourceTable_ExportDate(schema_name, "studies");
+            // db.Update_SourceTable_ExportDate(schema_name, "studies");
             return res;
         }
 
@@ -185,34 +253,35 @@ namespace DataAggregator
 
             string sql_string = @"INSERT INTO st.study_identifiers(" + destination_field_list + @")
                     SELECT k.study_id, " + source_field_list + @"
-                    FROM nk.temp_study_ids k
+                    FROM nk.new_studies k
                     INNER JOIN " + schema_name + @".study_identifiers s
-                    on k.sd_sid = s.sd_sid
-                    WHERE k.is_preferred = true ";
+                    on k.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_identifiers", "new studies");
             _logger.Information("Loaded records - " + res.ToString() + " study_identifiers, new studies");
 
             // For 'existing studies' study Ids add only new identifiers.
 
-            sql_string = @"DROP TABLE IF EXISTS nk.source_data;
+            if (nonpref_number > 0)
+            {
+                sql_string = @"DROP TABLE IF EXISTS nk.source_data;
                            CREATE TABLE nk.source_data as 
                            SELECT es.study_id, d.* 
                            FROM " + schema_name + @".study_identifiers d
                            INNER JOIN nk.existing_studies es
                            ON d.sd_sid = es.sd_sid";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
+                sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
                            CREATE TABLE nk.existing_data as 
                            SELECT es.sd_sid, es.study_id, 
                            c.identifier_type_id, c.identifier_value 
                            FROM st.study_identifiers c
                            INNER JOIN nk.existing_studies es
                            ON c.study_id = es.study_id;";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            sql_string = @"INSERT INTO st.study_identifiers(" + destination_field_list + @")
+                sql_string = @"INSERT INTO st.study_identifiers(" + destination_field_list + @")
                            SELECT s.study_id, " + source_field_list + @" 
                            FROM nk.source_data s
                            LEFT JOIN nk.existing_data e
@@ -221,13 +290,14 @@ namespace DataAggregator
                            AND s.identifier_value = e.identifier_value
                            WHERE e.study_id is null ";
 
-            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_identifiers", "existing studies");
-            _logger.Information("Loaded records - " + res.ToString() + " study_identifiers, existing studies");
+                res = db.ExecuteTransferSQL(sql_string, schema_name, "study_identifiers", "existing studies");
+                _logger.Information("Loaded records - " + res.ToString() + " study_identifiers, existing studies");
 
-            db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
-            db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
+                db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
+                db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
 
-            db.Update_SourceTable_ExportDate(schema_name, "study_identifiers");
+                //db.Update_SourceTable_ExportDate(schema_name, "study_identifiers");
+            }
         }
 
 
@@ -245,54 +315,55 @@ namespace DataAggregator
 
             string sql_string = @"INSERT INTO st.study_titles(" + destination_field_list + @")
                     SELECT k.study_id, " + source_field_list + @"
-                    FROM nk.temp_study_ids k
+                    FROM nk.new_studies k
                     INNER JOIN " + schema_name + @".study_titles s
-                    on k.sd_sid = s.sd_sid
-                    WHERE k.is_preferred = true ";
+                    on k.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "new studies");
             _logger.Information("Loaded records - " + res.ToString() + " study_titles, new studies");
 
             // For 'existing studies' study Ids add only new titles.
 
-            sql_string = @"DROP TABLE IF EXISTS nk.source_data;
+            if (nonpref_number > 0)
+            {
+                sql_string = @"DROP TABLE IF EXISTS nk.source_data;
                            CREATE TABLE nk.source_data as 
                            SELECT es.study_id, d.* 
                            FROM " + schema_name + @".study_titles d
                            INNER JOIN nk.existing_studies es
                            ON d.sd_sid = es.sd_sid";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            // Also, all non preferred titles must be non-default (default will be from the preferred source)
+                // Also, all non preferred titles must be non-default (default will be from the preferred source)
 
-            sql_string = @"UPDATE nk.source_data 
+                sql_string = @"UPDATE nk.source_data 
                            SET is_default = false;";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
 
-            sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
+                sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
                            CREATE TABLE nk.existing_data as 
                            SELECT es.sd_sid, es.study_id, 
                            c.title_text 
                            FROM st.study_titles c
                            INNER JOIN nk.existing_studies es
                            ON c.study_id = es.study_id;";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            // for titles which are the same as some that already exist
-            // the comments field should be updated to reflect this...
+                // for titles which are the same as some that already exist
+                // the comments field should be updated to reflect this...
 
-            sql_string = @"UPDATE st.study_titles t
+                sql_string = @"UPDATE st.study_titles t
                            set comments = t.comments || '; ' || s.comments 
                            FROM nk.source_data s
                            WHERE t.study_id = s.study_id
                            AND lower(t.title_text) = lower(s.title_text);";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            // for titles which are new to the study
-            // simply add them
+                // for titles which are new to the study
+                // simply add them
 
-            sql_string = @"INSERT INTO st.study_titles(" + destination_field_list + @")
+                sql_string = @"INSERT INTO st.study_titles(" + destination_field_list + @")
                            SELECT s.study_id, " + source_field_list + @" 
                            FROM nk.source_data s
                            LEFT JOIN nk.existing_data e
@@ -300,15 +371,14 @@ namespace DataAggregator
                            AND lower(s.title_text) = lower(e.title_text)
                            WHERE e.study_id is null ";
 
-            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "existing studies");
-            _logger.Information("Loaded records - " + res.ToString() + " study_titles, existing studies");
+                res = db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "existing studies");
+                _logger.Information("Loaded records - " + res.ToString() + " study_titles, existing studies");
 
+                db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
+                db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
 
-
-            db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
-            db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
-
-            db.Update_SourceTable_ExportDate(schema_name, "study_titles");
+                // db.Update_SourceTable_ExportDate(schema_name, "study_titles");
+            }
         }
 
 
@@ -330,10 +400,9 @@ namespace DataAggregator
 
             string sql_string = @"INSERT INTO st.study_contributors(" + destination_field_list + @")
                     SELECT k.study_id, " + source_field_list + @"
-                    FROM nk.temp_study_ids k
+                    FROM nk.new_studies k
                     INNER JOIN " + schema_name + @".study_contributors s
-                    on k.sd_sid = s.sd_sid
-                    WHERE k.is_preferred = true ";
+                    on k.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "new studies");
             _logger.Information("Loaded records - " + res.ToString() + " study_contributors, new studies");
@@ -341,16 +410,19 @@ namespace DataAggregator
             // For 'existing studies' study Ids add only new contributors.
             // Need to do it in two sets to simplify the SQL (to try and avoid time outs)
 
-            sql_string = @"DROP TABLE IF EXISTS nk.source_data;
+            if (nonpref_number > 0)
+            {
+
+                sql_string = @"DROP TABLE IF EXISTS nk.source_data;
                            CREATE TABLE nk.source_data as 
                            SELECT es.study_id, d.* 
                            FROM " + schema_name + @".study_contributors d
                            INNER JOIN nk.existing_studies es
                            ON d.sd_sid = es.sd_sid
                            WHERE d.is_individual = false";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
+                sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
                            CREATE TABLE nk.existing_data as 
                            SELECT es.sd_sid, es.study_id, 
                            c.contrib_type_id, c.organisation_name 
@@ -358,9 +430,9 @@ namespace DataAggregator
                            INNER JOIN nk.existing_studies es
                            ON c.study_id = es.study_id
                            WHERE c.is_individual = false";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            sql_string = @"INSERT INTO st.study_contributors(" + destination_field_list + @")
+                sql_string = @"INSERT INTO st.study_contributors(" + destination_field_list + @")
                            SELECT s.study_id, " + source_field_list + @" 
                            FROM nk.source_data s
                            LEFT JOIN nk.existing_data e
@@ -369,21 +441,21 @@ namespace DataAggregator
                            AND s.organisation_name = e.organisation_name
                            WHERE e.study_id is null ";
 
-            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "existing studies");
-            _logger.Information("Loaded records - " + res.ToString() + " study_contributors (orgs), existing studies");
+                res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "existing studies");
+                _logger.Information("Loaded records - " + res.ToString() + " study_contributors (orgs), existing studies");
 
-            db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
-            db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
+                db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
+                db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
 
-            sql_string = @"DROP TABLE IF EXISTS nk.source_data;
+                sql_string = @"DROP TABLE IF EXISTS nk.source_data;
                            CREATE TABLE nk.source_data as 
                            SELECT es.study_id, d.* FROM " + schema_name + @".study_contributors d
                            INNER JOIN nk.existing_studies es
                            ON d.sd_sid = es.sd_sid
                            WHERE d.is_individual = true";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
+                sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
                            CREATE TABLE nk.existing_data as 
                            SELECT es.sd_sid, es.study_id, 
                            c.contrib_type_id, c.person_full_name 
@@ -391,9 +463,9 @@ namespace DataAggregator
                            INNER JOIN nk.existing_studies es
                            ON c.study_id = es.study_id
                            WHERE c.is_individual = true";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            sql_string = @"INSERT INTO st.study_contributors(" + destination_field_list + @")
+                sql_string = @"INSERT INTO st.study_contributors(" + destination_field_list + @")
                            SELECT s.study_id, " + source_field_list + @" 
                            FROM nk.source_data s
                            LEFT JOIN nk.existing_data e
@@ -402,13 +474,14 @@ namespace DataAggregator
                            AND s.person_full_name = e.person_full_name
                            WHERE e.study_id is null ";
 
-            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "existing studies");
-            _logger.Information("Loaded records - " + res.ToString() + " study_contributors (people), existing studies");
+                res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "existing studies");
+                _logger.Information("Loaded records - " + res.ToString() + " study_contributors (people), existing studies");
 
-            db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
-            db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
+                db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
+                db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
 
-            db.Update_SourceTable_ExportDate(schema_name, "study_contributors");
+                // db.Update_SourceTable_ExportDate(schema_name, "study_contributors");
+            }
         }
 
 
@@ -425,11 +498,10 @@ namespace DataAggregator
             // For 'preferred' study Ids add all topics.
 
             string sql_string = @"INSERT INTO st.study_topics(" + destination_field_list + @")
-                    SELECT k.study_id, " + source_field_list + @"
-                    FROM nk.temp_study_ids k
-                    INNER JOIN " + schema_name + @".study_topics s
-                    on k.sd_sid = s.sd_sid
-                    WHERE k.is_preferred = true ";
+                SELECT k.study_id, " + source_field_list + @"
+                FROM nk.new_studies k
+                INNER JOIN " + schema_name + @".study_topics s
+                    on k.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "new studies");
             _logger.Information("Loaded records - " + res.ToString() + " mesh coded study_topics, new studies");
@@ -438,30 +510,32 @@ namespace DataAggregator
             // Do this in two stages - for mesh coded data
             // and then for non-mesh coded data#
 
-            // create existing data once...
+            if (nonpref_number > 0)
+            {
+                // create existing data once...
 
-            sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
+                sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
                            CREATE TABLE nk.existing_data as 
                            SELECT es.sd_sid, es.study_id, 
                            c.mesh_value, c.original_value
                            FROM st.study_topics c
                            INNER JOIN nk.existing_studies es
                            ON c.study_id = es.study_id;";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            // look at mesh coded new data
+                // look at mesh coded new data
 
-            sql_string = @"DROP TABLE IF EXISTS nk.source_data;
+                sql_string = @"DROP TABLE IF EXISTS nk.source_data;
                            CREATE TABLE nk.source_data as 
                            SELECT es.study_id, d.* 
                            FROM " + schema_name + @".study_topics d
                            INNER JOIN nk.existing_studies es
                            ON d.sd_sid = es.sd_sid
                            WHERE mesh_coded = true";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
 
-            sql_string = @"INSERT INTO st.study_topics(" + destination_field_list + @")
+                sql_string = @"INSERT INTO st.study_topics(" + destination_field_list + @")
                            SELECT s.study_id, " + source_field_list + @" 
                            FROM nk.source_data s
                            LEFT JOIN nk.existing_data e
@@ -469,22 +543,22 @@ namespace DataAggregator
                            AND s.mesh_value = e.mesh_value
                            WHERE e.study_id is null ";
 
-            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "existing studies");
-            _logger.Information("Loaded records - " + res.ToString() + " non mesh coded study_topics, existing studies");
+                res = db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "existing studies");
+                _logger.Information("Loaded records - " + res.ToString() + " non mesh coded study_topics, existing studies");
 
-            // look at non mesh coded new data
+                // look at non mesh coded new data
 
-            sql_string = @"DROP TABLE IF EXISTS nk.source_data;
+                sql_string = @"DROP TABLE IF EXISTS nk.source_data;
                            CREATE TABLE nk.source_data as 
                            SELECT es.study_id, d.* 
                            FROM " + schema_name + @".study_topics d
                            INNER JOIN nk.existing_studies es
                            ON d.sd_sid = es.sd_sid
                            WHERE mesh_coded = false";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
 
-            sql_string = @"INSERT INTO st.study_topics(" + destination_field_list + @")
+                sql_string = @"INSERT INTO st.study_topics(" + destination_field_list + @")
                            SELECT s.study_id, " + source_field_list + @" 
                            FROM nk.source_data s
                            LEFT JOIN nk.existing_data e
@@ -492,10 +566,11 @@ namespace DataAggregator
                            AND lower(s.original_value) = lower(e.original_value)
                            WHERE e.study_id is null ";
 
-            db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
-            db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
+                db.ExecuteSQL("DROP TABLE IF EXISTS nk.source_data;");
+                db.ExecuteSQL("DROP TABLE IF EXISTS nk.existing_data;");
 
-            db.Update_SourceTable_ExportDate(schema_name, "study_topics");
+                // db.Update_SourceTable_ExportDate(schema_name, "study_topics");
+            }
         }
 
 
@@ -510,34 +585,36 @@ namespace DataAggregator
 
             string sql_string = @"INSERT INTO st.study_features(" + destination_field_list + @")
                     SELECT k.study_id, " + source_field_list + @"
-                    FROM nk.temp_study_ids k
+                    FROM nk.new_studies k
                     INNER JOIN " + schema_name + @".study_features s
-                    on k.sd_sid = s.sd_sid
-                    WHERE k.is_preferred = true ";
+                    on k.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_features", "new studies");
             _logger.Information("Loaded records - " + res.ToString() + " study_features, new studies");
 
             // For 'existing studies' study Ids add only new feature types.
 
-            sql_string = @"DROP TABLE IF EXISTS nk.source_data;
+            if (nonpref_number > 0)
+            {
+
+                sql_string = @"DROP TABLE IF EXISTS nk.source_data;
                            CREATE TABLE nk.source_data as 
                            SELECT es.study_id, d.* 
                            FROM " + schema_name + @".study_features d
                            INNER JOIN nk.existing_studies es
                            ON d.sd_sid = es.sd_sid";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
+                sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
                            CREATE TABLE nk.existing_data as 
                            SELECT es.sd_sid, es.study_id, 
                            c.feature_type_id
                            FROM st.study_features c
                            INNER JOIN nk.existing_studies es
                            ON c.study_id = es.study_id;";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            sql_string = @"INSERT INTO st.study_features(" + destination_field_list + @")
+                sql_string = @"INSERT INTO st.study_features(" + destination_field_list + @")
                            SELECT s.study_id, " + source_field_list + @" 
                            FROM nk.source_data s
                            LEFT JOIN nk.existing_data e
@@ -545,10 +622,11 @@ namespace DataAggregator
                            AND s.feature_type_id = e.feature_type_id
                            WHERE e.study_id is null ";
 
-            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_features", "existing studies");
-            _logger.Information("Loaded records - " + res.ToString() + " study_features, existing studies");
+                res = db.ExecuteTransferSQL(sql_string, schema_name, "study_features", "existing studies");
+                _logger.Information("Loaded records - " + res.ToString() + " study_features, existing studies");
 
-            db.Update_SourceTable_ExportDate(schema_name, "study_features");
+                // db.Update_SourceTable_ExportDate(schema_name, "study_features");
+            }
         }
 
 
@@ -564,33 +642,35 @@ namespace DataAggregator
             
             string sql_string = @"INSERT INTO st.study_relationships(" + destination_field_list + @")
                     SELECT k.study_id, " + source_field_list + @"
-                    FROM nk.temp_study_ids k
+                    FROM nk.new_studies k
                     INNER JOIN " + schema_name + @".study_relationships s
-                    on k.sd_sid = s.sd_sid
-                    WHERE k.is_preferred = true ";
+                    on k.sd_sid = s.sd_sid";
             
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "new studies");
             _logger.Information("Loaded records - " + res.ToString() + " study_relationships, new studies");
 
             // For 'existing studies' study Ids add only new relationships types.
-            sql_string = @"DROP TABLE IF EXISTS nk.source_data;
+
+            if (nonpref_number > 0)
+            {
+                sql_string = @"DROP TABLE IF EXISTS nk.source_data;
                            CREATE TABLE nk.source_data as 
                            SELECT es.study_id, d.* 
                            FROM " + schema_name + @".study_relationships d
                            INNER JOIN nk.existing_studies es
                            ON d.sd_sid = es.sd_sid";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
+                sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
                            CREATE TABLE nk.existing_data as 
                            SELECT es.sd_sid, es.study_id, 
                            c.relationship_type_id
                            FROM st.study_relationships c
                            INNER JOIN nk.existing_studies es
                            ON c.study_id = es.study_id;";
-            db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);
 
-            sql_string = @"INSERT INTO st.study_relationships(" + destination_field_list + @")
+                sql_string = @"INSERT INTO st.study_relationships(" + destination_field_list + @")
                            SELECT s.study_id, " + source_field_list + @" 
                            FROM nk.source_data s
                            LEFT JOIN nk.existing_data e
@@ -598,14 +678,14 @@ namespace DataAggregator
                            AND s.relationship_type_id = e.relationship_type_id
                            WHERE e.study_id is null ";
 
-            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "existing studies");
-            _logger.Information("Loaded records - " + res.ToString() + " study_relationships, existing studies");
-            
-            // insert target study id, using sd_sid to find it in the temp studies table
-            // N.B. These relationships are defined within the same source...
-            // (Cross source relationships are defined in the links (nk) schema)
+                res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "existing studies");
+                _logger.Information("Loaded records - " + res.ToString() + " study_relationships, existing studies");
 
-            sql_string = @"UPDATE st.study_relationships r
+                // insert target study id, using sd_sid to find it in the temp studies table
+                // N.B. These relationships are defined within the same source...
+                // (Cross source relationships are defined in the links (nk) schema)
+
+                sql_string = @"UPDATE st.study_relationships r
                     SET target_study_id = tt.target_study_id
                     FROM 
                         (SELECT t.study_id, t2.study_id as target_study_id
@@ -616,16 +696,19 @@ namespace DataAggregator
                             on s.target_sd_sid = t2.sd_sid) tt
                     WHERE r.study_id = tt.study_id ";
 
-            res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "updating target ids");
-            _logger.Information("Loaded records - " + res.ToString() + " study_relationships, updating target ids");
-            
-            db.Update_SourceTable_ExportDate(schema_name, "study_relationships");
-        }
+                res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "updating target ids");
+                _logger.Information("Loaded records - " + res.ToString() + " study_relationships, updating target ids");
 
+                // db.Update_SourceTable_ExportDate(schema_name, "study_relationships");
+
+            }
+
+        }
 
         public void DropTempStudyIdsTable()
         {
             string sql_string = @"DROP TABLE IF EXISTS nk.temp_study_ids;
+                                  DROP TABLE IF EXISTS nk.new_studies;
                                   DROP TABLE IF EXISTS nk.existing_studies;";
             db.ExecuteSQL(sql_string);
         }

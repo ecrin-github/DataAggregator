@@ -84,6 +84,19 @@ namespace DataAggregator
             }
         }
 
+        public void UpdatePMIDObjectsWithStudyIds()
+        {
+            // To DO
+
+        }
+
+
+        public void UpdateAllPMIDObjectIdsTable()
+        {
+            // To DO
+
+        }
+
 
         public void TransferReferencesData(int source_id)
         {

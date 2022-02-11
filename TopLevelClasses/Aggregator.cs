@@ -162,7 +162,6 @@ namespace DataAggregator
 
                     // temp 
   
-                    /*
                     // transfer data to core tables
                     CoreTransferBuilder ctb = new CoreTransferBuilder(dest_conn_string, _logger);
                     _logger_helper.LogHeader("Transferring study data");
@@ -178,7 +177,7 @@ namespace DataAggregator
                     _mon_repo.SetUpTempFTW(_credentials, "mon", dest_conn_string);
                     ctb.GenerateProvenanceData();
                     _mon_repo.DropTempFTW("mon", dest_conn_string);
-                    */
+
 
                     // set up study search data
                     CoreSearchBuilder csb = new CoreSearchBuilder(dest_conn_string, _logger);
