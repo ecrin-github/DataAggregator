@@ -99,7 +99,7 @@ namespace DataAggregator
             sm.object_descriptions_recs = _mon_repo.GetAggregateRecNum("object_descriptions", "ob", conn_string);
             sm.object_rights_recs = _mon_repo.GetAggregateRecNum("object_rights", "ob", conn_string);
             sm.object_relationships_recs = _mon_repo.GetAggregateRecNum("object_relationships", "ob", conn_string);
-            sm.study_object_link_recs = _mon_repo.GetAggregateRecNum("all_ids_data_objects", "nk", conn_string);
+            sm.study_object_link_recs = _mon_repo.GetAggregateRecNum("data_object_identifiers", "nk", conn_string);
             _mon_repo.StoreAggregationSummary(sm);
             _logger.Information("Statistics done for mdr central schemas");
 

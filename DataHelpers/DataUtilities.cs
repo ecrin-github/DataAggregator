@@ -71,40 +71,41 @@ namespace DataAggregator
         }
 
 
-        /*
-        public void Update_SourceTable_ExportDate(string schema_name, string table_name)
+        public int Update_UsingTempTable(string index_table_name, string updated_table_name, string sql_string)
         {
             try
             {
-                int rec_count = GetMaxId(schema_name, table_name);
+                int rec_count = GetCount(index_table_name);
                 int rec_batch = 50000;
-                string sql_string = @"UPDATE " + schema_name + "." + table_name + @" s
-                                      SET exported_on = CURRENT_TIMESTAMP ";
-
+                int updated = 0; 
                 if (rec_count > rec_batch)
                 {
+                    int updated_this_call = 0;
                     for (int r = 1; r <= rec_count; r += rec_batch)
                     {
-                        string batch_sql_string = sql_string + " where s.id >= " + r.ToString() + " and s.id < " + (r + rec_batch).ToString();
-                        ExecuteSQL(batch_sql_string);
-                        string feedback = "Updated " + schema_name + "." + table_name + " export date, " + r.ToString() + " to ";
+                        string batch_sql_string = sql_string + " t.id >= " + r.ToString() + " and t.id < " + (r + rec_batch).ToString();
+                        updated_this_call = ExecuteSQL(batch_sql_string);
+                        string feedback = "Updated " + updated_table_name + ", " + r.ToString() + " to ";
                         feedback += (r + rec_batch < rec_count) ? (r + rec_batch - 1).ToString() : rec_count.ToString();
                         _logger.Information(feedback);
+                        updated += updated_this_call;
                     }
                 }
                 else
                 {
-                    ExecuteSQL(sql_string);
-                    _logger.Information("Updated " + schema_name + "." + table_name + " export date, as a single batch");
+                    updated = ExecuteSQL(sql_string);
+                    _logger.Information("Updated " + updated_table_name + " as a single batch");
                 }
-            }
+                return updated;
+            } 
             catch (Exception e)
             {
                 string res = e.Message;
-                _logger.Error("In update export date (" + schema_name + "." + table_name + ") to aggregate table: " + res);
+                _logger.Error("In update of " + updated_table_name + ": " + res);
+                return 0;
             }
         }
-        */
+
 
         public int ExecuteTransferSQL(string sql_string, string schema_name, string table_name, string context)
         {

@@ -23,6 +23,13 @@ namespace DataAggregator
         }
 
 
+        public void SpacedInformation(string header_text)
+        {
+            _logger.Information("");
+            _logger.Information(header_text);
+        }
+
+
         public void LogParameters(Options opts)
         {
             LogHeader("Setup");
@@ -34,27 +41,16 @@ namespace DataAggregator
         }
 
 
-
-        public void LogStudyHeader(Options opts, string dbline)
+        public void LogStudyHeader(bool using_test_data, string dbline)
         {
-            /*
-            int harvest_type = opts.harvest_type_id;
-            string dividerline = "";
-            if (opts.harvest_all_test_data || opts.setup_expected_data_only)
-            {
-                dividerline = new string('-', 70);
-            }
-            else
-            {
-                dividerline = (harvest_type == 1 || harvest_type == 2) ? new string('=', 70) : new string('-', 70);
-            }
+            string dividerline = using_test_data ? new string('-', 70) : new string('=', 70);
             _logger.Information("");
             _logger.Information(dividerline);
             _logger.Information(dbline);
             _logger.Information(dividerline);
             _logger.Information("");
-            */
         }
+
 
         /*
         public void LogTableStatistics(ISource s, string schema)

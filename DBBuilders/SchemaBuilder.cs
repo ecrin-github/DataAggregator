@@ -50,9 +50,6 @@ namespace DataAggregator
 
         public void DeleteLinkTables()
         {
-            link_tablebuilder.drop_table("all_ids_data_objects");
-            link_tablebuilder.drop_table("all_ids_studies");
-            link_tablebuilder.drop_table("all_links");
             link_tablebuilder.drop_table("linked_study_groups");
             link_tablebuilder.drop_table("study_object_links");
             link_tablebuilder.drop_table("study_study_links");
@@ -95,9 +92,6 @@ namespace DataAggregator
 
         public void BuildNewLinkTables()
         {
-            link_tablebuilder.create_table_all_ids_data_objects();
-            link_tablebuilder.create_table_all_ids_studies();
-            link_tablebuilder.create_table_all_links();
             link_tablebuilder.create_table_linked_study_groups();
             link_tablebuilder.create_table_study_object_links();
             link_tablebuilder.create_table_study_study_links();

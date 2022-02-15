@@ -38,4 +38,5 @@ namespace DataAggregator
         public string parent_study_sd_sid { get; set; }
         public DateTime? datetime_of_data_fetch { get; set; }
     }
+                         
 }

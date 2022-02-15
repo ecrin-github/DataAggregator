@@ -115,17 +115,30 @@ namespace DataAggregator
                         }
 
                         DataTransferBuilder tb = new DataTransferBuilder(source, schema_name, dest_conn_string, _logger);
+                        _logger_helper.LogStudyHeader(false, "Transferring data for " + source.database_name);
                         if (source.has_study_tables)
                         {
+                            /*
+                            _logger_helper.LogHeader("Process study Ids");
                             tb.ProcessStudyIds();
+                            _logger_helper.LogHeader("Transfer study data");
                             num_studies_imported += tb.TransferStudyData();
+                            _logger_helper.LogHeader("Process object Ids");
                             tb.ProcessStudyObjectIds();
+                            */
                         }
                         else
                         {
-                            tb.ProcessStandaloneObjectIds(sources, _credentials, opts.testing);
+                             tb.ProcessStandaloneObjectIds(sources, _credentials, opts.testing);  // for now, just PubMed
                         }
-                        num_objects_imported += tb.TransferObjectData();
+
+                        if (source.id == 100135) // temporary
+                        {
+                            _logger_helper.LogHeader("Transfer object data");
+                            num_objects_imported += tb.TransferObjectData();
+                            
+                        }
+
                         _mon_repo.DropTempFTW(source.database_name, dest_conn_string);
                     }
 
@@ -139,7 +152,7 @@ namespace DataAggregator
 
                     agg_event.num_total_studies = _mon_repo.GetAggregateRecNum("studies", "st", dest_conn_string);
                     agg_event.num_total_objects = _mon_repo.GetAggregateRecNum("data_objects", "ob", dest_conn_string);
-                    agg_event.num_total_study_object_links = _mon_repo.GetAggregateRecNum("all_ids_data_objects", "nk", dest_conn_string);
+                    agg_event.num_total_study_object_links = _mon_repo.GetAggregateRecNum("data_object_identifiers", "nk", dest_conn_string);
 
                     if (!opts.testing)
                     {

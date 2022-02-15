@@ -299,10 +299,10 @@ namespace DataAggregator
         {
             string sql_string = @"INSERT INTO core.study_object_links(id, 
             study_id, object_id)
-            SELECT id, parent_study_id, object_id
-            FROM nk.all_ids_data_objects";
+            SELECT  id, parent_study_id, object_id
+            FROM nk.data_object_identifiers";
 
-            return db.ExecuteCoreTransferSQL(sql_string, "nk.all_ids_data_objects");
+            return db.ExecuteCoreTransferSQL(sql_string, "nk.data_object_identifiers");
         }
 
 
@@ -347,7 +347,7 @@ namespace DataAggregator
                      as
                      select s.object_id, 
                      'Data retrieved from ' || string_agg(d.repo_name || ' at ' || to_char(s.datetime_of_data_fetch, 'HH24:MI, dd Mon yyyy'), ', ' ORDER BY s.datetime_of_data_fetch) as provenance
-                     from nk.all_ids_data_objects s
+                     from nk.data_object_identifiers s
                      inner join
                         (select t.id,
                           case 
@@ -366,7 +366,7 @@ namespace DataAggregator
             sql_string = @"create table nk.temp_pubmed_object_provenance
                      as select s.sd_oid,
                      'Data retrieved from Pubmed at ' || TO_CHAR(max(s.datetime_of_data_fetch), 'HH24:MI, dd Mon yyyy') as provenance
-                     from nk.all_ids_data_objects s
+                     from nk.data_object_identifiers s
                      inner
                      join
                   (select t.id,
@@ -389,7 +389,7 @@ namespace DataAggregator
             sql_string = @"update core.data_objects s
                     set provenance_string = tt.provenance
                     from nk.temp_pubmed_object_provenance tt
-                    inner join nk.all_ids_data_objects k
+                    inner join nk.data_object_identifiers k
                     on tt.sd_oid = k.sd_oid
                     where s.id = k.object_id ";
             db.ExecuteProvenanceSQL(sql_string, "core.data_objects");

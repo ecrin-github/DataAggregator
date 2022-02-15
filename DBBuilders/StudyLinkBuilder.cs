@@ -94,7 +94,7 @@ namespace DataAggregator
 
         public void CreateStudyGroupRecords()
         {
-            // Select* from nk.linked_study_groups 
+            // Select * from nk.linked_study_groups 
             // Use the study_all_ids to insert the study Ids
             // for the linked sources / sd_sids
             slh.AddStudyStudyRelationshipRecords();

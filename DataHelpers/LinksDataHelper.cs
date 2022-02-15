@@ -761,10 +761,10 @@ namespace DataAggregator
                       (study_id, relationship_type_id, target_study_id)
                       select s1.study_id, g.relationship_id, s2.study_id
                       from nk.linked_study_groups g
-                      inner join nk.all_ids_studies s1
+                      inner join nk.study_identifiers s1
                       on g.source_id = s1.source_id
                       and g.sd_sid = s1.sd_sid
-                      inner join nk.all_ids_studies s2
+                      inner join nk.study_identifiers s2
                       on g.target_source_id = s2.source_id
                       and g.target_sd_sid = s2.sd_sid";
 
