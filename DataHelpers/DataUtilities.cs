@@ -71,7 +71,8 @@ namespace DataAggregator
         }
 
 
-        public int Update_UsingTempTable(string index_table_name, string updated_table_name, string sql_string)
+        public int Update_UsingTempTable(string index_table_name, string updated_table_name, 
+                                    string sql_string, string conditional)
         {
             try
             {
@@ -81,6 +82,7 @@ namespace DataAggregator
                 if (rec_count > rec_batch)
                 {
                     int updated_this_call = 0;
+                    sql_string += conditional;
                     for (int r = 1; r <= rec_count; r += rec_batch)
                     {
                         string batch_sql_string = sql_string + " t.id >= " + r.ToString() + " and t.id < " + (r + rec_batch).ToString();

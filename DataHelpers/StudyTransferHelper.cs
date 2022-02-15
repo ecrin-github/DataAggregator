@@ -78,7 +78,7 @@ namespace DataAggregator
                         where t.source_id = si.source_id
                         and t.sd_sid = si.sd_sid ";
 
-                int res = db.Update_UsingTempTable("nk.temp_study_ids", "nk.temp_study_ids", sql_string);
+                int res = db.Update_UsingTempTable("nk.temp_study_ids", "nk.temp_study_ids", sql_string, " and ");
                 _logger.Information(res.ToString() + " existing studies matched in temp table");
 
                 // also update the study_identifiers table
@@ -92,7 +92,7 @@ namespace DataAggregator
                 where t.source_id = si.source_id
                 and t.sd_sid = si.sd_sid ";
 
-                res = db.Update_UsingTempTable("nk.temp_study_ids", "nk.study_identifiers", sql_string);
+                res = db.Update_UsingTempTable("nk.temp_study_ids", "nk.study_identifiers", sql_string, " and ");
                 _logger.Information(res.ToString() + " existing studies matched in identifiers table");
             }
         }
@@ -145,7 +145,7 @@ namespace DataAggregator
                              from nk.temp_study_ids t
                              where (match_status = 0 or match_status = 2) ";
 
-                int res = db.Update_UsingTempTable("nk.temp_study_ids", "nk.study_identifiers", sql_string);
+                int res = db.Update_UsingTempTable("nk.temp_study_ids", "nk.study_identifiers", sql_string, " and ");
                 _logger.Information(res.ToString() + " new study ids found");
 
                 // Where the study_ids are null they can take on the value of the 

@@ -118,26 +118,19 @@ namespace DataAggregator
                         _logger_helper.LogStudyHeader(false, "Transferring data for " + source.database_name);
                         if (source.has_study_tables)
                         {
-                            /*
                             _logger_helper.LogHeader("Process study Ids");
                             tb.ProcessStudyIds();
                             _logger_helper.LogHeader("Transfer study data");
                             num_studies_imported += tb.TransferStudyData();
                             _logger_helper.LogHeader("Process object Ids");
                             tb.ProcessStudyObjectIds();
-                            */
                         }
                         else
                         {
                              tb.ProcessStandaloneObjectIds(sources, _credentials, opts.testing);  // for now, just PubMed
                         }
-
-                        if (source.id == 100135) // temporary
-                        {
-                            _logger_helper.LogHeader("Transfer object data");
-                            num_objects_imported += tb.TransferObjectData();
-                            
-                        }
+                        _logger_helper.LogHeader("Transfer object data");
+                        num_objects_imported += tb.TransferObjectData();
 
                         _mon_repo.DropTempFTW(source.database_name, dest_conn_string);
                     }
@@ -146,7 +139,6 @@ namespace DataAggregator
                     slb.CreateStudyGroupRecords();
 
                     // Update aggregation event record.
-
                     agg_event.num_studies_imported = num_studies_imported;
                     agg_event.num_objects_imported = num_objects_imported;
 

@@ -24,7 +24,7 @@ namespace DataAggregator
 
         /*
             // One off builds
-
+            DROP TABLE nk.study_identifiers;
             CREATE TABLE nk.study_identifiers(
                id                       INT             NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 2000001 INCREMENT BY 1) PRIMARY KEY
              , study_id                 INT             NULL
@@ -38,7 +38,7 @@ namespace DataAggregator
             CREATE INDEX study_ids_studyid ON nk.study_identifiers(study_id);
             CREATE INDEX study_ids_sdsidsource ON nk.study_identifiers(source_id, sd_sid);
       
-		   
+		    DROP TABLE nk.data_object_identifiers;
             CREATE TABLE nk.data_object_identifiers(
                id                       INT             NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 10000001 INCREMENT BY 1) PRIMARY KEY
              , object_id                INT             NULL
@@ -47,6 +47,7 @@ namespace DataAggregator
              , object_type_id			INT             NULL
              , title                    VARCHAR         NULL
              , is_preferred_object      BOOLEAN         NULL
+             , is_valid_link            BOOLEAN         NULL DEFAULT true
              , parent_study_source_id   INT             NULL
              , parent_study_sd_sid      VARCHAR         NULL
              , parent_study_id          INT             NULL

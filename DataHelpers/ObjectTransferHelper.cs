@@ -116,7 +116,7 @@ namespace DataAggregator
                     where doi.source_id = " + source_id.ToString() + @"
                     and t.sd_oid = doi.sd_oid ";
 
-            int res = db.Update_UsingTempTable("nk.temp_object_ids", "nk.temp_object_ids", sql_string);
+            int res = db.Update_UsingTempTable("nk.temp_object_ids", "nk.temp_object_ids", sql_string, " and ");
             _logger.Information(res.ToString() + " existing objects matched in temp table");
 
             // also update the data_object_identifiers table
@@ -130,7 +130,7 @@ namespace DataAggregator
             where doi.source_id = " + source_id.ToString() + @"
             and t.sd_oid = doi.sd_oid ";
 
-            res = db.Update_UsingTempTable("nk.temp_object_ids", "data_object_identifiers, ", sql_string);
+            res = db.Update_UsingTempTable("nk.temp_object_ids", "data_object_identifiers", sql_string, " and ");
             _logger.Information(res.ToString() + " existing objects matched in identifiers table");
         }
 
@@ -177,7 +177,7 @@ namespace DataAggregator
                             from nk.temp_object_ids t
                             where match_status = 0 ";
 
-            int res = db.Update_UsingTempTable("nk.temp_object_ids", "data_object_identifiers", sql_string);
+            int res = db.Update_UsingTempTable("nk.temp_object_ids", "data_object_identifiers", sql_string, " and ");
             _logger.Information(res.ToString() + " new objects inserted into object identifiers table");
 
             // For study based data, if the study is 'preferred' it is the first time
@@ -265,7 +265,7 @@ namespace DataAggregator
 
             sql_string = @"Update nk.data_object_identifiers doi
             set object_id = old_object_id, is_preferred_object = false, 
-            match_status = -1
+            is_valid_link = false, match_status = -1
             from nk.dup_objects_by_type_and_title dup
             where doi.match_status is null
             and doi.id = dup.id;";
@@ -313,7 +313,7 @@ namespace DataAggregator
 
             sql_string = @"Update nk.data_object_identifiers doi
             set object_id = old_object_id, is_preferred_object = false, 
-            match_status = -3
+            is_valid_link = false, match_status = -3
             from nk.dup_objects_by_url dup
             where doi.match_status is null
             and doi.id = dup.id;";
@@ -755,7 +755,8 @@ namespace DataAggregator
             string sql_string = @"DROP TABLE IF EXISTS nk.temp_object_ids;
                                   DROP TABLE IF EXISTS nk.temp_objects_to_add;
                                   DROP TABLE IF EXISTS nk.source_data;
-                                  DROP TABLE IF EXISTS nk.existing_data;";
+                                  DROP TABLE IF EXISTS nk.existing_data;
+                                  DROP TABLE IF EXISTS nk.temp_objects_to_check;";
             db.ExecuteSQL(sql_string);
         }
 
