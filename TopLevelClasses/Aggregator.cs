@@ -50,14 +50,10 @@ namespace DataAggregator
 
                     _logger_helper.LogHeader("Establishing aggregate schemas");
                     SchemaBuilder sb = new SchemaBuilder(dest_conn_string);
-                    sb.DeleteStudyTables();
-                    sb.DeleteObjectTables();
-                    sb.DeleteLinkTables();
-
-                    sb.BuildNewStudyTables();
-                    sb.BuildNewObjectTables();
+                    //sb.BuildNewStudyTables();
+                    //sb.BuildNewObjectTables();
                     sb.BuildNewLinkTables();
-                    _logger.Information("Study, object and link aggregate tables recreated");
+                    //_logger.Information("Study, object and link aggregate tables recreated");
 
                     // construct the aggregation event record
                     AggregationEvent agg_event = new AggregationEvent(agg_event_id);
@@ -73,10 +69,13 @@ namespace DataAggregator
                     // Then use the study link builder to create
                     // a record of all current study - study links
 
-                    StudyLinkBuilder slb = new StudyLinkBuilder(_credentials, dest_conn_string, opts.testing);
+                    StudyLinkBuilder slb = new StudyLinkBuilder(_credentials, dest_conn_string, opts.testing, _logger);
                     slb.CollectStudyStudyLinks(sources);
+                    slb.CheckStudyStudyLinks(sources);
                     slb.ProcessStudyStudyLinks();
                     _logger.Information("Study-study links identified");
+
+                    /*
 
                     // Start the data transfer process
                     _logger_helper.LogHeader("Data Transfer");
@@ -144,12 +143,13 @@ namespace DataAggregator
 
                     agg_event.num_total_studies = _mon_repo.GetAggregateRecNum("studies", "st", dest_conn_string);
                     agg_event.num_total_objects = _mon_repo.GetAggregateRecNum("data_objects", "ob", dest_conn_string);
-                    agg_event.num_total_study_object_links = _mon_repo.GetAggregateRecNum("data_object_identifiers", "nk", dest_conn_string);
+                    agg_event.num_total_study_object_links = _mon_repo.GetAggregateRecNum("data_object_ids", "nk", dest_conn_string);
 
                     if (!opts.testing)
                     {
                         _mon_repo.StoreAggregationEvent(agg_event);
                     }
+                    */
                 }
 
 
@@ -165,7 +165,6 @@ namespace DataAggregator
                     cb.BuildNewCoreTables();
                     _logger.Information("Core tables created");
 
-                    // temp 
   
                     // transfer data to core tables
                     CoreTransferBuilder ctb = new CoreTransferBuilder(dest_conn_string, _logger);

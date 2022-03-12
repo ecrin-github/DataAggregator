@@ -146,7 +146,7 @@ namespace DataAggregator
         }
 
 
-        public int  ExecuteCoreTransferSQL(string sql_string, string full_table_name, string dest_table_name = "")
+        public int  ExecuteCoreTransferSQL(string sql_string, string qualifier, string full_table_name, string dest_table_name = "")
         {
             try
             {
@@ -161,7 +161,7 @@ namespace DataAggregator
                 {
                     for (int r = min_id; r <= max_id; r += rec_batch)
                     {
-                        string batch_sql_string = sql_string + " where id >= " + r.ToString() + " and id < " + (r + rec_batch).ToString();
+                        string batch_sql_string = sql_string + qualifier + " id >= " + r.ToString() + " and id < " + (r + rec_batch).ToString();
                         transferred += ExecuteSQL(batch_sql_string);
 
                         feedback = "Transferred " + full_table_name + " data, " + r.ToString() + " to ";

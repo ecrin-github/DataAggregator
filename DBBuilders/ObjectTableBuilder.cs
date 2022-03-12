@@ -13,19 +13,18 @@ namespace DataAggregator
             db_conn = _db_conn;
         }
 
-        public void drop_table(string table_name)
+        private void ExecuteSQL(string sql_string)
         {
-            string sql_string = @"DROP TABLE IF EXISTS ob." + table_name;
             using (var conn = new NpgsqlConnection(db_conn))
             {
                 conn.Execute(sql_string);
             }
         }
 
-
         public void create_table_data_objects()
         {
-            string sql_string = @"CREATE TABLE ob.data_objects(
+            string sql_string = @"DROP TABLE IF EXISTS ob.data_objects;
+              CREATE TABLE ob.data_objects(
                 id                     INT             NOT NULL PRIMARY KEY
               , title                  VARCHAR         NULL
               , version                VARCHAR         NULL
@@ -49,16 +48,14 @@ namespace DataAggregator
               , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
             );";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
         public void create_table_object_datasets()
         {
-            string sql_string = @"CREATE TABLE ob.object_datasets(
+            string sql_string = @"DROP TABLE IF EXISTS ob.object_datasets;
+              CREATE TABLE ob.object_datasets(
                 id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , record_keys_type_id    INT             NULL 
@@ -81,16 +78,14 @@ namespace DataAggregator
             );
             CREATE INDEX object_datasets_object_id ON ob.object_datasets(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
         public void create_table_object_dates()
         {
-            string sql_string = @"CREATE TABLE ob.object_dates(
+            string sql_string = @"DROP TABLE IF EXISTS ob.object_dates;
+              CREATE TABLE ob.object_dates(
                 id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , date_type_id           INT             NULL
@@ -107,16 +102,14 @@ namespace DataAggregator
             );
             CREATE INDEX object_dates_object_id ON ob.object_dates(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
         public void create_table_object_instances()
         {
-            string sql_string = @"CREATE TABLE ob.object_instances(
+            string sql_string = @"DROP TABLE IF EXISTS ob.object_instances;
+              CREATE TABLE ob.object_instances(
                 id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , instance_type_id       INT             NULL 
@@ -133,16 +126,14 @@ namespace DataAggregator
             );
             CREATE INDEX object_instances_object_id ON ob.object_instances(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
         public void create_table_object_contributors()
         {
-            string sql_string = @"CREATE TABLE ob.object_contributors(
+            string sql_string = @"DROP TABLE IF EXISTS ob.object_contributors;
+              CREATE TABLE ob.object_contributors(
                 id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , contrib_type_id        INT             NULL
@@ -160,16 +151,14 @@ namespace DataAggregator
             );
             CREATE INDEX object_contributors_object_id ON ob.object_contributors(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
         public void create_table_object_titles()
         {
-            string sql_string = @"CREATE TABLE ob.object_titles(
+            string sql_string = @"DROP TABLE IF EXISTS ob.object_titles;
+              CREATE TABLE ob.object_titles(
                 id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , title_type_id          INT             NULL
@@ -182,16 +171,14 @@ namespace DataAggregator
             );
             CREATE INDEX object_titles_object_id ON ob.object_titles(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
         public void create_table_object_topics()
         {
-            string sql_string = @"CREATE TABLE ob.object_topics(
+            string sql_string = @"DROP TABLE IF EXISTS ob.object_topics;
+              CREATE TABLE ob.object_topics(
                 id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , topic_type_id          INT             NULL
@@ -205,16 +192,14 @@ namespace DataAggregator
             );
             CREATE INDEX object_topics_object_id ON ob.object_topics(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
         public void create_table_object_descriptions()
         {
-            string sql_string = @"CREATE TABLE ob.object_descriptions(
+            string sql_string = @"DROP TABLE IF EXISTS ob.object_descriptions;
+              CREATE TABLE ob.object_descriptions(
                 id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , description_type_id    INT             NULL
@@ -225,16 +210,14 @@ namespace DataAggregator
             );
             CREATE INDEX object_descriptions_object_id ON ob.object_descriptions(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
         public void create_table_object_identifiers()
         {
-            string sql_string = @"CREATE TABLE ob.object_identifiers(
+            string sql_string = @"DROP TABLE IF EXISTS ob.object_identifiers;
+              CREATE TABLE ob.object_identifiers(
                 id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , identifier_value       VARCHAR         NULL
@@ -247,16 +230,14 @@ namespace DataAggregator
             );
             CREATE INDEX object_identifiers_object_id ON ob.object_identifiers(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
         public void create_table_object_relationships()
         {
-            string sql_string = @"CREATE TABLE ob.object_relationships(
+            string sql_string = @"DROP TABLE IF EXISTS ob.object_relationships;
+              CREATE TABLE ob.object_relationships(
                 id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , relationship_type_id   INT             NULL
@@ -265,16 +246,14 @@ namespace DataAggregator
             );
             CREATE INDEX object_relationships_object_id ON ob.object_relationships(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
 
         public void create_table_object_rights()
         {
-            string sql_string = @"CREATE TABLE ob.object_rights(
+            string sql_string = @"DROP TABLE IF EXISTS ob.object_rights;
+              CREATE TABLE ob.object_rights(
                 id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 40000001 INCREMENT BY 1) PRIMARY KEY
               , object_id              INT             NOT NULL
               , rights_name            VARCHAR         NULL
@@ -284,10 +263,7 @@ namespace DataAggregator
             );
             CREATE INDEX object_rights_object_id ON ob.object_rights(object_id);";
 
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
+            ExecuteSQL(sql_string);
         }
 
     }

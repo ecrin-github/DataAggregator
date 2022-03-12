@@ -65,8 +65,7 @@ namespace DataAggregator
 
         public void TransferCoreLinkData()
         {
-            int res;
-            res = core_tr.LoadStudyObjectLinks();
+            int res = core_tr.LoadStudyObjectLinks();
             _logger.Information(res.ToString() + " core link data transferred");
         }
 

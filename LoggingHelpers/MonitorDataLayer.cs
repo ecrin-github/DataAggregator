@@ -15,7 +15,6 @@ namespace DataAggregator
     {
 
         private string connString;
-        private string mdr_connString;
         private Source source;
         NpgsqlConnectionStringBuilder builder;
 

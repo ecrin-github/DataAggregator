@@ -14,6 +14,8 @@ namespace DataAggregator
         ILogger _logger;
         int num_to_check;
 
+        int status1number, status2number, status3number;
+
         public ObjectDataTransferrer(string connString, ILogger logger)
         {
             _connString = connString;
@@ -112,26 +114,26 @@ namespace DataAggregator
                     parent_study_id = doi.parent_study_id,
                     is_preferred_study = doi.is_preferred_study,
                     match_status = 1
-                    from nk.data_object_identifiers doi
+                    from nk.data_object_ids doi
                     where doi.source_id = " + source_id.ToString() + @"
                     and t.sd_oid = doi.sd_oid ";
 
             int res = db.Update_UsingTempTable("nk.temp_object_ids", "nk.temp_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " existing objects matched in temp table");
+            _logger.Information("Existing objects matched in temp table");
 
             // also update the data_object_identifiers table
             // Indicates has been matched and updates the 
             // data fetch date
 
-            sql_string = @"UPDATE nk.data_object_identifiers doi
+            sql_string = @"UPDATE nk.data_object_ids doi
             set match_status = 1,
             datetime_of_data_fetch = t.datetime_of_data_fetch
             from nk.temp_object_ids t
             where doi.source_id = " + source_id.ToString() + @"
             and t.sd_oid = doi.sd_oid ";
 
-            res = db.Update_UsingTempTable("nk.temp_object_ids", "data_object_identifiers", sql_string, " and ");
-            _logger.Information(res.ToString() + " existing objects matched in identifiers table");
+            status1number = db.Update_UsingTempTable("nk.temp_object_ids", "data_object_identifiers", sql_string, " and ");
+            _logger.Information(status1number.ToString() + " existing objects matched in identifiers table");
         }
 
 
@@ -145,11 +147,12 @@ namespace DataAggregator
             string sql_string = @"UPDATE nk.temp_object_ids t
                         SET parent_study_id = si.study_id, 
                         is_preferred_study = si.is_preferred
-                        FROM nk.study_identifiers si
+                        FROM nk.study_ids si
                         WHERE t.parent_study_sd_sid = si.sd_sid
                         and t.parent_study_source_id = " + source_id.ToString();
+
             int res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " new objects found");
+            _logger.Information("Objects pdated with parent study details");
 
             // Drop those object records that cannot be matched
             // N.B. study linked records - Pubmed objects do not 
@@ -158,7 +161,7 @@ namespace DataAggregator
             sql_string = @"DELETE FROM nk.temp_object_ids
                             WHERE parent_study_id is null;";
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " objects dropped as no matching study found");
+            _logger.Information(res.ToString() + " objects dropped because of a missing matching study");
         }
 
 
@@ -166,7 +169,7 @@ namespace DataAggregator
         {
             // Add all the new object id records to the all Ids table
 
-            string sql_string = @"INSERT INTO nk.data_object_identifiers
+            string sql_string = @"INSERT INTO nk.data_object_ids
                             (source_id, sd_oid, object_type_id, title, is_preferred_object,
                             parent_study_source_id, parent_study_sd_sid,
                             parent_study_id, is_preferred_study, datetime_of_data_fetch)
@@ -177,46 +180,48 @@ namespace DataAggregator
                             from nk.temp_object_ids t
                             where match_status = 0 ";
 
-            int res = db.Update_UsingTempTable("nk.temp_object_ids", "data_object_identifiers", sql_string, " and ");
-            _logger.Information(res.ToString() + " new objects inserted into object identifiers table");
+            db.Update_UsingTempTable("nk.temp_object_ids", "data_object_identifiers", sql_string, " and ");
+            _logger.Information("Non-matched objects inserted into object identifiers table");
 
             // For study based data, if the study is 'preferred' it is the first time
             // that it and related data objects can be added to the database, so
             // set the object id to the table id and set the match_status to 2
 
-            sql_string = @"UPDATE nk.data_object_identifiers
+            sql_string = @"UPDATE nk.data_object_ids
                         SET object_id = id, is_preferred_object = true,
-                        match_status = 2
+                        match_status = 3
                         WHERE object_id is null
                         AND source_id = " + source_id.ToString() + @"
                         AND is_preferred_study = true;";
 
-            res = db.ExecuteSQL(sql_string);
+            int res1 = db.ExecuteSQL(sql_string);
+            _logger.Information(res1.ToString() + " new objects identified for addition from preferred studies");
 
             // For data objects from 'non-preferred' studies, there may be duplicate 
             // data objects already in the system, but that does not apply to registry
             // linked objects such as registry entries, results entries, web landing pages
 
-            sql_string = @"UPDATE nk.data_object_identifiers
+            sql_string = @"UPDATE nk.data_object_ids
                         SET object_id = id, is_preferred_object = true,
-                        match_status = 2
+                        match_status = 3
                         WHERE object_id is null
                         AND source_id = " + source_id.ToString() + @"
                         AND object_type_id in (13, 28);";
-            res += db.ExecuteSQL(sql_string);
+            int res2 = db.ExecuteSQL(sql_string);
 
             if (source_id == 101900 || source_id == 101901)  // BioLINCC or Yoda
             {
-                sql_string = @"UPDATE nk.data_object_identifiers
+                sql_string = @"UPDATE nk.data_object_ids
                         SET object_id = id, is_preferred_object = true,
-                        match_status = 2
+                        match_status = 3
                         WHERE object_id is null
                         AND source_id = " + source_id.ToString() + @"
                         AND object_type_id in (38);";
-                res += db.ExecuteSQL(sql_string);
+                res2 += db.ExecuteSQL(sql_string);
             }
 
-            _logger.Information(res.ToString() + " new objects specified as preferred, for addition");
+            _logger.Information(res2.ToString() + " new 'always added' objects identified from non-preferred studies");
+            status3number = res1 + res2;
         }
 
 
@@ -234,7 +239,7 @@ namespace DataAggregator
                   create table nk.studies_with_poss_dup_objects
                   as 
                   select distinct parent_study_id 
-                  from nk.data_object_identifiers
+                  from nk.data_object_ids
                   WHERE object_id is null
                   AND source_id = " + source_id.ToString();
 
@@ -249,11 +254,11 @@ namespace DataAggregator
                 select existing.object_id as old_object_id, new.id 
                 from
                 (select doi.* from nk.studies_with_poss_dup_objects p
-                   inner join nk.data_object_identifiers doi
+                   inner join nk.data_object_ids doi
                    on p.parent_study_id = doi.parent_study_id
                    where doi.parent_study_source_id <> " + source_id.ToString() + @") existing
                 inner join
-                (select doi2.* from nk.data_object_identifiers doi2
+                (select doi2.* from nk.data_object_ids doi2
                   WHERE object_id is null
                   AND source_id = " + source_id.ToString() + @"
                 ) new
@@ -263,15 +268,15 @@ namespace DataAggregator
 
             db.ExecuteSQL(sql_string);
 
-            sql_string = @"Update nk.data_object_identifiers doi
+            sql_string = @"Update nk.data_object_ids doi
             set object_id = old_object_id, is_preferred_object = false, 
-            is_valid_link = false, match_status = -1
+            is_valid_link = false, match_status = 2
             from nk.dup_objects_by_type_and_title dup
             where doi.match_status is null
             and doi.id = dup.id;";
 
-            int res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " objects from 'non-preferred' studies identified as duplicates using type and title");
+            status2number = db.ExecuteSQL(sql_string);
+            _logger.Information(status2number.ToString() + " objects from 'non-preferred' studies identified as duplicates using type and title");
 
         }
 
@@ -293,14 +298,14 @@ namespace DataAggregator
                      existing.object_id as old_object_id, new.id 
                      from
                  (select doi.*, i.url from nk.studies_with_poss_dup_objects p
-                   inner join nk.data_object_identifiers doi
+                   inner join nk.data_object_ids doi
                    on p.parent_study_id = doi.parent_study_id
                    inner join ob.object_instances i
                    on doi.object_id = i.object_id
                    where i.url is not null
                   ) existing
                  inner join
-                 (select doi2.*, i.url from nk.data_object_identifiers doi2
+                 (select doi2.*, i.url from nk.data_object_ids doi2
                   inner join " + schema_name + @".object_instances i
                   on doi2.sd_oid = i.sd_oid
                   WHERE doi2.object_id is null
@@ -311,18 +316,19 @@ namespace DataAggregator
 
             db.ExecuteSQL(sql_string);
 
-            sql_string = @"Update nk.data_object_identifiers doi
+            sql_string = @"Update nk.data_object_ids doi
             set object_id = old_object_id, is_preferred_object = false, 
-            is_valid_link = false, match_status = -3
+            is_valid_link = false, match_status = 2
             from nk.dup_objects_by_url dup
             where doi.match_status is null
             and doi.id = dup.id;";
 
             int res = db.ExecuteSQL(sql_string);
             _logger.Information(res.ToString() + " objects from 'non-preferred' studies identified as duplicates using url");
-           
-            // tidy up temp tables
-            sql_string = @"drop table if exists nk.studies_with_poss_dup_objects;
+            status2number += res;
+
+             // tidy up temp tables
+             sql_string = @"drop table if exists nk.studies_with_poss_dup_objects;
                          drop table if exists nk.dup_objects_by_type_and_title;
                          drop table if exists nk.dup_objects_by_url";
             db.ExecuteSQL(sql_string);
@@ -334,23 +340,27 @@ namespace DataAggregator
             // complete setting status of new objects
             // Any still null must be genuinely new
 
-            string sql_string = @"Update nk.data_object_identifiers doi
+            string sql_string = @"Update nk.data_object_ids doi
             set object_id = id, is_preferred_object = true, 
-            match_status = 1
+            match_status = 3
             where doi.match_status is null
             AND source_id = " + source_id.ToString();
 
             int res = db.ExecuteSQL(sql_string);
             _logger.Information(res.ToString() + " remaining objects from 'non-preferred' studies identified as new objects");
+            status3number += res;
         }
 
 
         public void FillObjectsToAddTables(int source_id)
         {
+            int total_objects = status1number + status2number + status3number;
+            _logger.Information(total_objects.ToString() + " total objects found");
+            
             string sql_string = @"INSERT INTO nk.temp_objects_to_add
                             (object_id, sd_oid)
                             SELECT distinct object_id, sd_oid 
-                            FROM nk.data_object_identifiers
+                            FROM nk.data_object_ids
                             WHERE is_preferred_object = true and 
                             source_id = " + source_id.ToString();
             
@@ -360,14 +370,17 @@ namespace DataAggregator
             sql_string = @"INSERT INTO nk.temp_objects_to_check
                             (object_id, sd_oid)
                             SELECT distinct object_id, sd_oid 
-                            FROM nk.data_object_identifiers
+                            FROM nk.data_object_ids
                             WHERE is_preferred_object = false
                             and source_id = " + source_id.ToString();
 
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " objects identifies as likely duplicates - will not be added");
-            _logger.Information(res.ToString() + " attributes will be checked for possible addition");
             num_to_check = res;
+            if (num_to_check > 0)
+            {
+                _logger.Information(res.ToString() + " objects identifies as likely duplicates");
+                _logger.Information("will not be added (but attributes may be checked)");
+            }
         }
 
 

@@ -2,23 +2,26 @@
 using Npgsql;
 using PostgreSQLCopyHelper;
 using System.Collections.Generic;
+using Serilog;
 
 namespace DataAggregator
 {
     public class LinksDataHelper
     {
-        string _mdr_connString;
+        string _connString;
+        ILogger _logger;
 
-        public LinksDataHelper(string mdr_connString)
+        public LinksDataHelper(string mdr_connString, ILogger logger)
         {
-            _mdr_connString = mdr_connString;
+            _connString = mdr_connString;
+            _logger = logger;
         }
 
 
         public void SetUpTempPreferencesTable(IEnumerable<Source> sources)
         {
             string sql_string;
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 sql_string = @"DROP TABLE IF EXISTS nk.temp_preferences;
                       CREATE TABLE IF NOT EXISTS nk.temp_preferences(
@@ -41,7 +44,7 @@ namespace DataAggregator
 
         public void SetUpTempLinkCollectorTable()
         {
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_study_links_collector;
                         CREATE TABLE nk.temp_study_links_collector(
@@ -56,7 +59,7 @@ namespace DataAggregator
 
         public void SetUpTempLinkSortedTable()
         {
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_study_links_sorted;
                         CREATE TABLE nk.temp_study_links_sorted(
@@ -88,7 +91,7 @@ namespace DataAggregator
 
         public ulong StoreLinksInTempTable(PostgreSQLCopyHelper<StudyLink> copyHelper, IEnumerable<StudyLink> entities)
         {
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 conn.Open();
                 return copyHelper.SaveAll(conn, entities);
@@ -99,7 +102,7 @@ namespace DataAggregator
         public void TidyIds1()
         {
             string sql_string = "";
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 sql_string = @"DELETE from nk.temp_study_links_collector
                 where sd_sid_2 ilike 'U1111%' or sd_sid_2 ilike 'UTRN%'";
@@ -110,6 +113,10 @@ namespace DataAggregator
                 set sd_sid_2 = replace(sd_sid_2, '–', '-');";
                 conn.Execute(sql_string);
 
+                sql_string = @"UPDATE nk.temp_study_links_collector
+                set sd_sid_2 = replace(sd_sid_2, '−', '-');";
+                conn.Execute(sql_string);
+                
                 sql_string = @"UPDATE nk.temp_study_links_collector
                 SET sd_sid_2 = 'ACTRN' || sd_sid_2
                 WHERE source_2 = 100116
@@ -149,7 +156,7 @@ namespace DataAggregator
         public void TidyIds2()
         {
             string sql_string = "";
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 sql_string = @"UPDATE nk.temp_study_links_collector
                 SET sd_sid_2 = replace(sd_sid_2, ' ', '')
@@ -167,6 +174,19 @@ namespace DataAggregator
                 sd_sid_2 = 'NCT12345678' or sd_sid_2 = 'NCT87654321' or 
                 lower(sd_sid_2) = 'na' or lower(sd_sid_2) = 'n/a'
                 or lower(sd_sid_2) = 'nilknown' or lower(sd_sid_2) = 'noavailable');";
+                conn.Execute(sql_string);
+
+                sql_string = @"insert into nk.temp_study_links_collector
+                (source_1, sd_sid_1, source_2, sd_sid_2)
+                SELECT source_1, sd_sid_1, source_2, 
+                UNNEST(STRING_TO_ARRAY(sd_sid_2, ',')) AS sd_sid_2
+                FROM nk.temp_study_links_collector
+                WHERE length(trim(sd_sid_2)) = 23 AND sd_sid_2 like '%,%'";
+                conn.Execute(sql_string);
+
+                sql_string = @"DELETE FROM nk.temp_study_links_collector
+                WHERE source_2 = 100120
+                and length (trim(sd_sid_2)) <> 11;";
                 conn.Execute(sql_string);
 
                 sql_string = @"UPDATE nk.temp_study_links_collector
@@ -242,7 +262,7 @@ namespace DataAggregator
         public void TidyIds3()
         {
             string sql_string = "";
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 sql_string = @"UPDATE nk.temp_study_links_collector
                 set sd_sid_2 = replace(sd_sid_2, 'ID ', '')
@@ -260,6 +280,10 @@ namespace DataAggregator
                 and length(sd_sid_2) = 8;";
                 conn.Execute(sql_string);
 
+                sql_string = @"DELETE FROM nk.temp_study_links_collector
+                WHERE source_2 = 100126
+                and sd_sid_2 ilike 'nil%'";
+                conn.Execute(sql_string);
 
                 sql_string = @"UPDATE nk.temp_study_links_collector
                 SET sd_sid_2 = replace(sd_sid_2, ' ', '')
@@ -319,7 +343,7 @@ namespace DataAggregator
 
         public void TransferLinksToSortedTable()
         {
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 // needs to be done twice to keep the ordering of sources correct
                 // A lower rating means 'more preferred' - i.e. should be used in preference
@@ -338,7 +362,7 @@ namespace DataAggregator
                           on t.source_2 = r2.id
                           WHERE r1.preference_rating > r2.preference_rating";
 
-                conn.Execute(sql_string);
+                int res1 = conn.Execute(sql_string);
 
                 // Original data is the opposite of what is required - therefore switch
 
@@ -352,7 +376,8 @@ namespace DataAggregator
                           on t.source_2 = r2.id
                           WHERE r1.preference_rating < r2.preference_rating";
 
-                conn.Execute(sql_string);
+                int res2 = conn.Execute(sql_string);
+                _logger.Information((res1 + res2).ToString() + " total study-study links found in source data");
             }
         }
 
@@ -362,13 +387,113 @@ namespace DataAggregator
             // The nk.temp_study_links_sorted table will have 
             // many duplicates... create a distinct version of the data
 
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_distinct_links;
                            CREATE TABLE nk.temp_distinct_links 
-                           as SELECT distinct source_id, sd_sid, preferred_sd_sid, preferred_source_id
+                           as SELECT distinct source_id, sd_sid, 
+                           preferred_sd_sid, preferred_source_id, true as valid
                            FROM nk.temp_study_links_sorted";
 
+                conn.Execute(sql_string);
+
+                sql_string = @"SELECT COUNT(*) FROM nk.temp_distinct_links";
+                int res =  conn.ExecuteScalar<int>(sql_string);
+                _logger.Information(res.ToString() + " distinct study-study links found");
+
+            }
+        }
+
+
+        // Despite earlier cleaning there remains a small number of 
+        // study registry Ids that are referenced as'other Ids' but
+        // which are errors, which do not correspond to any real studies
+        // in the system. These need to be removed, on a source by source basiks.
+
+
+        public void ObtainStudyIds(int source_id, string source_conn_string, PostgreSQLCopyHelper<IdChecker> copyHelper)
+        {
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = @"DROP TABLE IF EXISTS nk.temp_id_checker;
+                    CREATE TABLE nk.temp_id_checker
+                    (sd_sid VARCHAR) ";
+                conn.Execute(sql_string);
+            }
+
+            IEnumerable<IdChecker> Ids;
+
+            using (var conn = new NpgsqlConnection(source_conn_string))
+            {
+                string sql_string = @"select sd_sid 
+                    from ad.studies";
+                Ids = conn.Query<IdChecker>(sql_string);
+            }
+
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                conn.Open();
+                copyHelper.SaveAll(conn, Ids);
+            }
+
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = @"SELECT COUNT(*) FROM nk.temp_id_checker";
+                int res = conn.ExecuteScalar<int>(sql_string);
+                _logger.Information(source_id.ToString() + ": " + res.ToString() + " sd_sids found");
+            }
+        }
+
+
+        public void CheckIdsAgainstSourceStudyIds(int source_id)
+        {
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = @"UPDATE nk.temp_distinct_links t
+                           SET valid = false 
+                           FROM 
+                              (SELECT k.sd_sid as sd_sid
+                               FROM  nk.temp_distinct_links k
+                               LEFT JOIN nk.temp_id_checker s
+                               ON k.sd_sid = s.sd_sid
+							   WHERE k.source_id = " + source_id.ToString() + @"
+							   AND s.sd_sid is null) invalids
+                           where t.sd_sid = invalids.sd_sid";
+
+                int res1 = conn.Execute(sql_string);
+                _logger.Information(res1.ToString() + " set to invalid on sd_sid");
+
+                sql_string = @"UPDATE nk.temp_distinct_links t
+                           SET valid = false 
+                           FROM
+                              (SELECT k.preferred_sd_sid 
+                               FROM  nk.temp_distinct_links k
+                               LEFT JOIN nk.temp_id_checker s
+                               ON k.preferred_sd_sid = s.sd_sid
+							   WHERE k.preferred_source_id = " + source_id.ToString() + @"
+							   AND s.sd_sid is null) invalids
+                           where t.preferred_sd_sid = invalids.preferred_sd_sid";
+
+                int res2 = conn.Execute(sql_string);
+                _logger.Information(res2.ToString() + " set to invalid on preferred_sd_sid");
+            }
+        }
+
+
+        public void DeleteInvalidLinks()
+        {
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = @"DELETE 
+                    FROM nk.temp_distinct_links
+                    WHERE valid = false";
+                int res = conn.Execute(sql_string);
+                _logger.Information(res.ToString() + " study-study links deleted because of an invalid study id");
+
+                sql_string = @"drop table if exists nk.t1;
+                    create table nk.t1
+                    as select * from nk.temp_distinct_links
+                    order by preferred_sd_sid";
                 conn.Execute(sql_string);
             }
         }
@@ -384,85 +509,115 @@ namespace DataAggregator
 
         public void IdentifyGroupedStudies()
         {
-            // Set up a table to hold group definitions (i.e. the list 
+            // Set up tables to hold group definitions (i.e. the list 
             // of studies in each group, can be from the LHS or the RHS 
             // of the distinct links table
 
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
-                string sql_string = @"DROP TABLE IF EXISTS nk.temp_grouping_studies;
-                    CREATE TABLE nk.temp_grouping_studies 
-                    (  
-                        source_id   INT,
-                        sd_sid      VARCHAR,
-                        matching_source_id  INT,
-                        side        VARCHAR
-                    );";
-                conn.Execute(sql_string);
+                // But there are some studies in more complex groupings, that have a 
+                // One-To_Many relationship with overlapping groups...
+                //       A --- B
+                //       A --- C
+                //       D --- C
+                // These studies will occur in 'both sides' of the grouping sets, i.e. both
+                // A and C will be grouping studies, andcould look as though they are each
+                // grouping the other. The studies in these groupings need to be identified and
+                // given a general 'is related' link, because the real relationship is very unclear
 
-                // Studies of interest have more than one matching study
-                // within the SAME matching source registry.
-                // Therefore group on one side, plus the source_id of the other
-
-                sql_string = @"INSERT INTO nk.temp_grouping_studies
-                             (source_id, sd_sid, matching_source_id, side)
-                             SELECT source_id, sd_sid, 
-                             preferred_source_id, 'L'
-                             FROM nk.temp_distinct_links 
-                             group by source_id, sd_sid, preferred_source_id
-                             HAVING count(sd_sid) > 1;";
-                conn.Execute(sql_string);
-
-                sql_string = @"INSERT INTO nk.temp_grouping_studies
-                             (source_id, sd_sid, matching_source_id, side)
-                             SELECT preferred_source_id, preferred_sd_sid, 
-                             source_id, 'R'
-                             FROM nk.temp_distinct_links 
-                             group by preferred_source_id, preferred_sd_sid, source_id
-                             HAVING count(preferred_sd_sid) > 1;";
-                conn.Execute(sql_string);
             }
         }
 
 
-        public void ExtractGroupedStudiess()
+        public void ExtractGroupedStudies()
         {
             string sql_string;
 
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
-                // create a table that takes the rows from the linked 
-                // studies table that match the 'L' grouping studies
+                // create a table that takes the rows that involve
+                // studies with multiple matches in the same source
+
+                sql_string = @"DROP TABLE IF EXISTS nk.temp_linked_studies;
+                CREATE TABLE nk.temp_linked_studies(
+                      group_source_id int
+                    , group_sd_sid varchar
+                    , member_sd_sid varchar
+                    , member_source_id int
+                    , source_side varchar
+                    , complex int DEFAULT 0
+                )";
 
                 // The source_id side is the group and the preferred side 
                 // is comprised of the grouped studies.
 
-                sql_string = @"DROP TABLE IF EXISTS nk.temp_linked_studies;
-                create table nk.temp_linked_studies as
-                select k.* from
-                nk.temp_distinct_links k 
-                inner join nk.temp_grouping_studies g
-                on k.source_id = g.source_id
-                and k.sd_sid = g.sd_sid
-                and k.preferred_source_id = g.matching_source_id
-                where g.side = 'L';";
+                sql_string = @"INSERT into nk.temp_linked_studies
+                (group_source_id, group_sd_sid, 
+                 member_source_id, member_sd_sid,
+                 source_side)
+                 SELECT k.source_id, k.sd_sid, 
+                 k.preferred_source_id, k.preferred_sd_sid, 'L'
+                 from nk.temp_distinct_links k 
+                 inner join 
+                      (SELECT source_id, sd_sid
+                       FROM nk.temp_distinct_links 
+                       group by source_id, sd_sid, preferred_source_id
+                       HAVING count(sd_sid) > 1) lhs_groups
+                 ON k.source_id = lhs_groups.source_id
+                 AND k.sd_sid = lhs_groups.sd_sid";
 
                 conn.Execute(sql_string);
 
-                // To retain the same arrangement of grouping study on 
-                // the LHS the input data from the RHS has to be switched around
+                // The preferred_source_id side is the group and the 
+                // non-prefrred side is comprised of grouped studies
 
                 sql_string = @"INSERT into nk.temp_linked_studies
-                (source_id, sd_sid, preferred_source_id, preferred_sd_sid)
-                select k.preferred_source_id, k.preferred_sd_sid, k.source_id, k.sd_sid from
-                nk.temp_distinct_links k
-                inner join nk.temp_grouping_studies g
-                on k.preferred_source_id = g.source_id
-                and k.preferred_sd_sid = g.sd_sid
-                and k.source_id = g.matching_source_id
-                where g.side = 'R'; ";
+                (group_source_id, group_sd_sid, 
+                 member_source_id, member_sd_sid,
+                 source_side)
+                 SELECT k.preferred_source_id, k.preferred_sd_sid, 
+                 k.source_id, k.sd_sid, 'R' from
+                 nk.temp_distinct_links k
+                 inner join 
+                      (SELECT preferred_source_id, preferred_sd_sid
+                       FROM nk.temp_distinct_links 
+                       group by preferred_source_id, preferred_sd_sid, source_id
+                       HAVING count(preferred_sd_sid) > 1) rhs_groups
+                ON k.preferred_source_id = rhs_groups.preferred_source_id
+                AND k.preferred_sd_sid = rhs_groups.preferred_sd_sid";
 
                 conn.Execute(sql_string);
+
+                // But there are some studies in more complex groupings, that have a 
+                // One-To_Many relationship with overlapping groups...
+                //       A --- B
+                //       A --- C
+                //       D --- C
+                // These studies will occur in 'both sides' of the grouping sets, i.e. both
+                // A and C will be grouping studies, andcould look as though they are each
+                // grouping the other. The studies in these groupings need to be identified and
+                // given a general 'is related' link, because the real relationship is very unclear
+
+                sql_string = @"Update nk.temp_linked_studies ks1
+                SET complex = ks1.complex + 2
+                FROM nk.temp_linked_studies ks2
+                WHERE ks1.member_source_id = ks2.group_source_id
+                AND ks1.member_sd_sid = ks2.group_sd_sid
+                AND ks1.source_side <> ks2.source_side";
+
+                conn.Execute(sql_string);
+
+                sql_string = @"Update nk.temp_linked_studies ks1
+                SET complex = ks1.complex + 4
+                FROM nk.temp_linked_studies ks2
+                WHERE ks1.group_source_id = ks2.group_source_id
+                AND ks1.group_sd_sid = ks2.group_sd_sid
+                AND ks2.complex = 2";
+
+                conn.Execute(sql_string);
+
+                             
+
 
                 // Put this data into the permanent linked_study_groups table
                 // The study relationships are 
@@ -479,27 +634,102 @@ namespace DataAggregator
                 // This study is also registered, along with one or more other studies that together form an
                 // equivalent group, as <the target study>.
 
-                sql_string = @"INSERT INTO nk.linked_study_groups 
-                             (source_id, sd_sid, relationship_id, 
+                sql_string = @"INSERT INTO nk.linked_study_groups
+                             (source_id, sd_sid, relationship_id,
                              target_sd_sid, target_source_id)
-                             select distinct source_id, sd_sid, 
-                             case when preferred_source_id = 101900 
-                                  or preferred_source_id = 101901 then 25 
+                             select group_source_id, group_sd_sid,
+                             case when group_source_id = 101900
+                                  or group_source_id = 101901 then 25
                              else 28 end, 
-                             preferred_sd_sid, preferred_source_id 
-                             from nk.temp_linked_studies;";
-                conn.Execute(sql_string);
+                             member_sd_sid, member_source_id
+                             from nk.temp_linked_studies
+                             where complex = 0;";
 
-                sql_string = @"INSERT INTO nk.linked_study_groups 
-                             (source_id, sd_sid, relationship_id, 
+                int res1 = conn.Execute(sql_string);
+
+                sql_string = @"INSERT INTO nk.linked_study_groups
+                             (source_id, sd_sid, relationship_id,
                              target_sd_sid, target_source_id)
-                             select distinct preferred_source_id, preferred_sd_sid, 
-                             case when source_id = 101900 
-                                  or source_id = 101901 then 26 
+                             select member_source_id, member_sd_sid,
+                             case when member_source_id = 101900
+                                  or member_source_id = 101901 then 26
                              else 29 end, 
-                             sd_sid, source_id
-                             from nk.temp_linked_studies;";
-                conn.Execute(sql_string);
+                             group_sd_sid, group_source_id
+                             from nk.temp_linked_studies
+                             where complex = 0;";
+
+                int res2 = conn.Execute(sql_string);
+
+                /*
+  
+           // still got the 'complex' ones to deal with
+
+		 create table nk.temp_multi_links as
+		 select s1.group_source_id as s1groupsource, s1.group_sd_sid as s1groupsdsid, 
+		 s1.member_source_id as s1membersource, s1.member_sd_sid as s1membersdsid, 
+		 s1.complex as s1complex, 
+		 s2.group_source_id as s2groupsource, s2.group_sd_sid as s2groupsdsid, 
+		 s2.member_source_id as s2membersource, s2.member_sd_sid as s2membersdsid, 
+		 s2.complex as s2complex
+		 from nk.temp_linked_studies s1
+		 left join  
+		     nk.temp_linked_studies s2
+		 on s1.member_sd_sid = s2.group_sd_sid
+		 order by s1.group_sd_sid, s1.complex desc, s2.complex desc
+		 
+		 select * from nk.temp_multi_links
+		 order by s1groupsource, s1groupsdsid, s1complex desc, s2complex desc
+		 
+
+		 drop table if exists nk.temp_list_studies;
+		 create table nk.temp_list_studies as 
+		 select * from
+		 (select s1groupsource::varchar ||'&&'|| s1groupsdsid as id, s1groupsource::varchar ||'&&'||s1groupsdsid as sdsid
+		 from nk.temp_multi_links
+		 union
+		 select s1groupsource::varchar||'&&'|| s1groupsdsid, s1membersource::varchar ||'&&'||s1membersdsid
+		 from nk.temp_multi_links
+		 union
+		 select s1groupsource::varchar||'&&'|| s1groupsdsid, s2groupsource::varchar ||'&&'||s2groupsdsid
+		 from nk.temp_multi_links
+		 where s2groupsource is not null
+		 union
+		 select  s1groupsource::varchar||'&&'|| s1groupsdsid, s2membersource::varchar ||'&&'||s2membersdsid
+		 from nk.temp_multi_links
+		 where s2groupsource is not null) tot
+		 order by id
+		 
+		 select * from nk.temp_list_studies
+           order by id, sdsid
+		 
+		 
+		 select min(sdsid) as listid, count(sdsid), string_agg(sdsid, ', ' order by sdsid) as sids
+         from nk.temp_list_studies
+         group by id
+         order by sids
+
+        // set up class to hold List<string>
+        // get data asList<source_id, sd_sid> <int, string>
+        // run through - get id first
+        // if same id? add to List<string>
+        // if new id - does this id exist anywhere else, check source and id in List<source_id, sd_sid> so far
+        // if does not exist - add all of that id's streing
+        // if does exist, add the individual elements if they do not exist
+
+        // end up with a list of List<source_id, sd_sid>
+        // go throuygh each...
+        // get count,
+        // get first and add an object to List <source_id, sd_sid, relationship_id (27?) other_source_id, other_sd_sid>
+        // where other iterates over the rest of the studies in the list
+        // add the reverse relationship also
+        // take the next object - and repeat
+        // until the penultimate object - has just one pairing, with the last object
+
+        // end up with a long list of relationships between all possible pairs
+        // add in as a set of new study relationship records
+
+        */
+
             }
         }
 
@@ -507,7 +737,7 @@ namespace DataAggregator
         public void DeleteGroupedStudyLinkRecords()
         {
             string sql_string; 
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 // Now need to delete these grouped records from the links table...
 
@@ -517,7 +747,7 @@ namespace DataAggregator
                                and k.sd_sid = g.sd_sid
                                and k.preferred_source_id = g.matching_source_id
                                and g.side = 'L';";
-                conn.Execute(sql_string);
+                int res1 = conn.Execute(sql_string);
 
                 sql_string = @"DELETE FROM nk.temp_distinct_links k
                                USING nk.temp_grouping_studies g
@@ -525,7 +755,8 @@ namespace DataAggregator
                                and k.preferred_sd_sid = g.sd_sid
                                and k.source_id = g.matching_source_id
                                and g.side = 'R';";
-                conn.Execute(sql_string);
+                int res2 = conn.Execute(sql_string);
+                _logger.Information((res1 + res2).ToString() + " study-study links extracted as grouped (1 to n) records");
 
                 sql_string = @"DROP TABLE IF EXISTS nk.temp_grouping_studies;
                 DROP TABLE IF EXISTS nk.temp_linked_studies";
@@ -535,7 +766,7 @@ namespace DataAggregator
         }
 
 
-        public void ManageIncompleteLinks()
+        public void AddMissingLinks()
         {
 
             // There are a set if links that may be missing, in the sense that
@@ -561,7 +792,7 @@ namespace DataAggregator
             //    having a 'missing link'
 
             string sql_string;
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 // First identify the studies that have more than one 'preferred' option
                 // cutting across more than one source. 
@@ -635,14 +866,17 @@ namespace DataAggregator
                       AND k.sd_sid = min_set.sd_sid;";
                 conn.Execute(sql_string);
 
-                // Insert the new links into the distinct_links table.
+                // Insert the distinct versions of the new links into the distinct_links table.
+                // may be some duplicates because of...
                 // These links will need re-processing through the CascadeLinksTable() function.
 
                 sql_string = @"INSERT INTO nk.temp_distinct_links
                      (source_id, sd_sid, preferred_sd_sid, preferred_source_id)
-                     SELECT new_source_id, new_sd_sid, new_preferred_sd_sid, new_preferred_source from
+                     SELECT distinct new_source_id, new_sd_sid, new_preferred_sd_sid, new_preferred_source from
                      nk.temp_new_links;";
-                conn.Execute(sql_string);
+                int res = conn.Execute(sql_string);
+                _logger.Information(res.ToString() + " new study-study links added to complete linkage chains");
+
 
                 // drop the temp tables 
                 sql_string = @"DROP TABLE IF EXISTS nk.temp_missing_links;
@@ -652,9 +886,9 @@ namespace DataAggregator
         }
 
 
-        public void CascadeLinksInDistinctLinksTable()
+        public void CascadeLinks()
         {
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 // telescope the preferred links to the most preferred
                 // i.e. A -> B, B -> C becomes A -> C, B -> C
@@ -675,6 +909,8 @@ namespace DataAggregator
                           and t1.preferred_sd_sid = t2.sd_sid";
 
                     match_number = conn.ExecuteScalar<int>(sql_string);
+                    _logger.Information(match_number.ToString() + " cascading study-study links found, to 'telescope'");
+
 
                     if (match_number > 0)
                     {
@@ -689,14 +925,37 @@ namespace DataAggregator
 
                         conn.Execute(sql_string);
                     }
+
+                    sql_string = @"drop table if exists nk.t2;
+                    create table nk.t2
+                    as select * from nk.temp_distinct_links
+                    order by preferred_sd_sid";
+                    conn.Execute(sql_string);
+
                 }
 
-                // but in some cases the telescoped link may have already been 
-                // present - i.e. a study has two other reg identifiers
-                // one of which will be the most preferred
-                // Process above will result in duplicates in these cases
-                // and these duplicates therefore need to be removed.
+            }
+        }
 
+
+        public void RecordTableSize(string table_name)
+        {
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = @"SELECT COUNT(*) FROM " + table_name;
+                int res = conn.ExecuteScalar<int>(sql_string);
+                _logger.Information(res.ToString() + " records in " + table_name + "table");
+            }
+        }
+
+
+        public void MakeLinksDistinct()
+        {
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = @"SELECT COUNT(*) FROM nk.temp_distinct_links";
+                int res1 = conn.ExecuteScalar<int>(sql_string);
+                
                 sql_string = @"DROP TABLE IF EXISTS nk.temp_distinct_links2;
                            CREATE TABLE nk.temp_distinct_links2 
                            as SELECT distinct * FROM nk.temp_distinct_links";
@@ -707,29 +966,71 @@ namespace DataAggregator
                 ALTER TABLE nk.temp_distinct_links2 RENAME TO temp_distinct_links;";
 
                 conn.Execute(sql_string);
+
+                sql_string = @"SELECT COUNT(*) FROM nk.temp_distinct_links";
+                int res2 = conn.ExecuteScalar<int>(sql_string);
+                int diff = res1 - res2;
+                _logger.Information(res2.ToString() + " records now in temp distinct links table, having dropped " + diff.ToString());
             }
         }
-
-
+        
+        
         public void TransferNewLinksToDataTable()
         {
             // A distinct selection is required because the most recent
             // link cascade may have generated duplicates
 
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"Insert into nk.study_study_links
                       (source_id, sd_sid, preferred_sd_sid, preferred_source_id)
                       select distinct source_id, sd_sid, preferred_sd_sid, preferred_source_id
                       from nk.temp_distinct_links";
 
-                conn.Execute(sql_string);
+                int res = conn.Execute(sql_string);
+                _logger.Information(res.ToString() + " study-study links left in final table");
+
             }
         }
 
+
+        public void UpdateLinksWithStudyIds()
+        {
+            // Study Ids are updated where they already exist in the nkstudy_ids table
+            // Preferred study ids first - any existing lionks plus
+            // links where preferred has just been joined by a noin-preferred version
+
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = @"UPDATE nk.study_study_links ssk
+                      SET study_id = s.study_id
+                      from nk.study_ids s
+                      where ssk.preferred_sd_sid = s.sd_sid
+                      and ssk.preferred_source_id = s.source_id;";
+
+                int res = conn.Execute(sql_string);
+                _logger.Information(res.ToString() + " study Ids updated using preferred Id");
+
+                // then any non-preferred studies that have been added 
+                // previously, with a new preferred side
+
+                sql_string = @"UPDATE nk.study_study_links ssk
+                      SET study_id = s.study_id
+                      from nk.study_ids s
+                      where ssk.sd_sid = s.sd_sid
+                      and ssk.source_id = s.source_id
+                      and ssk.study_id is null;";
+
+                res = conn.Execute(sql_string);
+                _logger.Information(res.ToString() + " study Ids updated using non-preferred Id");
+            }
+        }
+
+
+
         public int ObtainTotalOfNewLinks()
         {
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"SELECT COUNT(*) FROM nk.temp_distinct_links";
                 return conn.ExecuteScalar<int>(sql_string);
@@ -739,7 +1040,7 @@ namespace DataAggregator
 
         public void DropTempTables()
         {
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_preferences;
                 DROP TABLE IF EXISTS nk.temp_study_links_collector;
@@ -755,16 +1056,16 @@ namespace DataAggregator
             // for the linked sources / sd_sids, using 
             // nk.linked_study_groups as the source
 
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"Insert into st.study_relationships
                       (study_id, relationship_type_id, target_study_id)
                       select s1.study_id, g.relationship_id, s2.study_id
                       from nk.linked_study_groups g
-                      inner join nk.study_identifiers s1
+                      inner join nk.study_ids s1
                       on g.source_id = s1.source_id
                       and g.sd_sid = s1.sd_sid
-                      inner join nk.study_identifiers s2
+                      inner join nk.study_ids s2
                       on g.target_source_id = s2.source_id
                       and g.target_sd_sid = s2.sd_sid";
 
@@ -779,7 +1080,7 @@ namespace DataAggregator
             // Transfers the study identifier records so that they can be used to
             // obtain links, in imitation of the normal process
 
-            using (var conn = new NpgsqlConnection(_mdr_connString))
+            using (var conn = new NpgsqlConnection(_connString))
             {
                 string sql_string = @"truncate table ad.study_identifiers; 
                             INSERT into ad.study_identifiers (sd_sid, identifier_type_id, 

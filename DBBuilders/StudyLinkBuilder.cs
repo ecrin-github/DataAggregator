@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Serilog;
 
 namespace DataAggregator
 {
@@ -10,14 +11,15 @@ namespace DataAggregator
         string _mdr_connString;
         ICredentials _credentials;
         bool _testing;
+        ILogger _logger;
 
-        public StudyLinkBuilder(ICredentials credentials, string mdr_connString, bool testing)
+        public StudyLinkBuilder(ICredentials credentials, string mdr_connString, bool testing, ILogger logger)
         {
             _credentials = credentials;
             _mdr_connString = mdr_connString;
             _testing = testing;
-
-            slh = new LinksDataHelper(_mdr_connString);
+            _logger = logger;
+            slh = new LinksDataHelper(_mdr_connString, _logger);
         }
             
         public void CollectStudyStudyLinks(IEnumerable<Source> sources)
@@ -59,7 +61,7 @@ namespace DataAggregator
         }
 
 
-        public void ProcessStudyStudyLinks()
+        public void CheckStudyStudyLinks(IEnumerable<Source> sources)
         {
             // Create a table with the distinct values obtained 
             // from the aggregation process.
@@ -67,13 +69,39 @@ namespace DataAggregator
             slh.TransferLinksToSortedTable();
             slh.CreateDistinctSourceLinksTable();
 
+            // Despite earlier cleaning there remains a small number of 
+            // study registry Ids that are referenced as'other Ids' but
+            // which are errors, which do not correspond to any real studies
+            // in the system. These need to be removed, on a source by source basis.
+
+            foreach (Source source in sources)
+            {
+                if (_testing)
+                {
+                    // do something - slh.TransferTestIdentifiers(source.id);
+                }
+
+                if (source.has_study_tables)
+                {
+                    string source_conn_string = _credentials.GetConnectionString(source.database_name, _testing);
+                    slh.ObtainStudyIds(source.id, source_conn_string, CopyHelpers.studyids_checker); 
+                    slh.CheckIdsAgainstSourceStudyIds(source.id);
+                }
+            }
+            slh.DeleteInvalidLinks();
+            slh.RecordTableSize("nk.temp_distinct_links");
+        }
+
+
+        public void ProcessStudyStudyLinks()
+        {
             // Identify and remove studies that have links to more than 1
             // study in another registry - these form study-study relationships
             // rather than simple 1-to-1 study links (though the target links may 
             // need to be updated at the end of the process)
 
             slh.IdentifyGroupedStudies();
-            slh.ExtractGroupedStudiess();
+            slh.ExtractGroupedStudies();
             slh.DeleteGroupedStudyLinkRecords();
 
             // Cascade 'preferred' studies so that the 
@@ -81,13 +109,27 @@ namespace DataAggregator
             // Identify and repair missing cascade steps
             // then 're-cascade' links.
 
-            //slh.CascadeLinksInDistinctLinksTable();
-            slh.ManageIncompleteLinks();
-            slh.CascadeLinksInDistinctLinksTable();
+            slh.CascadeLinks();
+            slh.MakeLinksDistinct();
+            slh.AddMissingLinks();
+            slh.RecordTableSize("nk.temp_distinct_links");
+            slh.CascadeLinks();
+            slh.MakeLinksDistinct();
+            
+            // Again, identify and remove studies that have links to more than 1
+            // study in another registry - these form study-study relationships
+            // rather than simple 1-to-1 study links (though the target links may 
+            // need to be updated at the end of the process)
+            // A small number (avbout 30) are formed by the cascade process above
+
+            slh.IdentifyGroupedStudies();
+            slh.ExtractGroupedStudies();
+            slh.DeleteGroupedStudyLinkRecords();
 
             // Transfer the (distinct) resultant set into the 
             // main links table and tidy up
             slh.TransferNewLinksToDataTable();
+            slh.UpdateLinksWithStudyIds();
             slh.DropTempTables();
         }
 

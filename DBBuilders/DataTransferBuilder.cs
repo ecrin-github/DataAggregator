@@ -44,7 +44,7 @@ namespace DataAggregator
             st_tr.StoreStudyIds(CopyHelpers.study_ids_helper, study_ids);
             _logger.Information("Study Ids stored");
 
-            // Match existing studiesm, then
+            // Match existing studies, then
             // Do the check of the temp table ids against the study_study links.
             // Change the table to reflect the 'preferred' Ids.
             // Back load the correct study ids into the temporary table.
@@ -74,11 +74,14 @@ namespace DataAggregator
 
         public void ProcessStudyObjectIds()
         {
-            // Set up temp tables and fill the first with the sd_oids, 
+            // Set up temp tables...
+
+            ob_tr.SetUpTempObjectIdsTables();
+
+            // ...and fill the first with the sd_oids, 
             // parent sd_sids, dates of data fetch, of the objects in 
             // the source database.
 
-            ob_tr.SetUpTempObjectIdsTables();
             IEnumerable<ObjectId> object_ids = ob_tr.FetchObjectIds(source_id, _source_conn_string);
             _logger.Information("Object Ids obtained");
             ob_tr.StoreObjectIds(CopyHelpers.object_ids_helper, object_ids);
@@ -108,6 +111,8 @@ namespace DataAggregator
 
         public void ProcessStandaloneObjectIds(IEnumerable<Source> sources, ICredentials credentials, bool testing)
         {
+            // Set up temp tables...
+            
             ob_tr.SetUpTempObjectIdsTables();
 
             // process the data using available object-study links
@@ -180,7 +185,7 @@ namespace DataAggregator
                 // may have POMIDs completely new to the system, or 
                 // neew PMID - study combinations for existing PMIDs
 
-                pm_tr.IdentifyNewPMIDLinkTypes();
+                pm_tr.IdentifyNewPMIDLinks();
                 pm_tr.AddNewPMIDStudyLinks();
                 pm_tr.AddCompletelyNewPMIDs();
                 pm_tr.IdentifyPMIDDataForImport(source_id);

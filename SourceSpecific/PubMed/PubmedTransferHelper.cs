@@ -396,7 +396,7 @@ namespace DataAggregator
         public void TransferReferencesData(int source_id)
         {
             // This called only during testing
-            // Transfers the study and study refernce records so that they can be used to
+            // Transfers the study and study reference records so that they can be used to
             // obtain pmids, in imitation of the normal process
 
             using (var conn = new NpgsqlConnection(_connString))
@@ -474,12 +474,12 @@ namespace DataAggregator
                     SET 
                     parent_study_id = si.study_id,
                     is_preferred_study = si.is_preferred
-                    from nk.study_identifiers si
+                    from nk.study_ids si
                     where t.parent_study_source_id = si.source_id
                     and t.parent_study_sd_sid = si.sd_sid ";
 
             int res = db.Update_UsingTempTable("nk.temp_object_ids", "nk.temp_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " existing objects matched in temp table");
+            _logger.Information(res.ToString() + " parent studies matched in temp PMID table");
 
             // Some pubmed entries are not matched as the ids in the pubmed bank
             // data are still non-standard, or refer to obsolete ids (about 2500 in total)
@@ -487,24 +487,25 @@ namespace DataAggregator
             sql_string = @"DELETE from nk.temp_object_ids t
                        where t.parent_study_id is null;";
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " non matched PMID-studies deleted from total");
+            _logger.Information(res.ToString() + " PMID records with non-matched studies deleted from total");
 
             // Then convert sd_sid and source to the preferred version - all equivalent
-            // studies therefore have the same study data.
+            // studies therefore have the same study id / source data / is_study_preferred value
             // Increases the duplication if a paper has been cited in two or more study sources
             // but makes it easier to eliminate it using a later 'select distinct' call
 
             sql_string = @"UPDATE nk.temp_object_ids t
                     SET 
                     parent_study_source_id = si.source_id,
-                    parent_study_sd_sid = si.sd_sid
+                    parent_study_sd_sid = si.sd_sid,
+                    is_preferred_study = true
                     from 
-                    nk.study_identifiers si
+                    nk.study_ids si
                     where t.parent_study_id = si.study_id
                     and si.is_preferred = true ";
 
             res = db.Update_UsingTempTable("nk.temp_object_ids", "nk.temp_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " existing objects matched in temp table");
+            _logger.Information(res.ToString() + " PMID records updated with preferred study data");
         }
 
 
@@ -521,11 +522,10 @@ namespace DataAggregator
                         parent_study_sd_sid, parent_study_id, is_preferred_study
                         FROM nk.temp_object_ids ";
             int res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " distinct study - PMID links collected together in single table");
+            _logger.Information(res.ToString() + " distinct study-PMID links found");
 
-            // object_id, title, is_preferred_object, datetime_of_data_fetch, match_status
-            // all null at present
             // Update with latest datetime_of_data_fetch for each study- PMID combination
+            // object_id, title, is_preferred_object, match_status all null at present
 
             sql_string = @"UPDATE nk.distinct_temp_object_ids dp
                         set datetime_of_data_fetch = mx.max_fetch_date
@@ -538,38 +538,44 @@ namespace DataAggregator
                         and dp.sd_oid = mx.sd_oid ";
             res = db.ExecuteSQL(sql_string);
             _logger.Information(res.ToString() + " record updated with latest date of data fetch");
-
         }
+
 
         public void MatchExistingPMIDLinks()
         {
-            // identify the records in the temp table
+            // identify the matched records in the temp table
+            // Matching is against PMID and study
+
             string sql_string = @"UPDATE nk.distinct_temp_object_ids t
-            set object_id = doi.object_id, 
-            is_preferred_object = doi.is_preferred_object,
-            match_status = 1
-            from nk.data_object_identifiers doi
+            set match_status = 1
+            from nk.data_object_ids doi
             where t.parent_study_id = doi.parent_study_id
             and t.sd_oid = doi.sd_oid ";
 
-            int res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " existing objects matched in temp table");
+            db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
+            _logger.Information("Existing objects matched in temp table");
 
             // update the matched records in the data object identifier table
+            // in effect with the updated date time of data fetch
 
-            sql_string = @"UPDATE nk.data_object_identifiers doi
+            sql_string = @"UPDATE nk.data_object_ids doi
             set match_status = 1,
             datetime_of_data_fetch = t.datetime_of_data_fetch
             from nk.distinct_temp_object_ids t
             where doi.parent_study_id = t.parent_study_id
             and doi.sd_oid = t.sd_oid ";
 
-            res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "data_object_identifiers", sql_string, " and ");
-            _logger.Information(res.ToString() + " existing objects matched in identifiers table");
+            int res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "data_object_identifiers", sql_string, " and ");
+            _logger.Information(res.ToString() + " existing PMID objects matched in identifiers table");
+
+            // delete the matched records from the temp table
+            sql_string = @"DELETE from nk.distinct_temp_object_ids
+            where match_status = 1 ";
+            res = db.ExecuteSQL(sql_string);
         }
 
 
-        public void IdentifyNewPMIDLinkTypes()
+        public void IdentifyNewPMIDLinks()
         {
             // First insert title from the pubmed DB data objects
 
@@ -581,19 +587,30 @@ namespace DataAggregator
             sql_string = @"UPDATE nk.distinct_temp_object_ids t
             SET title = pt.title
             FROM nk.pub_titles pt
-            where t.sd_oid = pt.sd_oid
-            and t.match_status = 0 ";
+            where t.sd_oid = pt.sd_oid ";
 
             int res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " unmatched PMID-study combinations updated with object titles");
+            _logger.Information(res.ToString() + " new PMID-study combinations updated with article titles");
 
-            // identify and label completely new PMIDs first
+            // There are still currently a few PMIDs that do not match any entry in the Pubmed table
+            // (still not sure why) indicates that they need to be downloaded and imported, or 
+            // that they no longer exist, or were errors
 
-            sql_string = @"Drop table if exists nk.missing_pmids;
-            Create table nk.missing_pmids as 
+            sql_string = @"Delete from nk.distinct_temp_object_ids t
+            where title is null";
+
+            res = db.ExecuteSQL(sql_string);
+            _logger.Information(res.ToString() + " records deleted from PMID-study combinations as PMID cannot be found in pubmed data");
+
+            // identify and label completely new PMIDs first. 
+            // This identifies PMIDs that are completely new to the system
+            // (may be one or more instances if cited by multiple studies)
+
+            sql_string = @"Drop table if exists nk.new_pmids;
+            Create table nk.new_pmids as 
                      select p.id
                      from nk.distinct_temp_object_ids p
-                     left join nk.data_object_identifiers doi
+                     left join nk.data_object_ids doi
                      on p.sd_oid = doi.sd_oid
                      where doi.sd_oid is null; ";
 
@@ -601,32 +618,34 @@ namespace DataAggregator
 
             sql_string = @"UPDATE nk.distinct_temp_object_ids t
             set match_status = 3
-            FROM nk.missing_pmids m
-            where t.id = m.id
+            FROM nk.new_pmids n
+            where t.id = n.id
             and t.match_status = 0 ";
 
             res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
             _logger.Information(res.ToString() + " new PMID-study combinations found with completely new PMIDs");
 
-            // Then identify records where the PMID exists but the link with that study is not
-            // yet in the data_object_identifiers table
+            // Then identify records where the PMID exists but the link with that study 
+            // is not yet in the data_object_identifiers table
+            // N.B. May duplicate an existing study-PMID link but use a different version of the study
 
-            sql_string = @"Drop table if exists nk.missing_links;
-            Create table nk.missing_links as 
+            sql_string = @"Drop table if exists nk.new_links;
+            Create table nk.new_links as 
             select p.id
             from nk.distinct_temp_object_ids p
-            left join nk.data_object_identifiers doi
+            left join nk.data_object_ids doi
             on p.sd_oid = doi.sd_oid
             and p.parent_study_id = doi.parent_study_id
+            and p.match_status = 0 
             where doi.sd_oid is null";
 
             db.ExecuteSQL(sql_string);
 
             sql_string = @"UPDATE nk.distinct_temp_object_ids t
             set match_status = 2
-            from nk.missing_links k 
+            from nk.new_links n 
             where t.match_status = 0
-            and t.id = k.id ";
+            and t.id = n.id ";
 
             res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
             _logger.Information(res.ToString() + " new PMID-study combinations found for existing PMIDs");
@@ -641,16 +660,15 @@ namespace DataAggregator
              string sql_string = @"UPDATE nk.distinct_temp_object_ids t
              SET object_id = doi.object_id,
              is_preferred_object = false
-             FROM nk.data_object_identifiers doi
+             FROM nk.data_object_ids doi
              where t.sd_oid = doi.sd_oid
-             and t.parent_study_id = doi.parent_study_id
              and doi.is_preferred_object = true
              and t.match_status = 2 ";
 
              int res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
              _logger.Information(res.ToString() + " new PMID-study combinations updated");
 
-             sql_string = @"Insert into nk.data_object_identifiers
+             sql_string = @"Insert into nk.data_object_ids
              (object_id, source_id, sd_oid, object_type_id, title, is_preferred_object,
                             parent_study_source_id, parent_study_sd_sid,
                             parent_study_id, is_preferred_study, datetime_of_data_fetch, match_status)
@@ -660,7 +678,7 @@ namespace DataAggregator
              FROM nk.distinct_temp_object_ids t
              where t.match_status = 2 ";
 
-             res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.data_object_identifiers", sql_string, " and ");
+             res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.data_object_ids", sql_string, " and ");
             _logger.Information(res.ToString() + " new PMID-study combinations added");
 
         }
@@ -671,19 +689,18 @@ namespace DataAggregator
             // as the 'preferred' object record for this PMID
 
             string sql_string = @"UPDATE nk.distinct_temp_object_ids t
-             SET 
-             is_preferred_object = true
+             SET is_preferred_object = true
              FROM 
-                (select sd_oid, min(parent_study_id) as ms
+                (select sd_oid, min(parent_study_id) as min_study
                 from nk.distinct_temp_object_ids 
                 where match_status = 3
                 group by sd_oid) m
              where t.sd_oid = m.sd_oid
-             and t.parent_study_id = m.ms
+             and t.parent_study_id = m.min_study
              and t.match_status = 3 ";
 
             int res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " studies set as 'preferred' for new PMIDs");
+            _logger.Information(res.ToString() + " objects set as 'preferred' for new PMIDs");
 
             // Put the remaining study-PMID combinations as non-preferred
 
@@ -693,11 +710,11 @@ namespace DataAggregator
             and t.match_status = 3 ";
 
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " studies set as 'non-preferred' for new PMIDs");
+            _logger.Information(res.ToString() + " objects set as 'non-preferred' for new PMIDs");
 
             // add in the preferred new PMID records
 
-            sql_string = @"Insert into nk.data_object_identifiers
+            sql_string = @"Insert into nk.data_object_ids
             (source_id, sd_oid, object_type_id, title, is_preferred_object,
                      parent_study_source_id, parent_study_sd_sid,
                      parent_study_id, is_preferred_study, 
@@ -715,7 +732,7 @@ namespace DataAggregator
 
             // Update newly added records with object ids
 
-            sql_string = @"Update nk.data_object_identifiers doi
+            sql_string = @"Update nk.data_object_ids doi
             set object_id = id
             where match_status = 3 
             and source_id = 100135
@@ -726,22 +743,21 @@ namespace DataAggregator
             _logger.Information(res.ToString() + " object ids created for new PMIDs and applied to 'preferred' objects");
 
             // Update remaining study-PMID combinations with new object id
+            // At this stage only the 'preferred' study-PMID links are in the doi table
 
             sql_string = @"UPDATE nk.distinct_temp_object_ids t
-             SET 
-               object_id = doi.object_id
-             FROM nk.data_object_identifiers doi
+             SET object_id = doi.object_id
+             FROM nk.data_object_ids doi
              where t.sd_oid = doi.sd_oid
-             and t.parent_study_id = doi.parent_study_id
              and t.match_status = 3 
-             and t.object_id is null ";
+             and t.is_preferred_object = false ";
 
-            res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.data_object_identifiers", sql_string, " and ");
+            res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
             _logger.Information(res.ToString() + " object ids applied to new PMIDs and 'non-preferred' objects");
 
             // Add remaining matching study-PMIDs records
 
-            sql_string = @"Insert into nk.data_object_identifiers
+            sql_string = @"Insert into nk.data_object_ids
             (object_id, source_id, sd_oid, object_type_id, title, is_preferred_object,
                      parent_study_source_id, parent_study_sd_sid,
                      parent_study_id, is_preferred_study, 
@@ -764,7 +780,7 @@ namespace DataAggregator
             string sql_string = @"Insert into nk.temp_objects_to_add
                  (object_id, sd_oid)
                  select distinct object_id, sd_oid
-                 from nk.data_object_identifiers doi
+                 from nk.data_object_ids doi
                  WHERE is_preferred_object = true and 
                  source_id = " + source_id.ToString();
 
@@ -779,7 +795,9 @@ namespace DataAggregator
                 string sql_string = @"DROP TABLE IF EXISTS nk.temp_pmids;
                                       DROP TABLE IF EXISTS nk.temp_object_ids;
                                       DROP TABLE IF EXISTS nk.distinct_temp_object_ids;
-                                      DROP TABLE IF EXISTS nk.pub_titles;";
+                                      DROP TABLE IF EXISTS nk.pub_titles;
+                                      DROP TABLE IF EXISTS new_links;
+                                      DROP TABLE IF EXISTS new_pmids;";
                 conn.Execute(sql_string);
             }
         }

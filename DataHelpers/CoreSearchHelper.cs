@@ -29,7 +29,7 @@ namespace DataAggregator
                                   min_age, min_age_units_id, max_age, max_age_units_id
                                   from core.studies ";
 
-            return db.ExecuteCoreTransferSQL(sql_string, "core.studies", "study_search");
+            return db.ExecuteCoreTransferSQL(sql_string, "where" , "core.studies", "study_search");
         }
 
         public void SetupSearchMinMaxes() 
@@ -337,7 +337,7 @@ namespace DataAggregator
             (id, study_id, lang_code, title)
             SELECT id, study_id, lang_code, lower(title_text) from core.study_titles ";
 
-            return db.ExecuteCoreTransferSQL(sql_string, "core.study_titles", "temp_titles");
+            return db.ExecuteCoreTransferSQL(sql_string, "where", "core.study_titles", "temp_titles");
 
         }
 
@@ -421,7 +421,7 @@ namespace DataAggregator
             SELECT id, study_id, lower(mesh_value), lower(original_value)
             from core.study_topics ";
 
-            return db.ExecuteCoreTransferSQL(sql_string, "core.study_topics", "temp_topics");
+            return db.ExecuteCoreTransferSQL(sql_string, "where", "core.study_topics", "temp_topics");
         }
 
 

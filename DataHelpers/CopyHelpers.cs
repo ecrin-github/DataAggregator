@@ -20,6 +20,11 @@ namespace DataAggregator
                  .MapVarchar("database_name", x => x.database_name);
 
 
+        public static PostgreSQLCopyHelper<IdChecker> studyids_checker =
+              new PostgreSQLCopyHelper<IdChecker>("nk", "temp_id_checker")
+                 .MapVarchar("sd_sid", x => x.sd_sid);
+
+
         public static PostgreSQLCopyHelper<StudyId> study_ids_helper =
              new PostgreSQLCopyHelper<StudyId>("nk", "temp_study_ids")
                  .MapInteger("source_id", x => x.source_id)

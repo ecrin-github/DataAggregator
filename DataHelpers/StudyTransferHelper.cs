@@ -13,6 +13,8 @@ namespace DataAggregator
         ILogger _logger;
         int nonpref_number;
 
+        int status1number, status2number, status3number;
+
         public StudyDataTransferrer(string connString, ILogger logger)
         {
             _connString = connString;
@@ -74,26 +76,26 @@ namespace DataAggregator
                 string sql_string = @"UPDATE nk.temp_study_ids t
                         SET study_id = si.study_id, is_preferred = si.is_preferred,
                         match_status = 1
-                        from nk.study_identifiers si
+                        from nk.study_ids si
                         where t.source_id = si.source_id
                         and t.sd_sid = si.sd_sid ";
 
                 int res = db.Update_UsingTempTable("nk.temp_study_ids", "nk.temp_study_ids", sql_string, " and ");
-                _logger.Information(res.ToString() + " existing studies matched in temp table");
+                _logger.Information("Existing studies matched in temp table");
 
                 // also update the study_identifiers table
                 // Indicates has been matched and updates the 
                 // data fetch date
 
-                sql_string = @"UPDATE nk.study_identifiers si
+                sql_string = @"UPDATE nk.study_ids si
                 set match_status = 1,
                 datetime_of_data_fetch = t.datetime_of_data_fetch
                 from nk.temp_study_ids t
                 where t.source_id = si.source_id
                 and t.sd_sid = si.sd_sid ";
 
-                res = db.Update_UsingTempTable("nk.temp_study_ids", "nk.study_identifiers", sql_string, " and ");
-                _logger.Information(res.ToString() + " existing studies matched in identifiers table");
+                status1number = db.Update_UsingTempTable("nk.temp_study_ids", "nk.study_ids", sql_string, " and ");
+                _logger.Information(status1number.ToString() + " existing studies matched in identifiers table");
             }
         }
 
@@ -110,32 +112,27 @@ namespace DataAggregator
             // because addition of studies is done in the order 'more preferred first'.
 
             string sql_string = @"UPDATE nk.temp_study_ids t
-                           SET study_id = si.study_id, is_preferred = false,
+                           SET study_id = k.study_id, is_preferred = false,
                            match_status = 2
                            FROM nk.study_study_links k
-                                INNER JOIN nk.study_identifiers si
-                                ON k.preferred_sd_sid = si.sd_sid
-                                AND k.preferred_source_id = si.source_id
                            WHERE t.sd_sid = k.sd_sid
                            AND t.source_id =  k.source_id
                            AND t.match_status = 0;";
 
-            int res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " existing studies found under other study source ids");
-
+            status2number = db.ExecuteSQL(sql_string);
+            _logger.Information(status2number.ToString() + " existing studies found under other study source ids");
         }
+
 
         public void AddNewStudyIds(int source_id)
         {
             using (var conn = new NpgsqlConnection(_connString))
             {
-                // For the new studies...where match_status still 0
-
                 // Add all the new study id records to the all Ids table
                 // This includes those identified above (match_status = 2)
                 // and those yet to be added to the system (match_status = 0)
 
-                string sql_string = @"INSERT INTO nk.study_identifiers
+                string sql_string = @"INSERT INTO nk.study_ids
                             (study_id, source_id, sd_sid, 
                              datetime_of_data_fetch, is_preferred,
                              match_status)
@@ -145,13 +142,12 @@ namespace DataAggregator
                              from nk.temp_study_ids t
                              where (match_status = 0 or match_status = 2) ";
 
-                int res = db.Update_UsingTempTable("nk.temp_study_ids", "nk.study_identifiers", sql_string, " and ");
-                _logger.Information(res.ToString() + " new study ids found");
+                db.Update_UsingTempTable("nk.temp_study_ids", "nk.study_ids", sql_string, " and ");
 
                 // Where the study_ids are null they can take on the value of the 
                 // record id. The 3 indicates they are new on this addition.
 
-                sql_string = @"UPDATE nk.study_identifiers
+                sql_string = @"UPDATE nk.study_ids
                             SET study_id = id, is_preferred = true,
                             match_status = 3
                             WHERE study_id is null
@@ -165,13 +161,29 @@ namespace DataAggregator
                 sql_string = @"UPDATE nk.temp_study_ids t
                            SET study_id = si.study_id, is_preferred = true,
                            match_status = 3
-                           FROM nk.study_identifiers si
-                           WHERE t.source_id = si.source_id
-                           AND t.sd_sid = si.sd_sid
-                           AND t.study_id is null;";
+                           FROM nk.study_ids si
+                           WHERE si.sd_sid = t.sd_sid
+                           AND si.source_id = t.source_id
+                           AND t.study_id is null ";
+
+                status3number = db.Update_UsingTempTable("nk.temp_study_ids", "nk.temp_study_ids", sql_string, " and ");
+                _logger.Information(status3number.ToString() + " new study ids found");
+
+                conn.Execute(sql_string);
+
+                // Also update any new entries in study links table that still have 
+                // no study id attached - update from the updated study_ids table
+
+                sql_string = @"UPDATE nk.study_study_links ssk
+                      SET study_id = s.study_id
+                      FROM nk.study_ids s
+                      WHERE ssk.preferred_sd_sid = s.sd_sid 
+                      AND ssk.preferred_source_id = s.source_id
+                      AND ssk.study_id is null ";
 
                 conn.Execute(sql_string);
             }
+
         }
 
 
@@ -183,33 +195,37 @@ namespace DataAggregator
                 // 'preferred' (new) studies (used to import all the linked data for these studies),
                 // and the non-preferred (existing) studies (used in the import any additional data
                 // from these studies)
+                int total_studies = status1number + status2number + status3number;
+                _logger.Information(total_studies.ToString() + " total studies found");
+
 
                 string sql_string = @"DROP TABLE IF EXISTS nk.new_studies;
                                CREATE TABLE nk.new_studies as 
                                        SELECT sd_sid, study_id
-                                       FROM nk.study_identifiers
+                                       FROM nk.study_ids
                                        WHERE source_id = " + source_id.ToString() + @" 
                                        and is_preferred = true";
 
                 db.ExecuteSQL(sql_string);
                 int res = db.GetCount("nk.new_studies");
 
-                _logger.Information(res.ToString() + " preferred (full data) studies found");
+                _logger.Information(res.ToString() + " classified as preferred (full data used)");
 
                 sql_string = @"DROP TABLE IF EXISTS nk.existing_studies;
                                CREATE TABLE nk.existing_studies as 
                                        SELECT sd_sid, study_id
-                                       FROM nk.study_identifiers
+                                       FROM nk.study_ids
                                        WHERE source_id = " + source_id.ToString() + @" 
                                        and is_preferred = false";
 
                 db.ExecuteSQL(sql_string);
                 res = db.GetCount("nk.existing_studies");
-                _logger.Information(res.ToString() + " non-preferred (additional data) studies found");
+                _logger.Information(res.ToString() + " classified as non-preferred (additional data used)");
                 nonpref_number = res;
             }
         }
 
+        
         public int LoadStudies(string schema_name)
         {
             _logger.Information("");
@@ -272,7 +288,7 @@ namespace DataAggregator
                            FROM " + schema_name + @".study_identifiers d
                            INNER JOIN nk.existing_studies es
                            ON d.sd_sid = es.sd_sid";
-                db.ExecuteSQL(sql_string);
+                db.ExecuteSQL(sql_string);  
 
                 sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
                            CREATE TABLE nk.existing_data as 
