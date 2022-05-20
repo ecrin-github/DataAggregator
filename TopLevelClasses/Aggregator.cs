@@ -50,10 +50,10 @@ namespace DataAggregator
 
                     _logger_helper.LogHeader("Establishing aggregate schemas");
                     SchemaBuilder sb = new SchemaBuilder(dest_conn_string);
-                    //sb.BuildNewStudyTables();
-                    //sb.BuildNewObjectTables();
+                    sb.BuildNewStudyTables();
+                    sb.BuildNewObjectTables();
                     sb.BuildNewLinkTables();
-                    //_logger.Information("Study, object and link aggregate tables recreated");
+                    _logger.Information("Study, object and link aggregate tables recreated");
 
                     // construct the aggregation event record
                     AggregationEvent agg_event = new AggregationEvent(agg_event_id);
@@ -74,8 +74,6 @@ namespace DataAggregator
                     slb.CheckStudyStudyLinks(sources);
                     slb.ProcessStudyStudyLinks();
                     _logger.Information("Study-study links identified");
-
-                    /*
 
                     // Start the data transfer process
                     _logger_helper.LogHeader("Data Transfer");
@@ -149,7 +147,6 @@ namespace DataAggregator
                     {
                         _mon_repo.StoreAggregationEvent(agg_event);
                     }
-                    */
                 }
 
 

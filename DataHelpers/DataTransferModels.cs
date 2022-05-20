@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace DataAggregator
 {
@@ -18,6 +19,38 @@ namespace DataAggregator
         public DateTime? datetime_of_data_fetch { get; set; }
     }
 
+    public class ComplexKeyStudy
+    {
+        public int src_id { get; set; }
+        public string sid_id { get; set; }
+        public bool considered { get; set; }
+    }
+
+    public class ComplexStudy
+    {
+        public int sourceid { get; set; }
+        public string sdsid { get; set; }
+    }
+
+   
+    public class ComplexLink
+    {
+        public int srce { get; set; }
+        public string sdsid { get; set; }
+        public int relationship_id { get; set; }
+        public int target_srce { get; set; }
+        public string target_sdsid { get; set; }
+
+        public ComplexLink(int _srce, string _sdsid, int _relationship_id,
+                           int _target_srce, string _target_sdsid)
+        {
+            srce = _srce;
+            sdsid = _sdsid;
+            relationship_id = _relationship_id;
+            target_srce = _target_srce;
+            target_sdsid = _target_sdsid;
+        }
+    }
 
     public class IdChecker
     {

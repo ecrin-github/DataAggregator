@@ -89,7 +89,6 @@ namespace DataAggregator
                 }
             }
             slh.DeleteInvalidLinks();
-            slh.RecordTableSize("nk.temp_distinct_links");
         }
 
 
@@ -100,34 +99,24 @@ namespace DataAggregator
             // rather than simple 1-to-1 study links (though the target links may 
             // need to be updated at the end of the process)
 
-            slh.IdentifyGroupedStudies();
-            slh.ExtractGroupedStudies();
-            slh.DeleteGroupedStudyLinkRecords();
+            slh.ProcessGroupedStudies();
 
-            // Cascade 'preferred' studies so that the 
-            // most preferred always appears on the RHS
             // Identify and repair missing cascade steps
-            // then 're-cascade' links.
+            // Then cascade 'preferred' studies so that the 
+            // most preferred always appears on the RHS.
 
-            slh.CascadeLinks();
-            slh.MakeLinksDistinct();
             slh.AddMissingLinks();
-            slh.RecordTableSize("nk.temp_distinct_links");
             slh.CascadeLinks();
-            slh.MakeLinksDistinct();
-            
+                        
             // Again, identify and remove studies that have links to more than 1
-            // study in another registry - these form study-study relationships
-            // rather than simple 1-to-1 study links (though the target links may 
-            // need to be updated at the end of the process)
+            // study in another registry 
             // A small number (avbout 30) are formed by the cascade process above
 
-            slh.IdentifyGroupedStudies();
-            slh.ExtractGroupedStudies();
-            slh.DeleteGroupedStudyLinkRecords();
+            slh.ProcessGroupedStudies();
 
-            // Transfer the (distinct) resultant set into the 
+            // Transfer the resultant set into the 
             // main links table and tidy up
+
             slh.TransferNewLinksToDataTable();
             slh.UpdateLinksWithStudyIds();
             slh.DropTempTables();

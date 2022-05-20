@@ -24,7 +24,7 @@ namespace DataAggregator
 
 /*
     // One off builds
-    // DO NOT run in code - included here only for info - willreset  ECRIN Identifiers for studiesd and objects
+    // DO NOT run in code - included here only for info - will reset  ECRIN Identifiers for studies and objects
     // Should be run - rarely if at all  - from Postgres Admin
     DROP TABLE IF EXISTS nk.study_ids;
     CREATE TABLE nk.study_ids(
@@ -62,7 +62,7 @@ namespace DataAggregator
     CREATE INDEX object_ids_sdidsource ON nk.data_object_ids(source_id, sd_oid);
   */
 
-public void create_table_linked_study_groups()
+         public void create_table_linked_study_groups()
         {
             string sql_string = @"DROP TABLE IF EXISTS nk.linked_study_groups;
               CREATE TABLE nk.linked_study_groups(

@@ -20,6 +20,15 @@ namespace DataAggregator
                  .MapVarchar("database_name", x => x.database_name);
 
 
+        public static PostgreSQLCopyHelper<ComplexLink> complex_links_helper =
+            new PostgreSQLCopyHelper<ComplexLink>("nk", "linked_study_groups")
+                .MapInteger("source_id", x => x.srce)
+                .MapVarchar("sd_sid", x => x.sdsid)
+                .MapInteger("relationship_id", x => x.relationship_id)
+                .MapInteger("target_source_id", x => x.target_srce)
+                .MapVarchar("target_sd_sid", x => x.target_sdsid);
+
+
         public static PostgreSQLCopyHelper<IdChecker> studyids_checker =
               new PostgreSQLCopyHelper<IdChecker>("nk", "temp_id_checker")
                  .MapVarchar("sd_sid", x => x.sd_sid);
