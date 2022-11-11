@@ -1,54 +1,153 @@
 ﻿using Dapper;
 using Npgsql;
-using Serilog;
-using System.Collections.Generic;
-using System.Linq;
+using System.IO;
+using Microsoft.Extensions.Configuration;
+using System;
 
 namespace DataAggregator
 {
-    public class LoggerHelper : ILoggerHelper
+    public class LoggingHelper
     {
-        private ILogger _logger;
+        private string logfile_startofpath;
+        private string logfile_path;
+        private StreamWriter sw;
 
-        public LoggerHelper(ILogger logger)
+        public LoggingHelper()
         {
-            _logger = logger;
+            IConfigurationRoot settings = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            logfile_startofpath = settings["logfilepath"];
+
+            string dt_string = DateTime.Now.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
+                              .Replace(":", "").Replace("T", " ");
+
+            string log_folder_path = Path.Combine(logfile_startofpath, "aggs");
+            if (!Directory.Exists(log_folder_path))
+            {
+                Directory.CreateDirectory(log_folder_path);
+            }
+
+            logfile_path = Path.Combine(log_folder_path, "AGG " + dt_string + ".log");
+            sw = new StreamWriter(logfile_path, true, System.Text.Encoding.UTF8);
         }
 
-        public void LogHeader(string header_text)
+
+        public LoggingHelper(string logFilePath)
         {
-            _logger.Information("");
-            _logger.Information(header_text.ToUpper());
-            _logger.Information("");
+            sw = new StreamWriter(logFilePath, true, System.Text.Encoding.UTF8);
         }
 
 
-        public void SpacedInformation(string header_text)
-        {
-            _logger.Information("");
-            _logger.Information(header_text);
-        }
+        public string LogFilePath => logfile_path;
 
-
-        public void LogParameters(Options opts)
+        public void LogLine(string message, string identifier = "")
         {
-            LogHeader("Setup");
-            _logger.Information("transfer data =  " + opts.transfer_data);
-            _logger.Information("create core =  " + opts.create_core);
-            _logger.Information("create json =  " + opts.create_json);
-            _logger.Information("also do json files =  " + opts.also_do_files);
-            _logger.Information("do statistics =  " + opts.do_statistics);
+            string dt_string = DateTime.Now.ToShortDateString() + " : " + DateTime.Now.ToShortTimeString() + " :   ";
+            string feedback = dt_string + message + identifier;
+            Transmit(feedback);
         }
 
 
         public void LogStudyHeader(bool using_test_data, string dbline)
         {
             string dividerline = using_test_data ? new string('-', 70) : new string('=', 70);
-            _logger.Information("");
-            _logger.Information(dividerline);
-            _logger.Information(dbline);
-            _logger.Information(dividerline);
-            _logger.Information("");
+            LogLine("");
+            LogLine(dividerline);
+            LogLine(dbline);
+            LogLine(dividerline);
+            LogLine("");
+        }
+
+
+        public void LogHeader(string message)
+        {
+            string dt_string = DateTime.Now.ToShortDateString() + " : " + DateTime.Now.ToShortTimeString() + " :   ";
+            string header = dt_string + "**** " + message.ToUpper() + " ****";
+            Transmit("");
+            Transmit(header);
+        }
+
+
+        public void LogError(string message)
+        {
+            string dt_string = DateTime.Now.ToShortDateString() + " : " + DateTime.Now.ToShortTimeString() + " :   ";
+            string error_message = dt_string + "***ERROR*** " + message;
+            Transmit("");
+            Transmit("+++++++++++++++++++++++++++++++++++++++");
+            Transmit(error_message);
+            Transmit("+++++++++++++++++++++++++++++++++++++++");
+            Transmit("");
+        }
+
+
+        public void LogCodeError(string header, string errorMessage, string stackTrace)
+        {
+            string dt_string = DateTime.Now.ToShortDateString() + " : " + DateTime.Now.ToShortTimeString() + " :   ";
+            string headerMessage = dt_string + "***ERROR*** " + header + "\n";
+            Transmit("");
+            Transmit("+++++++++++++++++++++++++++++++++++++++");
+            Transmit(headerMessage);
+            Transmit(errorMessage + "\n");
+            Transmit(stackTrace);
+            Transmit("+++++++++++++++++++++++++++++++++++++++");
+            Transmit("");
+        }
+
+
+        public void LogParseError(string header, string errorNum, string errorType)
+        {
+            string dt_string = DateTime.Now.ToShortDateString() + " : " + DateTime.Now.ToShortTimeString() + " :   ";
+            string error_message = dt_string + "***ERROR*** " + "Error " + errorNum + ": " + header + " " + errorType;
+            Transmit(error_message);
+        }
+
+        public void SpacedInformation(string header_text)
+        {
+            LogLine("");
+            LogLine(header_text);
+        }
+
+
+        public void LogParameters(Options opts)
+        {
+            LogHeader("Setup");
+            LogLine("transfer data =  " + opts.transfer_data);
+            LogLine("create core =  " + opts.create_core);
+            LogLine("create json =  " + opts.create_json);
+            LogLine("also do json files =  " + opts.also_do_files);
+            LogLine("do statistics =  " + opts.do_statistics);
+        }
+
+
+        public void Reattach()
+        {
+            sw = new StreamWriter(logfile_path, true, System.Text.Encoding.UTF8);
+        }
+
+
+        public void SwitchLog()
+        {
+            LogHeader("Switching Log File Control");
+            sw.Flush();
+            sw.Close();
+        }
+
+
+        public void CloseLog()
+        {
+            LogHeader("Closing Log");
+            sw.Flush();
+            sw.Close();
+        }
+
+
+        private void Transmit(string message)
+        {
+            sw.WriteLine(message);
+            Console.WriteLine(message);
         }
 
 
@@ -60,76 +159,76 @@ namespace DataAggregator
             // calling db interrogation for each applicable table
             string db_conn = s.db_conn;
 
-            _logger.Information("");
-            _logger.Information("TABLE RECORD NUMBERS");
+            _loggingHelper.Information("");
+            _loggingHelper.Information("TABLE RECORD NUMBERS");
 
             if (s.has_study_tables)
             {
-                _logger.Information("");
-                _logger.Information("study tables...\n");
-                _logger.Information(GetTableRecordCount(db_conn, schema, "studies"));
-                _logger.Information(GetTableRecordCount(db_conn, schema, "study_identifiers"));
-                _logger.Information(GetTableRecordCount(db_conn, schema, "study_titles"));
+                _loggingHelper.Information("");
+                _loggingHelper.Information("study tables...\n");
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "studies"));
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "study_identifiers"));
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "study_titles"));
 
                 // these are database dependent
-                if (s.has_study_topics) _logger.Information(GetTableRecordCount(db_conn, schema, "study_topics"));
-                if (s.has_study_features) _logger.Information(GetTableRecordCount(db_conn, schema, "study_features"));
-                if (s.has_study_contributors) _logger.Information(GetTableRecordCount(db_conn, schema, "study_contributors"));
-                if (s.has_study_references) _logger.Information(GetTableRecordCount(db_conn, schema, "study_references"));
-                if (s.has_study_relationships) _logger.Information(GetTableRecordCount(db_conn, schema, "study_relationships"));
-                if (s.has_study_links) _logger.Information(GetTableRecordCount(db_conn, schema, "study_links"));
-                if (s.has_study_ipd_available) _logger.Information(GetTableRecordCount(db_conn, schema, "study_ipd_available"));
+                if (s.has_study_topics) _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "study_topics"));
+                if (s.has_study_features) _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "study_features"));
+                if (s.has_study_contributors) _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "study_contributors"));
+                if (s.has_study_references) _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "study_references"));
+                if (s.has_study_relationships) _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "study_relationships"));
+                if (s.has_study_links) _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "study_links"));
+                if (s.has_study_ipd_available) _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "study_ipd_available"));
 
-                _logger.Information(GetTableRecordCount(db_conn, schema, "study_hashes"));
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "study_hashes"));
                 IEnumerable<hash_stat> study_hash_stats = (GetHashStats(db_conn, schema, "study_hashes"));
                 if (study_hash_stats.Count() > 0)
                 {
-                    _logger.Information("");
-                    _logger.Information("from the hashes...\n");
+                    _loggingHelper.Information("");
+                    _loggingHelper.Information("from the hashes...\n");
                     foreach (hash_stat hs in study_hash_stats)
                     {
-                        _logger.Information(hs.num.ToString() + " study records have " + hs.hash_type + " (" + hs.hash_type_id.ToString() + ")");
+                        _loggingHelper.Information(hs.num.ToString() + " study records have " + hs.hash_type + " (" + hs.hash_type_id.ToString() + ")");
                     }
                 }
             }
-            _logger.Information("");
-            _logger.Information("object tables...\n");
+            _loggingHelper.Information("");
+            _loggingHelper.Information("object tables...\n");
             // these common to all databases
-            _logger.Information(GetTableRecordCount(db_conn, schema, "data_objects"));
-            _logger.Information(GetTableRecordCount(db_conn, schema, "object_instances"));
-            _logger.Information(GetTableRecordCount(db_conn, schema, "object_titles"));
+            _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "data_objects"));
+            _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_instances"));
+            _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_titles"));
 
             // these are database dependent		
 
-            if (s.has_object_datasets) _logger.Information(GetTableRecordCount(db_conn, schema, "object_datasets"));
-            if (s.has_object_dates) _logger.Information(GetTableRecordCount(db_conn, schema, "object_dates"));
-            if (s.has_object_relationships) _logger.Information(GetTableRecordCount(db_conn, schema, "object_relationships"));
-            if (s.has_object_rights) _logger.Information(GetTableRecordCount(db_conn, schema, "object_rights"));
+            if (s.has_object_datasets) _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_datasets"));
+            if (s.has_object_dates) _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_dates"));
+            if (s.has_object_relationships) _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_relationships"));
+            if (s.has_object_rights) _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_rights"));
             if (s.has_object_pubmed_set)
             {
-                _logger.Information(GetTableRecordCount(db_conn, schema, "journal_details"));
-                _logger.Information(GetTableRecordCount(db_conn, schema, "object_contributors"));
-                _logger.Information(GetTableRecordCount(db_conn, schema, "object_topics"));
-                _logger.Information(GetTableRecordCount(db_conn, schema, "object_comments"));
-                _logger.Information(GetTableRecordCount(db_conn, schema, "object_descriptions"));
-                _logger.Information(GetTableRecordCount(db_conn, schema, "object_identifiers"));
-                _logger.Information(GetTableRecordCount(db_conn, schema, "object_db_links"));
-                _logger.Information(GetTableRecordCount(db_conn, schema, "object_publication_types"));
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "journal_details"));
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_contributors"));
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_topics"));
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_comments"));
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_descriptions"));
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_identifiers"));
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_db_links"));
+                _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_publication_types"));
             }
 
-            _logger.Information(GetTableRecordCount(db_conn, schema, "object_hashes"));
+            _loggingHelper.Information(GetTableRecordCount(db_conn, schema, "object_hashes"));
             IEnumerable<hash_stat> object_hash_stats = (GetHashStats(db_conn, schema, "object_hashes"));
             if (object_hash_stats.Count() > 0)
             {
-                _logger.Information("");
-                _logger.Information("from the hashes...\n");
+                _loggingHelper.Information("");
+                _loggingHelper.Information("from the hashes...\n");
                 foreach (hash_stat hs in object_hash_stats)
                 {
-                    _logger.Information(hs.num.ToString() + " object records have " + hs.hash_type + " (" + hs.hash_type_id.ToString() + ")");
+                    _loggingHelper.Information(hs.num.ToString() + " object records have " + hs.hash_type + " (" + hs.hash_type_id.ToString() + ")");
                 }
             }
         }
-  */
+
 
         private string GetTableRecordCount(string db_conn, string schema, string table_name)
         {
@@ -142,7 +241,7 @@ namespace DataAggregator
             }
         }
 
-        /*
+
         private IEnumerable<hash_stat> GetHashStats(string db_conn, string schema, string table_name)
         {
             string sql_string = "select hash_type_id, hash_type, count(id) as num from " + schema + "." + table_name;

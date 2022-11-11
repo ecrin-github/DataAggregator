@@ -384,7 +384,7 @@ namespace DataAggregator
         public string affiliation_org_ror_id { get; set; }
 
 
-        public individual(string _family_name, string _given_name, string _full_name,
+        public individual(string _given_name, string _family_name, string _full_name,
                          string _orcid, string _affiliation_string,
                          int? _affiliation_org_id, string _affiliation_org_name,
                          string _affiliation_org_ror_id)

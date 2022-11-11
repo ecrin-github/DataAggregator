@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using Serilog;
+
 
 namespace DataAggregator
 {
@@ -11,15 +11,15 @@ namespace DataAggregator
         string _mdr_connString;
         ICredentials _credentials;
         bool _testing;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
 
-        public StudyLinkBuilder(ICredentials credentials, string mdr_connString, bool testing, ILogger logger)
+        public StudyLinkBuilder(ICredentials credentials, string mdr_connString, bool testing, LoggingHelper loggingHelper)
         {
             _credentials = credentials;
             _mdr_connString = mdr_connString;
             _testing = testing;
-            _logger = logger;
-            slh = new LinksDataHelper(_mdr_connString, _logger);
+            _loggingHelper = loggingHelper;
+            slh = new LinksDataHelper(_mdr_connString, _loggingHelper);
         }
             
         public void CollectStudyStudyLinks(IEnumerable<Source> sources)

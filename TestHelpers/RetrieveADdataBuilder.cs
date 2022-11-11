@@ -82,6 +82,8 @@ namespace DataAggregator
             if (_source.has_study_contributors) adr.TransferStudyContributors();
             if (_source.has_study_references) adr.TransferStudyReferences();
             if (_source.has_study_relationships) adr.TransferStudyRelationships();
+            if (_source.has_study_countries) adr.TransferStudyCountries();
+            if (_source.has_study_locations) adr.TransferStudyLocations();
             if (_source.has_study_links) adr.TransferStudyLinks();
             if (_source.has_study_ipd_available) adr.TransferStudyIPDAvaiable();
         }

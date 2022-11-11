@@ -3,10 +3,8 @@ using Dapper.Contrib.Extensions;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 using PostgreSQLCopyHelper;
-using Serilog;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 
 namespace DataAggregator
@@ -18,7 +16,7 @@ namespace DataAggregator
         private Source source;
         NpgsqlConnectionStringBuilder builder;
 
-        public MonitorDataLayer(ILogger logger, ICredentials credentials)
+        public MonitorDataLayer(LoggingHelper loggingHelper, ICredentials credentials)
         {
             builder = new NpgsqlConnectionStringBuilder();
             builder.Host = credentials.Host;
@@ -209,7 +207,8 @@ namespace DataAggregator
         {
             string sql_string = @"select id, preference_rating, database_name, 
                                   has_study_tables,	has_study_topics, has_study_features,
-                                  has_study_contributors, has_study_references, has_study_relationships,
+                                  has_study_contributors, has_study_countries, has_study_locations,
+                                  has_study_references, has_study_relationships,
                                   has_object_datasets, has_object_dates, has_object_rights,
                                   has_object_relationships, has_object_pubmed_set 
                                 from sf.source_parameters
@@ -237,26 +236,13 @@ namespace DataAggregator
 
         public int GetRecNum(string table_name, string source_conn_string)
         {
-            string test_string = "SELECT to_regclass('ad." + table_name + "')::varchar";
-            string table_exists;
+            string sql_string = "SELECT count(*) from ad." + table_name;
+            int? rec_num;
             using (var conn = new NpgsqlConnection(source_conn_string))
             {
-                table_exists = conn.ExecuteScalar<string>(test_string);
+                rec_num = conn.ExecuteScalar<int?>(sql_string);
             }
-            if (table_exists == null)
-            {
-                return 0;
-            }
-            else
-            {
-                string sql_string = "SELECT count(*) from ad." + table_name;
-                int? rec_num;
-                using (var conn = new NpgsqlConnection(source_conn_string))
-                {
-                    rec_num = conn.ExecuteScalar<int?>(sql_string);
-                }
-                return rec_num == null ? 0 : (int)rec_num;
-            }
+            return rec_num == null ? 0 : (int)rec_num;
         }
 
 
@@ -357,16 +343,16 @@ namespace DataAggregator
         {
             string sql_string = @"SELECT 
                     k.source_id, 
-                    d1.default_name as source_name,
+                    d1.repo_name as source_name,
                     k.preferred_source_id as other_source_id,
-                    d2.default_name as other_source_name,
+                    d2.repo_name as other_source_name,
                     count(preferred_sd_sid) as number_in_other_source
                     from nk.study_study_links k
-                    inner join context_ctx.data_sources d1
+                    inner join mon_sf.source_parameters d1
                     on k.source_id = d1.id
-                    inner join context_ctx.data_sources d2
+                    inner join mon_sf.source_parameters d2
                     on k.preferred_source_id = d2.id
-                    group by source_id, preferred_source_id, d1.default_name, d2.default_name;";
+                    group by source_id, preferred_source_id, d1.repo_name, d2.repo_name;";
 
             using (var conn = new NpgsqlConnection(dest_conn_string))
             {
@@ -378,16 +364,16 @@ namespace DataAggregator
         {
             string sql_string = @"SELECT 
                     k.preferred_source_id as source_id, 
-                    d2.default_name as source_name,
+                    d2.repo_name as source_name,
                     k.source_id as other_source_id,
-                    d1.default_name as other_source_name,
+                    d1.repo_name as other_source_name,
                     count(sd_sid) as number_in_other_source
                     from nk.study_study_links k
-                    inner join context_ctx.data_sources d1
+                    inner join mon_sf.source_parameters d1
                     on k.source_id = d1.id
-                    inner join context_ctx.data_sources d2
+                    inner join mon_sf.source_parameters d2
                     on k.preferred_source_id = d2.id
-                    group by preferred_source_id, source_id, d2.default_name, d1.default_name;;";
+                    group by preferred_source_id, source_id, d2.repo_name, d1.repo_name;;";
 
             using (var conn = new NpgsqlConnection(dest_conn_string))
             {

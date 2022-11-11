@@ -16,12 +16,16 @@ namespace DataAggregator
         public lookup study_gender_elig { get; set; }
         public age_param min_age { get; set; }
         public age_param max_age { get; set; }
+        public year_month start_time { get; set; }
         public string provenance_string { get; set; }
 
         public List<study_identifier> study_identifiers { get; set; }
         public List<study_title> study_titles { get; set; }
         public List<study_topic> study_topics { get; set; }
         public List<study_feature> study_features { get; set; }
+        public List<study_contributor> study_contributors { get; set; }
+        public List<study_country> study_countries { get; set; }
+        public List<study_location> study_locations { get; set; }
         public List<study_relationship> study_relationships { get; set; }
         public List<int> linked_data_objects { get; set; }
 
@@ -29,7 +33,7 @@ namespace DataAggregator
                          string _brief_description, string _data_sharing_statement,
                          lookup _study_type, lookup _study_status, string _study_enrolment,
                          lookup _study_gender_elig, age_param _min_age, age_param _max_age,
-                         string _provenance_string)
+                         year_month _start_time, string _provenance_string)
         {
             file_type = "study";
             id = _id;
@@ -42,6 +46,7 @@ namespace DataAggregator
             study_gender_elig = _study_gender_elig;
             min_age = _min_age;
             max_age = _max_age;
+            start_time = _start_time;
             provenance_string = _provenance_string;
         }
     }
@@ -60,6 +65,33 @@ namespace DataAggregator
             unit_name = _unit_name;
         }
     }
+
+
+    public class geonames_entity
+    {
+        public int? geonames_id { get; set; }
+        public string name { get; set; }
+
+        public geonames_entity(int? _geonames_id, string _name)
+        {
+            geonames_id = _geonames_id;
+            name = _name;
+        }
+    }
+
+
+    public class year_month
+    {
+        public int? year { get; set; }
+        public int? month { get; set; }
+
+        public year_month(int? _year, int? _month)
+        {
+            year = _year;
+            month = _month;
+        }
+    }
+
 
     public class study_identifier
     {
@@ -146,6 +178,63 @@ namespace DataAggregator
         }
     }
 
+
+    public class study_contributor
+    {
+        public int id { get; set; }
+        public lookup contribution_type { get; set; }
+        public bool? is_individual { get; set; }
+        public individual person { get; set; }
+        public organisation organisation { get; set; }
+
+        public study_contributor(int _id, lookup _contribution_type, bool? _is_individual,
+                        individual _person, organisation _organisation)
+        {
+            id = _id;
+            contribution_type = _contribution_type;
+            is_individual = _is_individual;
+            person = _person;
+            organisation = _organisation;
+        }
+    }
+
+
+    public class study_country
+    {
+        public int id { get; set; }
+        public geonames_entity country { get; set; }
+        public lookup status { get; set; }
+
+        public study_country(int _id, geonames_entity _country, lookup _status)
+        {
+            id = _id;
+            country = _country;
+            status = _status;
+        }
+    }
+
+
+    public class study_location
+    {
+        public int id { get; set; }
+        public organisation facility { get; set; }
+        public geonames_entity city { get; set; }
+        public geonames_entity country { get; set; }
+        public lookup status { get; set; }
+
+        public study_location(int _id, organisation _facility, geonames_entity _city, 
+            geonames_entity _country, lookup _status)
+        {
+            id = _id;
+            facility = _facility;
+            city = _city;
+            country = _country;
+            status = _status;
+        }
+    }
+
+
+
     public class study_relationship
     {
         public int id { get; set; }
@@ -190,6 +279,8 @@ namespace DataAggregator
         public int? max_age { get; set; }
         public int? max_age_units_id { get; set; }
         public string max_age_units { get; set; }
+        public int? study_start_year { get; set; }
+        public int? study_start_month { get; set; }
         public string provenance_string { get; set; }
     }
 
@@ -246,6 +337,51 @@ namespace DataAggregator
         public string feature_value { get; set; }
     }
 
+
+    [Table("core.study_contributors")]
+    public class DBStudyContributor
+    {
+        public int id { get; set; }
+        public int? contrib_type_id { get; set; }
+        public string contrib_type { get; set; }
+        public bool? is_individual { get; set; }
+        public int? person_id { get; set; }
+        public string person_given_name { get; set; }
+        public string person_family_name { get; set; }
+        public string person_full_name { get; set; }
+        public string orcid_id { get; set; }
+        public string person_affiliation { get; set; }
+        public int? organisation_id { get; set; }
+        public string organisation_name { get; set; }
+        public string organisation_ror_id { get; set; }
+    }
+
+
+    [Table("core.study_countries")]
+    public class DBStudyCountry
+    {
+        public int id { get; set; }
+        public int? country_id { get; set; }
+        public string country_name { get; set; }
+        public int? status_id { get; set; }
+        public string status_type { get; set; }
+    }
+
+
+    [Table("core.study_locations")]
+    public class DBStudyLocation
+    {
+        public int id { get; set; }
+        public int? facility_org_id { get; set; }
+        public string facility { get; set; }
+        public string facility_ror_id { get; set; }
+        public int? city_id { get; set; }
+        public string city_name { get; set; }
+        public int? country_id { get; set; }
+        public string country_name { get; set; }
+        public int? status_id { get; set; }
+        public string status_type { get; set; }
+    }
 
     [Table("core.study_relationships")]
     public class DBStudyRelationship

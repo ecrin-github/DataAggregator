@@ -1,5 +1,5 @@
 ﻿using Npgsql;
-using Serilog;
+
 
 namespace DataAggregator
 {
@@ -7,16 +7,16 @@ namespace DataAggregator
     {
         string _connString;
         DBUtilities db;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
         int min_studies_id, max_studies_id;
         int min_titles_id, max_titles_id;
         int min_topics_id, max_topics_id;
 
-        public CoreSearchHelper(string connString, ILogger logger)
+        public CoreSearchHelper(string connString, LoggingHelper loggingHelper)
         {
-            _logger = logger;
+            _loggingHelper = loggingHelper;
             _connString = connString;
-            db = new DBUtilities(_connString, _logger);
+            db = new DBUtilities(_connString, _loggingHelper);
         }
         
         public int GenerateStudySearchData()

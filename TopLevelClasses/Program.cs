@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
-using Serilog;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,15 +34,11 @@ namespace DataAggregator
                      // Register services (or develop a comp root)
                      services.AddSingleton<ICredentials, Credentials>();
                      services.AddSingleton<IParametersChecker, ParametersChecker>();
-                     services.AddSingleton<ILoggerHelper, LoggerHelper>();
                      services.AddSingleton<IAggregator, Aggregator>();
                      services.AddSingleton<IMonitorDataLayer, MonitorDataLayer>();
                      services.AddSingleton<ITestingDataLayer, TestingDataLayer>();
                      services.AddTransient<ISource, Source>();
                  })
-                 .UseSerilog(new LoggerConfiguration()
-                        .ReadFrom.Configuration(configFiles)
-                        .CreateLogger())
                  .Build();
 
             // Check the command line arguments to ensure they are valid,
@@ -51,13 +46,14 @@ namespace DataAggregator
             // and telling it to run. The parameter checking process also creates
             // a singleton monitor repository.
 
-            ParametersChecker paramChecker = ActivatorUtilities
-                                    .CreateInstance<ParametersChecker>(host.Services);
+            Credentials creds = ActivatorUtilities.CreateInstance<Credentials>(host.Services);
+            ParametersChecker paramChecker = ActivatorUtilities.CreateInstance<ParametersChecker>(host.Services);
             Options opts = paramChecker.ObtainParsedArguments(args);
 
             if (opts != null && paramChecker.ValidArgumentValues(opts))
             {
-                Aggregator aggregator = ActivatorUtilities.CreateInstance<Aggregator>(host.Services);
+                string logFilePath = paramChecker.LoggingfFilePath;
+                Aggregator aggregator = new Aggregator(logFilePath, creds);
                 Environment.ExitCode = aggregator.AggregateData(opts);
             }
 

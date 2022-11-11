@@ -2,7 +2,7 @@
 using Npgsql;
 using PostgreSQLCopyHelper;
 using System.Collections.Generic;
-using Serilog;
+
 
 namespace DataAggregator
 {
@@ -10,16 +10,16 @@ namespace DataAggregator
     {
         string _connString;
         DBUtilities db;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
         int nonpref_number;
 
         int status1number, status2number, status3number;
 
-        public StudyDataTransferrer(string connString, ILogger logger)
+        public StudyDataTransferrer(string connString, LoggingHelper loggingHelper)
         {
             _connString = connString;
-            _logger = logger;
-            db = new DBUtilities(connString, _logger);
+            _loggingHelper = loggingHelper;
+            db = new DBUtilities(connString, _loggingHelper);
         }
 
 
@@ -81,7 +81,7 @@ namespace DataAggregator
                         and t.sd_sid = si.sd_sid ";
 
                 int res = db.Update_UsingTempTable("nk.temp_study_ids", "nk.temp_study_ids", sql_string, " and ");
-                _logger.Information("Existing studies matched in temp table");
+                _loggingHelper.LogLine("Existing studies matched in temp table");
 
                 // also update the study_identifiers table
                 // Indicates has been matched and updates the 
@@ -95,7 +95,7 @@ namespace DataAggregator
                 and t.sd_sid = si.sd_sid ";
 
                 status1number = db.Update_UsingTempTable("nk.temp_study_ids", "nk.study_ids", sql_string, " and ");
-                _logger.Information(status1number.ToString() + " existing studies matched in identifiers table");
+                _loggingHelper.LogLine(status1number.ToString() + " existing studies matched in identifiers table");
             }
         }
 
@@ -120,7 +120,7 @@ namespace DataAggregator
                            AND t.match_status = 0;";
 
             status2number = db.ExecuteSQL(sql_string);
-            _logger.Information(status2number.ToString() + " existing studies found under other study source ids");
+            _loggingHelper.LogLine(status2number.ToString() + " existing studies found under other study source ids");
         }
 
 
@@ -167,7 +167,7 @@ namespace DataAggregator
                            AND t.study_id is null ";
 
                 status3number = db.Update_UsingTempTable("nk.temp_study_ids", "nk.temp_study_ids", sql_string, " and ");
-                _logger.Information(status3number.ToString() + " new study ids found");
+                _loggingHelper.LogLine(status3number.ToString() + " new study ids found");
 
                 conn.Execute(sql_string);
 
@@ -196,7 +196,7 @@ namespace DataAggregator
                 // and the non-preferred (existing) studies (used in the import any additional data
                 // from these studies)
                 int total_studies = status1number + status2number + status3number;
-                _logger.Information(total_studies.ToString() + " total studies found");
+                _loggingHelper.LogLine(total_studies.ToString() + " total studies found");
 
 
                 string sql_string = @"DROP TABLE IF EXISTS nk.new_studies;
@@ -209,7 +209,7 @@ namespace DataAggregator
                 db.ExecuteSQL(sql_string);
                 int res = db.GetCount("nk.new_studies");
 
-                _logger.Information(res.ToString() + " classified as preferred (full data used)");
+                _loggingHelper.LogLine(res.ToString() + " classified as preferred (full data used)");
 
                 sql_string = @"DROP TABLE IF EXISTS nk.existing_studies;
                                CREATE TABLE nk.existing_studies as 
@@ -220,7 +220,7 @@ namespace DataAggregator
 
                 db.ExecuteSQL(sql_string);
                 res = db.GetCount("nk.existing_studies");
-                _logger.Information(res.ToString() + " classified as non-preferred (additional data used)");
+                _loggingHelper.LogLine(res.ToString() + " classified as non-preferred (additional data used)");
                 nonpref_number = res;
             }
         }
@@ -228,7 +228,7 @@ namespace DataAggregator
         
         public int LoadStudies(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             // Insert the study data unless it is already in under another 
             // id (i.e. t.is_preferred = false).
@@ -248,14 +248,14 @@ namespace DataAggregator
                     on t.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "studies", "new studies");
-            _logger.Information("Transferred " + res.ToString() + " study data records");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " study data records");
             return res;
         }
 
 
         public void LoadStudyIdentifiers(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string destination_field_list = @"study_id, 
                     identifier_type_id, identifier_org_id, 
@@ -276,7 +276,7 @@ namespace DataAggregator
                     on k.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_identifiers", "new studies");
-            _logger.Information("Transferred " + res.ToString() + " study identifiers, from 'preferred' studies");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " study identifiers, from 'preferred' studies");
 
             // For 'existing studies' study Ids add only new identifiers.
 
@@ -309,14 +309,14 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "study_identifiers", "existing studies");
-                _logger.Information("Transferred " + res.ToString() + " study identifiers, from 'non-preferred' studies");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " study identifiers, from 'non-preferred' studies");
             }
         }
 
 
         public void LoadStudyTitles(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string destination_field_list = @"study_id, 
                     title_type_id, title_text, lang_code, 
@@ -335,7 +335,7 @@ namespace DataAggregator
                     on k.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "new studies");
-            _logger.Information("Transferred " + res.ToString() + " study titles, from 'preferred' studies");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " study titles, from 'preferred' studies");
 
             // For 'existing studies' study Ids add only new titles.
 
@@ -387,14 +387,14 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "study_titles", "existing studies");
-                _logger.Information("Transferred " + res.ToString() + " study titles, from 'non-preferred' studies");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " study titles, from 'non-preferred' studies");
             }
         }
 
 
         public void LoadStudyContributors(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string destination_field_list = @"study_id, 
             contrib_type_id, is_individual, 
@@ -417,7 +417,7 @@ namespace DataAggregator
                     on k.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "new studies");
-            _logger.Information("Transferred " + res.ToString() + " study_contributors, from 'preferred' studies");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " study_contributors, from 'preferred' studies");
 
             // For 'existing studies' study Ids add only new contributors.
             // Need to do it in two sets to simplify the SQL (to try and avoid time outs)
@@ -454,7 +454,7 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "existing studies");
-                _logger.Information("Transferred " + res.ToString() + " study_contributors (orgs), from 'non-preferred' studies");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " study_contributors (orgs), from 'non-preferred' studies");
 
                 sql_string = @"DROP TABLE IF EXISTS nk.source_data;
                            CREATE TABLE nk.source_data as 
@@ -484,14 +484,14 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "study_contributors", "existing studies");
-                _logger.Information("Transferred " + res.ToString() + " study_contributors (people), from 'non-preferred' studies");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " study_contributors (people), from 'non-preferred' studies");
             }
         }
 
 
         public void LoadStudyTopics(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string destination_field_list = @"study_id, 
                     topic_type_id, mesh_coded, mesh_code, mesh_value, 
@@ -510,7 +510,7 @@ namespace DataAggregator
                     on k.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "new studies");
-            _logger.Information("Transferred " + res.ToString() + " mesh coded study topics, from 'preferred' studies");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " mesh coded study topics, from 'preferred' studies");
 
             // For 'existing studies' study Ids add only new topics.
             // Do this in two stages - for mesh coded data
@@ -550,7 +550,7 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "existing studies");
-                _logger.Information("Transferred " + res.ToString() + " mesh coded study_topics, from 'non-preferred' studies");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " mesh coded study_topics, from 'non-preferred' studies");
 
                 // look at non mesh coded new data
 
@@ -573,14 +573,14 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "study_topics", "existing studies");
-                _logger.Information("Transferred " + res.ToString() + " non mesh coded study_topics, from 'non-preferred' studies");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " non mesh coded study_topics, from 'non-preferred' studies");
             }
         }
 
 
         public void LoadStudyFeatures(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             // For 'preferred' study Ids add all features.
             string destination_field_list = @"study_id, 
@@ -596,7 +596,7 @@ namespace DataAggregator
                     on k.sd_sid = s.sd_sid";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_features", "new studies");
-            _logger.Information("Transferred " + res.ToString() + " study features, from 'preferred' studies");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " study features, from 'preferred' studies");
 
             // For 'existing studies' study Ids add only new feature types.
 
@@ -629,14 +629,127 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "study_features", "existing studies");
-                _logger.Information("Transferred " + res.ToString() + " study_features, from 'non-preferred' studies");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " study features, from 'non-preferred' studies");
+            }
+        }
+
+        public void LoadStudyCountries(string schema_name)
+        {
+            _loggingHelper.LogLine("");
+
+            // For 'preferred' study Ids add all features.
+            string destination_field_list = @"study_id, 
+                    country_id, country_name, status_id ";
+
+            string source_field_list = @" 
+                    s.country_id, s.country_name, s.status_id ";
+
+            string sql_string = @"INSERT INTO st.study_countries(" + destination_field_list + @")
+                    SELECT k.study_id, " + source_field_list + @"
+                    FROM nk.new_studies k
+                    INNER JOIN " + schema_name + @".study_countries s
+                    on k.sd_sid = s.sd_sid";
+
+            int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_countries", "new studies");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " study countries, from 'preferred' studies");
+
+            // For 'existing studies' study Ids add only new countries.
+
+            if (nonpref_number > 0)
+            {
+
+                sql_string = @"DROP TABLE IF EXISTS nk.source_data;
+                           CREATE TABLE nk.source_data as 
+                           SELECT es.study_id, d.* 
+                           FROM " + schema_name + @".study_countries d
+                           INNER JOIN nk.existing_studies es
+                           ON d.sd_sid = es.sd_sid";
+                db.ExecuteSQL(sql_string);
+
+                sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
+                           CREATE TABLE nk.existing_data as 
+                           SELECT es.sd_sid, es.study_id, 
+                           c.country_id
+                           FROM st.study_countries c
+                           INNER JOIN nk.existing_studies es
+                           ON c.study_id = es.study_id;";
+                db.ExecuteSQL(sql_string);
+
+                sql_string = @"INSERT INTO st.study_countries(" + destination_field_list + @")
+                           SELECT s.study_id, " + source_field_list + @" 
+                           FROM nk.source_data s
+                           LEFT JOIN nk.existing_data e
+                           ON s.sd_sid = e.sd_sid
+                           AND s.country_id = e.country_id
+                           WHERE e.study_id is null ";
+
+                res = db.ExecuteTransferSQL(sql_string, schema_name, "study_countries", "existing studies");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " study countries, from 'non-preferred' studies");
+            }
+        }
+
+
+        public void LoadStudyLocations(string schema_name)
+        {
+            _loggingHelper.LogLine("");
+
+            // For 'preferred' study Ids add all features.
+            string destination_field_list = @"study_id, 
+                    facility_org_id, facility, facility_ror_id,
+                    city_id, city_name, country_id, country_name, status_id ";
+
+            string source_field_list = @" 
+                   s.facility_org_id, s.facility, s.facility_ror_id,
+                   s.city_id, s.city_name, s.country_id, s.country_name, s.status_id ";
+
+            string sql_string = @"INSERT INTO st.study_locations(" + destination_field_list + @")
+                    SELECT k.study_id, " + source_field_list + @"
+                    FROM nk.new_studies k
+                    INNER JOIN " + schema_name + @".study_locations s
+                    on k.sd_sid = s.sd_sid";
+
+            int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_locations", "new studies");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " study locations, from 'preferred' studies");
+
+            // For 'existing studies' study Ids add only new feature types.
+
+            if (nonpref_number > 0)
+            {
+
+                sql_string = @"DROP TABLE IF EXISTS nk.source_data;
+                           CREATE TABLE nk.source_data as 
+                           SELECT es.study_id, d.* 
+                           FROM " + schema_name + @".study_locations d
+                           INNER JOIN nk.existing_studies es
+                           ON d.sd_sid = es.sd_sid";
+                db.ExecuteSQL(sql_string);
+
+                sql_string = @"DROP TABLE IF EXISTS nk.existing_data;
+                           CREATE TABLE nk.existing_data as 
+                           SELECT es.sd_sid, es.study_id, 
+                           c.facility
+                           FROM st.study_locations c
+                           INNER JOIN nk.existing_studies es
+                           ON c.study_id = es.study_id;";
+                db.ExecuteSQL(sql_string);
+
+                sql_string = @"INSERT INTO st.study_locations(" + destination_field_list + @")
+                           SELECT s.study_id, " + source_field_list + @" 
+                           FROM nk.source_data s
+                           LEFT JOIN nk.existing_data e
+                           ON s.sd_sid = e.sd_sid
+                           AND s.facility = e.facility
+                           WHERE e.study_id is null ";
+
+                res = db.ExecuteTransferSQL(sql_string, schema_name, "study_locations", "existing studies");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " study locations, from 'non-preferred' studies");
             }
         }
 
 
         public void LoadStudyRelationShips(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string destination_field_list = @"study_id, 
                     relationship_type_id ";
@@ -653,7 +766,7 @@ namespace DataAggregator
                     on k.sd_sid = s.sd_sid";
             
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "new studies");
-            _logger.Information("Transferred " + res.ToString() + " study relationships, from 'preferred' studies");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " study relationships, from 'preferred' studies");
 
             // For 'existing studies' study Ids add only new relationships types.
 
@@ -685,7 +798,7 @@ namespace DataAggregator
                            WHERE e.study_id is null ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "existing studies");
-                _logger.Information("Transferred " + res.ToString() + " study relationships, from 'non-preferred' studies");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " study relationships, from 'non-preferred' studies");
 
                 // insert target study id, using sd_sid to find it in the temp studies table
                 // N.B. These relationships are defined within the same source...
@@ -703,7 +816,7 @@ namespace DataAggregator
                     WHERE r.study_id = tt.study_id ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "study_relationships", "updating target ids");
-                _logger.Information("Updatedd records - " + res.ToString() + " study_relationships, updating target ids");
+                _loggingHelper.LogLine("Updatedd records - " + res.ToString() + " study_relationships, updating target ids");
             }
 
         }

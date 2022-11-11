@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿
 
 namespace DataAggregator
 {
@@ -6,44 +6,14 @@ namespace DataAggregator
     {
         private string connString;
         private CoreTableBuilder core_tablebuilder;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
 
-        public CoreBuilder(string _connString, ILogger logger)
+        public CoreBuilder(string _connString, LoggingHelper loggingHelper)
         {
-            _logger = logger; 
+            _loggingHelper = loggingHelper; 
             connString = _connString;
-            core_tablebuilder = new CoreTableBuilder(connString, _logger);
+            core_tablebuilder = new CoreTableBuilder(connString, _loggingHelper);
         }
-
-        public void DeleteCoreTables()
-        {
-            // dropping routines include 'if exists'
-
-            core_tablebuilder.drop_table("studies");
-            core_tablebuilder.drop_table("study_identifiers");
-            core_tablebuilder.drop_table("study_titles");
-            core_tablebuilder.drop_table("study_contributors");
-            core_tablebuilder.drop_table("study_topics");
-            core_tablebuilder.drop_table("study_features");
-            core_tablebuilder.drop_table("study_relationships");
-
-            core_tablebuilder.drop_table("study_search");
-
-            core_tablebuilder.drop_table("data_objects");
-            core_tablebuilder.drop_table("object_datasets");
-            core_tablebuilder.drop_table("object_dates");
-            core_tablebuilder.drop_table("object_instances");
-            core_tablebuilder.drop_table("object_titles");
-            core_tablebuilder.drop_table("object_contributors");
-            core_tablebuilder.drop_table("object_topics");
-            core_tablebuilder.drop_table("object_descriptions");
-            core_tablebuilder.drop_table("object_identifiers");
-            core_tablebuilder.drop_table("object_relationships");
-            core_tablebuilder.drop_table("object_rights");
-
-            core_tablebuilder.drop_table("study_object_links");
-        }
-
 
         public void BuildNewCoreTables()
         {
@@ -54,6 +24,8 @@ namespace DataAggregator
             core_tablebuilder.create_table_study_features();
             core_tablebuilder.create_table_study_contributors();
             core_tablebuilder.create_table_study_relationships();
+            core_tablebuilder.create_table_study_countries();
+            core_tablebuilder.create_table_study_locations();
             core_tablebuilder.create_table_study_search();
 
             core_tablebuilder.create_table_data_objects();

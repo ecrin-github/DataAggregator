@@ -4,7 +4,7 @@ using Npgsql;
 using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
-using Serilog;
+
 
 namespace DataAggregator
 {
@@ -12,7 +12,7 @@ namespace DataAggregator
     {
         private string _connString;
         private string _study_json_folder;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
 
         // These strings are used as the base of each query.
         // They are constructed once in the class constructor,
@@ -22,10 +22,11 @@ namespace DataAggregator
         private string study_query_string, study_identifier_query_string, study_title_query_string;
         private string study_object_link_query_string, study_relationship_query_string;
         private string study_feature_query_string, study_topics_query_string;
+        private string study_contrib_query_string, study_country_query_string, study_location_query_string;
 
-        public JSONStudyDataLayer(ILogger logger, string connString)
+        public JSONStudyDataLayer(LoggingHelper loggingHelper, string connString)
         {
-            _logger = logger;
+            _loggingHelper = loggingHelper;
             _connString = connString;
 
             IConfigurationRoot settings = new ConfigurationBuilder()
@@ -52,7 +53,7 @@ namespace DataAggregator
                 }
                 catch (Exception e)
                 {
-                    _logger.Error("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
+                    _loggingHelper.LogError("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
                     return 0;
                 }
             }
@@ -98,6 +99,7 @@ namespace DataAggregator
                 study_gender_elig_id, ge.name as study_gender_elig, 
                 min_age, min_age_units_id, tu1.name as min_age_units,
                 max_age, max_age_units_id, tu2.name as max_age_units,
+                study_start_year, study_start_month,
                 provenance_string
                 from core.studies s
                 left join context_lup.study_types st on s.study_type_id = st.id
@@ -148,6 +150,36 @@ namespace DataAggregator
                 where study_id = ";
 
 
+            // study contributor query string
+            study_contrib_query_string = @"select
+                sc.id, contrib_type_id, ct.name as contrib_type, is_individual, 
+                person_given_name, person_family_name, person_full_name,
+                orcid_id, person_affiliation,
+                organisation_id, organisation_name, organisation_ror_id
+                from core.study_contributors sc
+                left join context_lup.contribution_types ct on sc.contrib_type_id = ct.id
+                where study_id = ";
+
+
+            // study country query string 
+            study_country_query_string = @"select
+                sc.id, country_id, country_name, status_id, st.name as status_type
+                from core.study_countries sc
+                left join context_lup.study_statuses st on sc.status_id = st.id
+                where study_id = ";
+
+
+            // study location query string
+            study_location_query_string = @"select
+                sc.id, facility_org_id, facility, facility_ror_id,
+                city_id, city_name, 
+                country_id, country_name, 
+                status_id, st.name as status_type
+                from core.study_locations sc
+                left join context_lup.study_statuses st on sc.status_id = st.id
+                where study_id = ";
+
+
             // study_relationship query string
             study_relationship_query_string = @"select
                 sr.id, relationship_type_id, rt.name as relationship_type,
@@ -159,7 +191,8 @@ namespace DataAggregator
 
 
             // study object link query string
-            study_object_link_query_string = @"select object_id
+            study_object_link_query_string = @"select id,
+                study_id, object_id
                 from core.study_object_links
                 where study_id = ";
 
@@ -216,6 +249,44 @@ namespace DataAggregator
         }
 
 
+        public IEnumerable<DBStudyContributor> FetchDbStudyContributors(int id, string contrib_type)
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = study_contrib_query_string + id.ToString();
+                if (contrib_type == "indiv")
+                {
+                    sql_string += " and is_individual = true";
+                }
+                else
+                {
+                    sql_string = " and is_individual = false";
+                }
+                return Conn.Query<DBStudyContributor>(sql_string);
+            }
+        }
+
+
+        public IEnumerable<DBStudyCountry> FetchDbStudyCountries(int id)
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = study_country_query_string + id.ToString();
+                return Conn.Query<DBStudyCountry>(sql_string);
+            }
+        }
+
+
+        public IEnumerable<DBStudyLocation> FetchDbStudyLocations(int id)
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = study_location_query_string + id.ToString();
+                return Conn.Query<DBStudyLocation>(sql_string);
+            }
+        }
+
+
         public IEnumerable<DBStudyRelationship> FetchDbStudyRelationships(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
@@ -226,7 +297,7 @@ namespace DataAggregator
         }
 
 
-        public IEnumerable<DBStudyObjectLink> FetchDbStudyObjectLinks(int id)
+        public IEnumerable<DBStudyObjectLink> FetchDbLinkedStudies(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {

@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.IO;
-using Serilog;
+
 
 namespace DataAggregator
 {
@@ -9,19 +9,19 @@ namespace DataAggregator
     {
         string connString;
         DBUtilities db;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
 
-        public JSONHelper(string _connString, ILogger logger)
+        public JSONHelper(string _connString, LoggingHelper loggingHelper)
         {
             connString = _connString;
-            _logger = logger;
-            db = new DBUtilities(connString, _logger);
+            _loggingHelper = loggingHelper;
+            db = new DBUtilities(connString, _loggingHelper);
         }
 
 
         public void CreateJSONStudyData(bool also_do_files, bool create_table = true, int offset = 0)
         {
-            JSONStudyDataLayer repo = new JSONStudyDataLayer(_logger, connString);
+            JSONStudyDataLayer repo = new JSONStudyDataLayer(_loggingHelper, connString);
 
             if (create_table)
             {
@@ -42,7 +42,7 @@ namespace DataAggregator
 
         public void CreateJSONObjectData(bool also_do_files, bool create_table = true, int offset = 0)
         {
-            JSONObjectDataLayer repo = new JSONObjectDataLayer(_logger, connString);
+            JSONObjectDataLayer repo = new JSONObjectDataLayer(_loggingHelper, connString);
 
             if (create_table)
             {
@@ -67,13 +67,15 @@ namespace DataAggregator
             JSONStudyProcessor processor = new JSONStudyProcessor(repo);
 
             // Do 10,000 ids at a time
-            int batch = 10000;
-            //int batch = 100;  // testing
+            //int batch = 10000;
+            int batch = 100;  // testing
 
             string folder_path = "";
             int k = 0;
             for (int n = min_id; n <= max_id; n+= batch)
             {
+                if (n > min_id + 200) break;  // testing
+
                 if (also_do_files)
                 {
                     // Create folder for the next batch, obtaining the parent path from repo
@@ -116,7 +118,7 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) _logger.Information(k.ToString() + " records processed");
+                    if (k % 1000 == 0) _loggingHelper.LogLine(k.ToString() + " records processed");
                 }
             }
         }
@@ -124,11 +126,11 @@ namespace DataAggregator
 
         public void LoopThroughObjectRecords(JSONObjectDataLayer repo, int min_id, int max_id, bool also_do_files, int offset)
         {
-            JSONObjectProcessor processor = new JSONObjectProcessor(repo, _logger);
+            JSONObjectProcessor processor = new JSONObjectProcessor(repo, _loggingHelper);
 
             // Do 10,000 ids at a time
-            int batch = 10000;
-            //int batch = 100;  // testing
+            //int batch = 10000;
+            int batch = 100;  // testing
 
             string folder_path = "";
             int k = offset;
@@ -136,7 +138,8 @@ namespace DataAggregator
             
             for (int n = min_id; n <= max_id; n += batch)
             {
-                //if (n > min_id + 200) break;  // testing
+                if (n > min_id + 200) break;  // testing
+
                 if (also_do_files)
                 {
                     // Create folder for the next batch, obtaining the parent path from repo
@@ -180,7 +183,7 @@ namespace DataAggregator
                     }
 
                     k++;
-                    if (k % 1000 == 0) _logger.Information(k.ToString() + " records processed");
+                    if (k % 1000 == 0) _loggingHelper.LogLine(k.ToString() + " records processed");
                 }
             }
         }

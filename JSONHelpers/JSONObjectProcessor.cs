@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
-using Serilog;
+
 
 namespace DataAggregator
 {
     class JSONObjectProcessor
     {
         JSONObjectDataLayer repo;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
 
         private DBDataObject ob;
         private lookup object_class;
@@ -18,21 +18,11 @@ namespace DataAggregator
         private deidentification ds_deident_level;
         private consent ds_consent;
        
-        private List<object_instance> object_instances;
-        private List<object_title> object_titles;
-        private List<object_contributor> object_contributors;
-        private List<object_date> object_dates;
-        private List<object_topic> object_topics;
-        private List<object_description> object_descriptions;
-        private List<object_identifier> object_identifiers;
-        private List<object_right> object_rights;
-        private List<object_relationship> object_relationships;
-        private List<int> linked_studies;
 
-        public JSONObjectProcessor(JSONObjectDataLayer _repo, ILogger logger)
+        public JSONObjectProcessor(JSONObjectDataLayer _repo, LoggingHelper loggingHelper)
         {
             repo = _repo;
-            _logger = logger;
+            _loggingHelper = loggingHelper;
         }
 
         public JSONDataObject CreateObject(int id)
@@ -48,17 +38,7 @@ namespace DataAggregator
             ds_deident_level = null;
             ds_consent = null;
 
-            object_titles = null; 
-            object_contributors = null;
-            object_dates = null; 
-            object_instances = null;
-            object_topics = null;
-            object_identifiers = null;
-            object_descriptions = null;
-            object_rights = null;
-            object_relationships = null;
-            linked_studies = null;
-
+    
             // Get the singleton data object properties from DB
 
             ob = repo.FetchDbDataObject(id);
@@ -66,13 +46,13 @@ namespace DataAggregator
             // First check there is at least one linked study
             // (several hundred of the journal articles are not linked).
 
-            linked_studies = new List<int>(repo.FetchLinkedStudies(id));
-            if (linked_studies.Count == 0)
+            var studies = new List<DBStudyObjectLink>(repo.FetchDbLinkedStudies(id));
+            if (studies.Count == 0)
             {
                 // May occur in a few hundred cases, therefore
                 // if it does need to investigate further !!!!!!!
                 // Possible (minor) error in data object linkage with journal articles.
-                _logger.Error("object " + ob.id + " does not appear to be linked to studies");
+                _loggingHelper.LogError("object " + ob.id + " does not appear to be linked to studies");
                 return null;
             }
 
@@ -119,9 +99,29 @@ namespace DataAggregator
             }
 
 
-            // Get object instances.
+            dobj.object_instances = FetchObjectInstances(id);
+            dobj.object_titles = FetchObjectTitles(id);
+            dobj.object_dates = FetchObjectDates(id);
+            dobj.object_contributors = FetchObjectContributors(id);
+            dobj.object_topics = FetchObjectTopics(id);
+            dobj.object_identifiers = FetchObjectIdentifiers(id);
+            dobj.object_descriptions = FetchObjectDescriptions(id);
+            dobj.object_rights = FetchObjectRights(id);
+            dobj.object_relationships = FetchObjectRelationships(id);
+            dobj.linked_studies = FetchLinkedStudies(id);
 
-            var db_object_instances = new List<DBObjectInstance>(repo.FetchObjectInstances(id));
+
+            return dobj;
+
+ 
+        }
+
+
+        private List<object_instance> FetchObjectInstances(int id)
+        {
+            List<object_instance> object_instances = null;
+
+            var db_object_instances = new List<DBObjectInstance>(repo.FetchDbObjectInstances(id));
             if (db_object_instances.Count > 0)
             {
                 object_instances = new List<object_instance>();
@@ -146,11 +146,15 @@ namespace DataAggregator
                     object_instances.Add(new object_instance(i.id, repo_org, access, resource));
                 }
             }
+            return object_instances;
+        }
 
 
-            // Get object titles.
+        private List<object_title> FetchObjectTitles(int id)
+        {
+            List<object_title> object_titles = null;
 
-            var db_object_titles = new List<DBObjectTitle>(repo.FetchObjectTitles(id));
+            var db_object_titles = new List<DBObjectTitle>(repo.FetchDbObjectTitles(id));
             if (db_object_titles.Count > 0)
             {
                 object_titles = new List<object_title>();
@@ -160,12 +164,16 @@ namespace DataAggregator
                                         t.lang_code, t.comments));
                 }
             }
+            return object_titles;
+        }
 
 
+        private List<object_date> FetchObjectDates(int id)
+        {
 
-            // Get object dates.
+            List<object_date> object_dates = null;
 
-            var db_object_dates = new List<DBObjectDate>(repo.FetchObjectDates(id));
+            var db_object_dates = new List<DBObjectDate>(repo.FetchDbObjectDates(id));
             if (db_object_dates.Count > 0)
             {
                 object_dates = new List<object_date>();
@@ -185,70 +193,96 @@ namespace DataAggregator
                                                 d.date_as_string, start_date, end_date, d.comments));
                 }
             }
+            return object_dates;
+        }
 
 
-            // Get object contributors - 
+        private List<object_contributor> FetchObjectContributors(int id)
+        {
+            List<object_contributor> object_contributors = null;
 
-            var db_object_contributors = new List<DBObjectContributor>(repo.FetchObjectContributors(id,  ob.add_study_contribs));
+            // do individual contributors
+              
+            var db_object_contributors = new List<DBObjectContributor>(repo.FetchDbObjectContributors(id, "indiv"));
             if (db_object_contributors.Count > 0)
             {
-                individual person; organisation org;
                 object_contributors = new List<object_contributor>();
-
-                foreach (DBObjectContributor c in db_object_contributors)
+                foreach (DBObjectContributor t in db_object_contributors)
                 {
-                    person = null; org = null;
-                    if (c.is_individual)
-                    {
-                        person = new individual(c.person_family_name, c.person_given_name, c.person_full_name,
-                                                c.orcid_id, c.person_affiliation, 
-                                                c.organisation_id, c.organisation_name, c.organisation_ror_id);
-                    }
-                    else
-                    {
-                        org = new organisation(c.organisation_id, c.organisation_name, c.organisation_ror_id);
-                    }
-                    object_contributors.Add(new object_contributor(c.id, new lookup(c.contrib_type_id, c.contrib_type),
-                                                c.is_individual, person, org));
+                    object_contributors.Add(new object_contributor(t.id,
+                                     new lookup(t.contrib_type_id, t.contrib_type), true,
+                                     new individual(t.person_family_name, t.person_given_name, t.person_full_name,
+                                      t.orcid_id, t.person_affiliation, t.organisation_id, t.organisation_name,
+                                      t.organisation_ror_id), null));
                 }
             }
 
+            // do organisational contributors
 
-            // Get object topics - 
+            db_object_contributors = new List<DBObjectContributor>(repo.FetchDbObjectContributors(id, "org"));
+            if (db_object_contributors.Count > 0)
+            {
+                if (object_contributors == null)
+                {
+                    object_contributors = new List<object_contributor>();
+                }
+                foreach (DBObjectContributor t in db_object_contributors)
+                {
+                    object_contributors.Add(new object_contributor(t.id,
+                                     new lookup(t.contrib_type_id, t.contrib_type), false, null,
+                                     new organisation(t.organisation_id, t.organisation_name, t.organisation_ror_id)));
+                }
+            }
+            return object_contributors;
+        }
+
+
+        private List<object_topic> FetchObjectTopics(int id)
+        {
+            List<object_topic> object_topics = null;
+            // Get object topics -
             // source will depend on boolean flag, itself dependent on the type of object.
 
-            var db_object_topics = new List<DBObjectTopic>(repo.FetchObjectTopics(id, ob.add_study_topics));
+            var db_object_topics = new List<DBObjectTopic>(repo.FetchDbObjectTopics(id, ob.add_study_topics));
             if (db_object_topics.Count > 0)
             {
                 object_topics = new List<object_topic>();
                 foreach (DBObjectTopic t in db_object_topics)
                 {
-                    object_topics.Add(new object_topic(t.id, new lookup(t.topic_type_id, t.topic_type), 
+                    object_topics.Add(new object_topic(t.id, new lookup(t.topic_type_id, t.topic_type),
                                           t.mesh_coded, t.mesh_code, t.mesh_value,
                                           t.original_ct_id, t.original_ct_code, t.original_value));
                 }
             }
+            return object_topics;
+        }
 
 
-            // Get object identifiers.
+        private List<object_identifier> FetchObjectIdentifiers(int id)
+        {
+            List<object_identifier> object_identifiers = null;
 
-            var db_object_identifiers = new List<DBObjectIdentifier>(repo.FetchObjectIdentifiers(id));
+            var db_object_identifiers = new List<DBObjectIdentifier>(repo.FetchDbObjectIdentifiers(id));
             if (db_object_identifiers.Count > 0)
             {
                 object_identifiers = new List<object_identifier>();
                 foreach (DBObjectIdentifier i in db_object_identifiers)
                 {
-                    object_identifiers.Add(new object_identifier(i.id, i.identifier_value, 
+                    object_identifiers.Add(new object_identifier(i.id, i.identifier_value,
                                           new lookup(i.identifier_type_id, i.identifier_type),
                                           new organisation(i.identifier_org_id, i.identifier_org, i.identifier_org_ror_id),
                                           i.identifier_date));
                 }
             }
+            return object_identifiers;
+        }
 
 
-            // Get object descriptions.
+        private List<object_description> FetchObjectDescriptions(int id)
+        {
+            List<object_description> object_descriptions = null;
 
-            var db_object_descriptions = new List<DBObjectDescription>(repo.FetchObjectDescriptions(id));
+            var db_object_descriptions = new List<DBObjectDescription>(repo.FetchDbObjectDescriptions(id));
             if (db_object_descriptions.Count > 0)
             {
                 object_descriptions = new List<object_description>();
@@ -258,11 +292,15 @@ namespace DataAggregator
                                          i.label, i.description_text, i.lang_code));
                 }
             }
+            return object_descriptions;
+        }
 
 
-            // Get object rights.
+        private List<object_right> FetchObjectRights(int id)
+        {
+            List<object_right> object_rights = null;
 
-            var db_object_rights = new List<DBObjectRight>(repo.FetchObjectRights(id));
+            var db_object_rights = new List<DBObjectRight>(repo.FetchDbObjectRights(id));
             if (db_object_rights.Count > 0)
             {
                 object_rights = new List<object_right>();
@@ -271,11 +309,15 @@ namespace DataAggregator
                     object_rights.Add(new object_right(i.id, i.rights_name, i.rights_uri, i.comments));
                 }
             }
+            return object_rights;
+        }
 
 
-            // Get object relationships.
+        private List<object_relationship> FetchObjectRelationships(int id)
+        {
+            List<object_relationship> object_relationships = null;
 
-            var db_object_relationships = new List<DBObjectRelationship>(repo.FetchObjectRelationships(id));
+            var db_object_relationships = new List<DBObjectRelationship>(repo.FetchDbObjectRelationships(id));
             if (db_object_relationships.Count > 0)
             {
                 object_relationships = new List<object_relationship>();
@@ -285,28 +327,26 @@ namespace DataAggregator
                                                                      i.target_object_id));
                 }
             }
-
-
-            // Construct the final data object by setting the composite 
-            // and repreated properties to the classess and List<>s created above.
-
-            dobj.dataset_consent = ds_consent;
-            dobj.dataset_record_keys = ds_record_keys;
-            dobj.dataset_deident_level = ds_deident_level;
-
-            dobj.object_identifiers = object_identifiers;
-            dobj.object_titles = object_titles;
-            dobj.object_contributors = object_contributors;
-            dobj.object_dates = object_dates;
-            dobj.object_instances = object_instances;
-            dobj.object_descriptions = object_descriptions;
-            dobj.object_rights = object_rights;
-            dobj.object_topics = object_topics;
-            dobj.object_relationships = object_relationships;
-            dobj.linked_studies = linked_studies;
-
-            return dobj;
+            return object_relationships;
         }
+
+
+        private List<int> FetchLinkedStudies(int id)
+        {
+            List<int> linked_studies = null;
+            var db_study_object_links = new List<DBStudyObjectLink>(repo.FetchDbLinkedStudies(id));
+            if (db_study_object_links.Count > 0)
+            {
+                linked_studies = new List<int>();
+                foreach (DBStudyObjectLink t in db_study_object_links)
+                {
+                    linked_studies.Add(t.study_id);
+                }
+            }
+            return linked_studies;
+        }
+
+
 
         public void StoreJSONObjectInDB(int id, string object_json)
         {

@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿
 
 namespace DataAggregator
 {
@@ -27,6 +27,8 @@ namespace DataAggregator
             study_tablebuilder.create_table_study_features();
             study_tablebuilder.create_table_study_contributors();
             study_tablebuilder.create_table_study_relationships();
+            study_tablebuilder.create_table_study_countries();
+            study_tablebuilder.create_table_study_locations();
         }
 
 

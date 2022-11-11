@@ -4,7 +4,7 @@ using Npgsql;
 using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
-using Serilog;
+
 
 namespace DataAggregator
 {
@@ -12,7 +12,7 @@ namespace DataAggregator
     {
         private string _connString;
         private string _object_json_folder;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
 
         // These strings are used as the base of each query.
         // They are constructed once in the class constructor,
@@ -20,17 +20,16 @@ namespace DataAggregator
         // by adding the id parameter at the end of the string.
 
         private string data_object_query_string, data_set_query_string;
-        private string object_link_query_string, object_identifier_query_string;
+        private string object_study_link_query_string, object_identifier_query_string;
         private string object_date_query_string, object_title_query_string;
-        private string object_contrib_query_string1, object_contrib_query_string2;
-        private string object_study_contrib_query_string, object_study_topics_query_string;
+        private string object_contrib_query_string, object_study_topics_query_string;
         private string object_topics_query_string, object_instance_query_string;
         private string object_description_query_string, object_relationships_query_string;
         private string object_rights_query_string;
 
-        public JSONObjectDataLayer(ILogger logger, string connString)
+        public JSONObjectDataLayer(LoggingHelper loggingHelper, string connString)
         {
-            _logger = logger;
+            _loggingHelper = loggingHelper;
             _connString = connString;
 
             IConfigurationRoot settings = new ConfigurationBuilder()
@@ -57,7 +56,7 @@ namespace DataAggregator
                 }
                 catch (Exception e)
                 {
-                    _logger.Error("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
+                    _loggingHelper.LogError("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
                     return 0;
                 }
             }
@@ -160,21 +159,8 @@ namespace DataAggregator
                 left join context_lup.date_types dt on od.date_type_id = dt.id
                 where object_id = ";
 
-            
-            // object contributor (using study contributors only)
-            object_study_contrib_query_string = @"select
-                sc.id, contrib_type_id, ct.name as contrib_type, is_individual, 
-                person_given_name, person_family_name, person_full_name,
-                orcid_id, person_affiliation,
-                organisation_id, organisation_name, organisation_ror_id
-                from core.study_object_links k
-                inner join core.study_contributors sc on k.study_id = sc.study_id
-                left join context_lup.contribution_types ct on sc.contrib_type_id = ct.id
-                where object_id = ";
-
-
             // object contributor (using object contributors AND study organisations) - part 1
-            object_contrib_query_string1 = @"select
+            object_contrib_query_string = @"select
                 oc.id, contrib_type_id, ct.name as contrib_type, is_individual, 
                 person_given_name, person_family_name, person_full_name,
                 orcid_id, person_affiliation,
@@ -182,19 +168,6 @@ namespace DataAggregator
                 from core.object_contributors oc
                 left join context_lup.contribution_types ct on oc.contrib_type_id = ct.id
                 where object_id = ";
-
-
-            // object contributor (using object contributors AND study organisations) - part 2
-            object_contrib_query_string2 = @"select
-                sc.id, contrib_type_id, ct.name as contrib_type, is_individual, 
-                person_given_name, person_family_name, person_full_name,
-                orcid_id, person_affiliation,
-                organisation_id, organisation_name, organisation_ror_id
-                from core.study_object_links k
-                inner join core.study_contributors sc on k.study_id = sc.study_id
-                left join context_lup.contribution_types ct on sc.contrib_type_id = ct.id
-                where object_id = ";
-
 
             // object topics (using study objects)
             object_study_topics_query_string = @"select
@@ -256,9 +229,11 @@ namespace DataAggregator
 
 
             // data study object link query string
-            object_link_query_string = @"select study_id
+            object_study_link_query_string = @"select select id,
+                study_id, object_id
                 from core.study_object_links
                 where object_id = ";
+            
         }
 
 
@@ -290,7 +265,7 @@ namespace DataAggregator
 
         // Fetches all linked instance records for the specified data object
 
-        public IEnumerable<DBObjectInstance> FetchObjectInstances(int id)
+        public IEnumerable<DBObjectInstance> FetchDbObjectInstances(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
@@ -299,23 +274,10 @@ namespace DataAggregator
             }
         }
 
-
-        // Fetches all linked study records for the specified data object
-
-        public IEnumerable<int> FetchLinkedStudies(int Id)
-        {
-            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
-            {
-                string sql_string = object_link_query_string + Id.ToString();
-                return Conn.Query<int>(sql_string);
-            }
-        }
-
-
-
+                
         // Fetches all linked title records for the specified data object
 
-        public IEnumerable<DBObjectTitle> FetchObjectTitles(int id)
+        public IEnumerable<DBObjectTitle> FetchDbObjectTitles(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
@@ -325,9 +287,9 @@ namespace DataAggregator
         }
 
 
-        // Fetches all linked date for the specified data object
+        // Fetches all linked dates for the specified data object
 
-        public IEnumerable<DBObjectDate> FetchObjectDates(int Id)
+        public IEnumerable<DBObjectDate> FetchDbObjectDates(int Id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
@@ -337,27 +299,20 @@ namespace DataAggregator
         }
 
 
-        // Fetches all linked contributor records for the specified data object.
-        // The boolean add_study_contribs, if true, indicates that the system should draw
-        // the contributors from the corresponding 'parent' study's contributors
-        // In these circumstances the object is assumed to have no linked contributors itself.
-        // If false, the system draws the topics from the object's own contributor records, but 
-        // it also unions these from any organisational contributors attached to the parent study 
-        // (e.g. the sponsor).
+        // Fetches all contributors for the specified data object
 
-        public IEnumerable<DBObjectContributor> FetchObjectContributors(int id, bool? add_study_contribs)
+        public IEnumerable<DBObjectContributor> FetchDbObjectContributors(int id, string contrib_type)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
-                string sql_string;
-                if ((bool)add_study_contribs)
+                string sql_string = object_contrib_query_string + id.ToString();
+                if (contrib_type == "indiv")
                 {
-                    sql_string = object_study_contrib_query_string + id.ToString();
+                    sql_string += " and is_individual = true";
                 }
                 else
                 {
-                    sql_string = object_contrib_query_string1 + id.ToString() + " union ";
-                    sql_string += object_contrib_query_string2 + id.ToString() + " and is_individual = false";
+                    sql_string = " and is_individual = false";
                 }
                 return Conn.Query<DBObjectContributor>(sql_string);
             }
@@ -370,7 +325,7 @@ namespace DataAggregator
         // In these circumstances the object is assumed to have no linked topics itself.
         // If false, the system draws the topics from the object's own topic records.
 
-        public IEnumerable<DBObjectTopic> FetchObjectTopics(int id, bool? use_study_topics)
+        public IEnumerable<DBObjectTopic> FetchDbObjectTopics(int id, bool? use_study_topics)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
@@ -387,9 +342,10 @@ namespace DataAggregator
             }
         }
 
+
         // Fetches all linked identifier records for the specified data object
 
-        public IEnumerable<DBObjectIdentifier> FetchObjectIdentifiers(int id)
+        public IEnumerable<DBObjectIdentifier> FetchDbObjectIdentifiers(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
@@ -399,7 +355,7 @@ namespace DataAggregator
         }
 
 
-        public IEnumerable<DBObjectDescription> FetchObjectDescriptions(int id)
+        public IEnumerable<DBObjectDescription> FetchDbObjectDescriptions(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
@@ -408,7 +364,7 @@ namespace DataAggregator
             }
         }
 
-        public IEnumerable<DBObjectRelationship> FetchObjectRelationships(int id)
+        public IEnumerable<DBObjectRelationship> FetchDbObjectRelationships(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
@@ -418,7 +374,7 @@ namespace DataAggregator
         }
 
 
-        public IEnumerable<DBObjectRight> FetchObjectRights(int id)
+        public IEnumerable<DBObjectRight> FetchDbObjectRights(int id)
         {
             using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
             {
@@ -426,6 +382,19 @@ namespace DataAggregator
                 return Conn.Query<DBObjectRight>(sql_string);
             }
         }
+
+
+        // Fetches all linked study records for the specified data object
+
+        public IEnumerable<DBStudyObjectLink> FetchDbLinkedStudies(int Id)
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = object_study_link_query_string + Id.ToString();
+                return Conn.Query<DBStudyObjectLink>(sql_string);
+            }
+        }
+
 
 
         public void StoreJSONObjectInDB(int id, string object_json)

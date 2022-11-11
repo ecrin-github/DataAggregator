@@ -1,6 +1,6 @@
 ﻿using Dapper;
 using Npgsql;
-using Serilog;
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -10,13 +10,13 @@ namespace DataAggregator
     public class TestingDataLayer : ITestingDataLayer
     {
 
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
         ADStudyTableBuilder _study_builder;
         ADObjectTableBuilder _object_builder;
 
-        public TestingDataLayer(ILogger logger, ICredentials credentials)
+        public TestingDataLayer(LoggingHelper loggingHelper, ICredentials credentials)
         {
-            _logger = logger;
+            _loggingHelper = loggingHelper;
             string _db_conn = credentials.GetConnectionString("test", true);
             _study_builder = new ADStudyTableBuilder(_db_conn);
             _object_builder = new ADObjectTableBuilder(_db_conn);
@@ -39,10 +39,12 @@ namespace DataAggregator
             _study_builder.create_table_study_references();
             _study_builder.create_table_study_relationships();
             _study_builder.create_table_study_links();
+            _study_builder.create_table_study_countries();
+            _study_builder.create_table_study_locations();
             _study_builder.create_table_ipd_available();
             _study_builder.create_table_study_hashes();
 
-            _logger.Information("Rebuilt test AD study tables");
+            _loggingHelper.LogLine("Rebuilt test AD study tables");
 
             // Similarly, create ALL study tables
 
@@ -64,7 +66,7 @@ namespace DataAggregator
             _object_builder.create_table_object_db_links();
             _object_builder.create_table_object_publication_types();
            
-            _logger.Information("Rebuilt test AD Object tables");
+            _loggingHelper.LogLine("Rebuilt test AD Object tables");
         }
 
 
@@ -73,11 +75,11 @@ namespace DataAggregator
             RetrieveADDataBuilder tdb = new RetrieveADDataBuilder(source);
             tdb.DeleteExistingADStudyData();
             tdb.DeleteExistingADObjectData();
-            _logger.Information("Any existing AD test data for source " + source.id + " removed from AD tables");
+            _loggingHelper.LogLine("Any existing AD test data for source " + source.id + " removed from AD tables");
 
             tdb.RetrieveStudyData();
             tdb.RetrieveObjectData();
-            _logger.Information("New AD test data for source " + source.id + " added to AD tables");
+            _loggingHelper.LogLine("New AD test data for source " + source.id + " added to AD tables");
         }
     }
 }

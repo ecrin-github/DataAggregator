@@ -23,6 +23,8 @@ namespace DataAggregator
         bool has_study_contributors { get; }
         bool has_study_topics { get; }
         bool has_study_features { get; }
+        bool has_study_countries { get; }
+        bool has_study_locations { get; }
         bool has_study_ipd_available { get; }
         bool has_study_links { get; }
         bool has_study_references { get; }

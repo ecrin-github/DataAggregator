@@ -1,21 +1,17 @@
 ﻿using CommandLine;
-using Serilog;
-using Serilog.Core;
 using System;
 using System.Collections.Generic;
-using System.Text;
+
 
 namespace DataAggregator
 {
     internal class ParametersChecker : IParametersChecker
     {
-        private ILogger _logger;
-        private ILoggerHelper _logger_helper;
+        private LoggingHelper _logging_helper;
 
-        public ParametersChecker(ILogger logger, ILoggerHelper logger_helper)
+        public ParametersChecker()
         {
-            _logger = logger;
-            _logger_helper = logger_helper;
+            _logging_helper = new LoggingHelper();
         }
 
         // Parse command line arguments and return true only if no errors.
@@ -35,14 +31,17 @@ namespace DataAggregator
             }
         }
 
+        public string LoggingfFilePath => _logging_helper.LogFilePath;
+       
         // Parse command line arguments and return true if values are valid.
         // Otherwise log errors and return false.
 
         public bool ValidArgumentValues(Options opts)
         {
+            _logging_helper.LogHeader("Checking Parameters");
+
             try
             {
-
                 if (opts.testing)
                 {
                     // no particular requirement here
@@ -53,6 +52,7 @@ namespace DataAggregator
                     opts.create_core = true;
                     opts.create_json = true;
                     opts.do_statistics = true;
+
                 }
                 else if ((opts.transfer_data == false)
                     && (opts.create_core == false)
@@ -72,16 +72,17 @@ namespace DataAggregator
                         throw new Exception("F parameter can only be provided if J paramewter also provided");
                     }
                 }
-    
+
+                _logging_helper.SwitchLog();
                 return true;    // OK the program can run!
             }
 
             catch (Exception e)
             {
-                _logger.Error(e.Message);
-                _logger.Error(e.StackTrace);
-                _logger.Information("Harvester application aborted");
-                _logger_helper.LogHeader("Closing Log");
+                _logging_helper.LogHeader("INVALID PARAMETERS");
+                _logging_helper.LogParameters(opts);
+                _logging_helper.LogCodeError("Aggregation application aborted", e.Message, e.StackTrace);
+                _logging_helper.CloseLog();
                 return false;
             }
 
@@ -91,27 +92,30 @@ namespace DataAggregator
         private void HandleParseError(IEnumerable<Error> errs)
         {
             // log the errors
-            _logger.Error("Error in the command line arguments - they could not be parsed");
+            _logging_helper.LogHeader("UNABLE TO PARSE PARAMETERS");
+            _logging_helper.LogHeader("Error in input parameters");
+            _logging_helper.LogLine("Error in the command line arguments - they could not be parsed");
+
             int n = 0;
             foreach (Error e in errs)
             {
                 n++;
-                _logger.Error("Error {n}: Tag was {Tag}", n.ToString(), e.Tag.ToString());
+                _logging_helper.LogParseError("Error {n}: Tag was {Tag}", n.ToString(), e.Tag.ToString());
                 if (e.GetType().Name == "UnknownOptionError")
                 {
-                    _logger.Error("Error {n}: Unknown option was {UnknownOption}", n.ToString(), ((UnknownOptionError)e).Token);
+                    _logging_helper.LogParseError("Error {n}: Unknown option was {UnknownOption}", n.ToString(), ((UnknownOptionError)e).Token);
                 }
                 if (e.GetType().Name == "MissingRequiredOptionError")
                 {
-                    _logger.Error("Error {n}: Missing option was {MissingOption}", n.ToString(), ((MissingRequiredOptionError)e).NameInfo.NameText);
+                    _logging_helper.LogParseError("Error {n}: Missing option was {MissingOption}", n.ToString(), ((MissingRequiredOptionError)e).NameInfo.NameText);
                 }
                 if (e.GetType().Name == "BadFormatConversionError")
                 {
-                    _logger.Error("Error {n}: Wrongly formatted option was {MissingOption}", n.ToString(), ((BadFormatConversionError)e).NameInfo.NameText);
+                    _logging_helper.LogParseError("Error {n}: Wrongly formatted option was {MissingOption}", n.ToString(), ((BadFormatConversionError)e).NameInfo.NameText);
                 }
             }
-            _logger.Information("Harvester application aborted");
-            _logger_helper.LogHeader("Closing Log");
+            _logging_helper.LogLine("Aggregation application aborted");
+            _logging_helper.CloseLog();
         }
 
     }

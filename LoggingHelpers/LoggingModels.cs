@@ -23,6 +23,8 @@ namespace DataAggregator
         public bool has_study_contributors { get; }
         public bool has_study_topics { get; }
         public bool has_study_features { get; }
+        public bool has_study_countries { get; }
+        public bool has_study_locations { get; }
         public bool has_study_ipd_available { get; }
         public bool has_study_links { get; }
         public bool has_study_references { get; }
@@ -49,6 +51,8 @@ namespace DataAggregator
         public int study_contributors_recs { get; set; }
         public int study_topics_recs { get; set; }
         public int study_features_recs { get; set; }
+        public int study_countries_recs { get; set; }
+        public int study_locations_recs { get; set; }
         public int study_references_recs { get; set; }
         public int study_relationships_recs { get; set; }
         public int data_object_recs { get; set; }
@@ -84,6 +88,8 @@ namespace DataAggregator
         public int study_contributors_recs { get; set; }
         public int study_topics_recs { get; set; }
         public int study_features_recs { get; set; }
+        public int study_countries_recs { get; set; }
+        public int study_locations_recs { get; set; }
         public int study_relationships_recs { get; set; }
 
         public int data_object_recs { get; set; }

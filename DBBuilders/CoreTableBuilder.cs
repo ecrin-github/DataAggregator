@@ -1,30 +1,22 @@
 ﻿using Dapper;
 using Npgsql;
 using System;
-using Serilog;
+
 
 namespace DataAggregator
 {
     public class CoreTableBuilder
     {
         string db_conn;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
 
-        public CoreTableBuilder(string _db_conn, ILogger logger)
+        public CoreTableBuilder(string _db_conn, LoggingHelper loggingHelper)
         {
             db_conn = _db_conn;
-            _logger = logger;
+            _loggingHelper = loggingHelper;
         }
 
-        public void drop_table(string table_name)
-        {
-            string sql_string = @"DROP TABLE IF EXISTS core." + table_name;
-            using (var conn = new NpgsqlConnection(db_conn))
-            {
-                conn.Execute(sql_string);
-            }
-        }
-
+        
         public int ExecuteSQL(string sql_string)
         {
             using (var conn = new NpgsqlConnection(db_conn))
@@ -35,7 +27,7 @@ namespace DataAggregator
                 }
                 catch (Exception e)
                 {
-                    _logger.Error("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
+                    _loggingHelper.LogError("In ExecuteSQL; " + e.Message + ", \nSQL was: " + sql_string);
                     return 0;
                 }
             }
@@ -43,7 +35,8 @@ namespace DataAggregator
 
         public void create_table_studies()
         {
-            string sql_string = @"CREATE TABLE core.studies(
+            string sql_string = @"DROP TABLE IF EXISTS core.studies;
+            CREATE TABLE core.studies(
                 id                     INT             NOT NULL PRIMARY KEY
               , display_title          VARCHAR         NULL
               , title_lang_code        VARCHAR         NULL
@@ -68,7 +61,8 @@ namespace DataAggregator
 
         public void create_table_study_identifiers()
         {
-            string sql_string = @"CREATE TABLE core.study_identifiers(
+            string sql_string = @"DROP TABLE IF EXISTS core.study_identifiers;
+            CREATE TABLE core.study_identifiers(
                 id                     INT             NOT NULL PRIMARY KEY
               , study_id               INT             NOT NULL
               , identifier_value       VARCHAR         NULL
@@ -87,7 +81,8 @@ namespace DataAggregator
 
         public void create_table_study_titles()
         {
-            string sql_string = @"CREATE TABLE core.study_titles(
+            string sql_string = @"DROP TABLE IF EXISTS core.study_titles;
+            CREATE TABLE core.study_titles(
                 id                     INT             NOT NULL PRIMARY KEY
               , study_id               INT             NOT NULL
               , title_type_id          INT             NULL
@@ -105,7 +100,8 @@ namespace DataAggregator
 
         public void create_table_study_contributors()
         {
-            string sql_string = @"CREATE TABLE core.study_contributors(
+            string sql_string = @"DROP TABLE IF EXISTS core.study_contributors;
+            CREATE TABLE core.study_contributors(
                 id                     INT             NOT NULL PRIMARY KEY
               , study_id               INT             NOT NULL
               , contrib_type_id        INT             NULL
@@ -128,7 +124,8 @@ namespace DataAggregator
 
         public void create_table_study_topics()
         {
-            string sql_string = @"CREATE TABLE core.study_topics(
+            string sql_string = @"DROP TABLE IF EXISTS core.study_topics;
+            CREATE TABLE core.study_topics(
                 id                     INT             NOT NULL PRIMARY KEY
               , study_id               INT             NOT NULL
               , topic_type_id          INT             NULL
@@ -147,7 +144,8 @@ namespace DataAggregator
 
         public void create_table_study_features()
         {
-            string sql_string = @"CREATE TABLE core.study_features(
+            string sql_string = @"DROP TABLE IF EXISTS core.study_features;
+            CREATE TABLE core.study_features(
                 id                     INT             NOT NULL PRIMARY KEY
               , study_id               INT             NOT NULL
               , feature_type_id        INT             NULL
@@ -159,9 +157,48 @@ namespace DataAggregator
         }
 
 
+
+        public void create_table_study_locations()
+        {
+            string sql_string = @"DROP TABLE IF EXISTS core.study_locations;
+            CREATE TABLE core.study_locations(
+                id                     INT             NOT NULL PRIMARY KEY
+              , study_id               INT             NOT NULL
+              , facility_org_id        INT             NULL
+              , facility               VARCHAR         NULL
+              , facility_ror_id        VARCHAR         NULL
+              , city_id                INT             NULL
+              , city_name              VARCHAR         NULL
+              , country_id             INT             NULL
+              , country_name           VARCHAR         NULL
+              , status_id              INT             NULL
+            );
+            CREATE INDEX study_locations_study_id ON core.study_locations(study_id);";
+
+            ExecuteSQL(sql_string);
+        }
+
+
+        public void create_table_study_countries()
+        {
+            string sql_string = @"DROP TABLE IF EXISTS core.study_countries;
+            CREATE TABLE core.study_countries(
+                id                     INT             NOT NULL PRIMARY KEY
+              , study_id               INT             NOT NULL
+              , country_id             INT             NULL
+              , country_name           VARCHAR         NULL
+              , status_id              INT             NULL
+            );
+            CREATE INDEX study_countries_study_id ON core.study_countries(study_id);";
+
+            ExecuteSQL(sql_string);
+        }
+
+
         public void create_table_study_relationships()
         {
-            string sql_string = @"CREATE TABLE core.study_relationships(
+            string sql_string = @"DROP TABLE IF EXISTS core.study_relationships;
+            CREATE TABLE core.study_relationships(
                 id                     INT             NOT NULL PRIMARY KEY
               , study_id               INT             NOT NULL
               , relationship_type_id   INT             NULL
@@ -176,7 +213,8 @@ namespace DataAggregator
 
         public void create_table_data_objects()
         {
-            string sql_string = @"CREATE TABLE core.data_objects(
+            string sql_string = @"DROP TABLE IF EXISTS core.data_objects;
+            CREATE TABLE core.data_objects(
                 id                     INT             NOT NULL PRIMARY KEY
               , display_title          VARCHAR         NULL
               , version                VARCHAR         NULL
@@ -205,7 +243,8 @@ namespace DataAggregator
 
         public void create_table_object_datasets()
         {
-            string sql_string = @"CREATE TABLE core.object_datasets(
+            string sql_string = @"DROP TABLE IF EXISTS core.object_datasets;
+            CREATE TABLE core.object_datasets(
                 id                     INT             NOT NULL PRIMARY KEY
               , object_id              INT             NOT NULL
               , record_keys_type_id    INT             NULL 
@@ -233,7 +272,8 @@ namespace DataAggregator
 
         public void create_table_object_dates()
         {
-            string sql_string = @"CREATE TABLE core.object_dates(
+            string sql_string = @"DROP TABLE IF EXISTS core.object_dates;
+            CREATE TABLE core.object_dates(
                 id                     INT             NOT NULL PRIMARY KEY
               , object_id              INT             NOT NULL
               , date_type_id           INT             NULL
@@ -255,7 +295,8 @@ namespace DataAggregator
 
         public void create_table_object_instances()
         {
-            string sql_string = @"CREATE TABLE core.object_instances(
+            string sql_string = @"DROP TABLE IF EXISTS core.object_instances;
+            CREATE TABLE core.object_instances(
                 id                     INT             NOT NULL PRIMARY KEY
               , object_id              INT             NOT NULL
               , instance_type_id       INT             NULL 
@@ -277,7 +318,8 @@ namespace DataAggregator
 
         public void create_table_object_contributors()
         {
-            string sql_string = @"CREATE TABLE core.object_contributors(
+            string sql_string = @"DROP TABLE IF EXISTS core.object_contributors;
+            CREATE TABLE core.object_contributors(
                 id                     INT             NOT NULL PRIMARY KEY
               , object_id              INT             NOT NULL
               , contrib_type_id        INT             NULL
@@ -301,7 +343,8 @@ namespace DataAggregator
 
         public void create_table_object_titles()
         {
-            string sql_string = @"CREATE TABLE core.object_titles(
+            string sql_string = @"DROP TABLE IF EXISTS core.object_titles;
+            CREATE TABLE core.object_titles(
                 id                     INT             NOT NULL PRIMARY KEY
               , object_id              INT             NOT NULL
               , title_type_id          INT             NULL
@@ -319,7 +362,8 @@ namespace DataAggregator
 
         public void create_table_object_topics()
         {
-            string sql_string = @"CREATE TABLE core.object_topics(
+            string sql_string = @"DROP TABLE IF EXISTS core.object_topics;
+            CREATE TABLE core.object_topics(
                 id                     INT             NOT NULL PRIMARY KEY
               , object_id              INT             NOT NULL
               , topic_type_id          INT             NULL
@@ -338,7 +382,8 @@ namespace DataAggregator
 
         public void create_table_object_descriptions()
         {
-            string sql_string = @"CREATE TABLE core.object_descriptions(
+            string sql_string = @"DROP TABLE IF EXISTS core.object_descriptions;
+            CREATE TABLE core.object_descriptions(
                 id                     INT             NOT NULL PRIMARY KEY
               , object_id              INT             NOT NULL
               , description_type_id    INT             NULL
@@ -354,7 +399,8 @@ namespace DataAggregator
 
         public void create_table_object_identifiers()
         {
-            string sql_string = @"CREATE TABLE core.object_identifiers(
+            string sql_string = @"DROP TABLE IF EXISTS core.object_identifiers;
+            CREATE TABLE core.object_identifiers(
                 id                     INT             NOT NULL PRIMARY KEY
               , object_id              INT             NOT NULL
               , identifier_value       VARCHAR         NULL
@@ -372,7 +418,8 @@ namespace DataAggregator
 
         public void create_table_object_relationships()
         {
-            string sql_string = @"CREATE TABLE core.object_relationships(
+            string sql_string = @"DROP TABLE IF EXISTS core.object_relationships;
+            CREATE TABLE core.object_relationships(
                 id                     INT             NOT NULL PRIMARY KEY
               , object_id              INT             NOT NULL
               , relationship_type_id   INT             NULL
@@ -386,7 +433,8 @@ namespace DataAggregator
 
         public void create_table_object_rights()
         {
-            string sql_string = @"CREATE TABLE core.object_rights(
+            string sql_string = @"DROP TABLE IF EXISTS core.object_rights;
+            CREATE TABLE core.object_rights(
                 id                     INT             NOT NULL PRIMARY KEY
               , object_id              INT             NOT NULL
               , rights_name            VARCHAR         NULL
@@ -401,7 +449,8 @@ namespace DataAggregator
 
         public void create_table_study_object_links()
         {
-            string sql_string = @"CREATE TABLE core.study_object_links(
+            string sql_string = @"DROP TABLE IF EXISTS core.study_object_links;
+            CREATE TABLE core.study_object_links(
                 id                     INT             NOT NULL PRIMARY KEY
               , study_id               INT             NOT NULL
               , object_id              INT             NOT NULL
@@ -415,7 +464,8 @@ namespace DataAggregator
 
         public void create_table_study_search()
         {
-            string sql_string = @"CREATE TABLE core.study_search(
+            string sql_string = @"DROP TABLE IF EXISTS core.study_search;
+            CREATE TABLE core.study_search(
                 id                     INT             NOT NULL PRIMARY KEY
               , display_title          VARCHAR         NULL
               , title_lexemes          VARCHAR         NULL

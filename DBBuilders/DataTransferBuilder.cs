@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
-using Serilog;
+
 
 namespace DataAggregator
 {
     public class DataTransferBuilder
     {
         ISource _source;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
         string _schema_name;
         string _source_conn_string;
         string _dest_conn_string;
@@ -16,17 +16,17 @@ namespace DataAggregator
 
         int source_id;
 
-        public DataTransferBuilder(ISource source, string schema_name, string dest_conn_string, ILogger logger)
+        public DataTransferBuilder(ISource source, string schema_name, string dest_conn_string, LoggingHelper loggingHelper)
         {
             _source = source;
-            _logger = logger;
+            _loggingHelper = loggingHelper;
             _schema_name = schema_name;
             _source_conn_string = source.db_conn;
             _dest_conn_string = dest_conn_string;
 
             source_id = _source.id;
-            st_tr = new StudyDataTransferrer(_dest_conn_string, _logger);
-            ob_tr = new ObjectDataTransferrer(_dest_conn_string, _logger);
+            st_tr = new StudyDataTransferrer(_dest_conn_string, _loggingHelper);
+            ob_tr = new ObjectDataTransferrer(_dest_conn_string, _loggingHelper);
 
         }
 
@@ -40,9 +40,9 @@ namespace DataAggregator
 
             st_tr.SetUpTempStudyIdsTable();
             IEnumerable<StudyId> study_ids = st_tr.FetchStudyIds(source_id, _source_conn_string);
-            _logger.Information("Study Ids obtained");
+            _loggingHelper.LogLine("Study Ids obtained");
             st_tr.StoreStudyIds(CopyHelpers.study_ids_helper, study_ids);
-            _logger.Information("Study Ids stored");
+            _loggingHelper.LogLine("Study Ids stored");
 
             // Match existing studies, then
             // Do the check of the temp table ids against the study_study links.
@@ -52,9 +52,9 @@ namespace DataAggregator
             st_tr.MatchExistingStudyIds();
             st_tr.IdentifyNewLinkedStudyIds();
             st_tr.AddNewStudyIds(source_id);
-            _logger.Information("Study Ids checked");
+            _loggingHelper.LogLine("Study Ids checked");
             st_tr.CreateTempStudyIdTables(source_id);
-            _logger.Information("Study Ids processed");
+            _loggingHelper.LogLine("Study Ids processed");
         }
 
 
@@ -66,7 +66,10 @@ namespace DataAggregator
             if (_source.has_study_contributors) st_tr.LoadStudyContributors(_schema_name);
             if (_source.has_study_topics) st_tr.LoadStudyTopics(_schema_name);
             if (_source.has_study_features) st_tr.LoadStudyFeatures(_schema_name);
+            if (_source.has_study_countries) st_tr.LoadStudyCountries(_schema_name);
+            if (_source.has_study_locations) st_tr.LoadStudyLocations(_schema_name);
             if (_source.has_study_relationships) st_tr.LoadStudyRelationShips(_schema_name);
+
             st_tr.DropTempStudyIdsTable();
             return study_number;
         }
@@ -83,9 +86,9 @@ namespace DataAggregator
             // the source database.
 
             IEnumerable<ObjectId> object_ids = ob_tr.FetchObjectIds(source_id, _source_conn_string);
-            _logger.Information("Object Ids obtained");
+            _loggingHelper.LogLine("Object Ids obtained");
             ob_tr.StoreObjectIds(CopyHelpers.object_ids_helper, object_ids);
-            _logger.Information("Object Ids stored");
+            _loggingHelper.LogLine("Object Ids stored");
 
             // Update the object parent ids against the all_ids_studies table
             ob_tr.MatchExistingObjectIds(source_id);
@@ -98,14 +101,14 @@ namespace DataAggregator
             ob_tr.CheckNewObjectsForDuplicateTitles(source_id);
             ob_tr.CheckNewObjectsForDuplicateURLs(source_id, _schema_name);
             ob_tr.CompleteNewObjectsStatuses(source_id);
-            _logger.Information("Object Ids updated");
+            _loggingHelper.LogLine("Object Ids updated");
 
             // Update the database all objects iidentifiers table and derive a 
             // small table that lists the object Ids for all objects, and one
             // that lists the ids of possible duplicate objects, to check
 
             ob_tr.FillObjectsToAddTables(source_id);
-            _logger.Information("Object Ids processed");
+            _loggingHelper.LogLine("Object Ids processed");
         }
 
 
@@ -124,7 +127,7 @@ namespace DataAggregator
             {
                 // set up the necessary objects and tables to hold the link data
 
-                PubmedTransferHelper pm_tr = new PubmedTransferHelper(_schema_name, _dest_conn_string, _logger);
+                PubmedTransferHelper pm_tr = new PubmedTransferHelper(_schema_name, _dest_conn_string, _loggingHelper);
                 pm_tr.SetupTempPMIDTables();
 
                 // Get the source -study- pmid link data 
@@ -133,12 +136,12 @@ namespace DataAggregator
                                
                 IEnumerable<PMIDLink> bank_object_ids = pm_tr.FetchBankPMIDs();
                 ulong res = pm_tr.StorePMIDLinks(CopyHelpers.pmid_links_helper, bank_object_ids);
-                _logger.Information(res.ToString() + " study Ids obtained from PMID 'bank' data");
+                _loggingHelper.LogLine(res.ToString() + " study Ids obtained from PMID 'bank' data");
 
                 // study ids referenced in PubMed data often poorly formed and need cleaning
 
                 pm_tr.CleanPMIDsdsidData();
-                _logger.Information("Study Ids in 'Bank' PMID records cleaned");
+                _loggingHelper.LogLine("Study Ids in 'Bank' PMID records cleaned");
 
                 // This needs to be combined with the references in those sources 
                 // that contain study_reference tables - loop thropugh these...
@@ -158,7 +161,7 @@ namespace DataAggregator
                         res += pm_tr.StorePMIDLinks(CopyHelpers.pmid_links_helper, source_references);
                     }
                 }
-                _logger.Information(res.ToString() + " PMID records obtained from registry linked reference records");
+                _loggingHelper.LogLine(res.ToString() + " PMID records obtained from registry linked reference records");
 
 
                 // Transfer data to 'standard' data_object_identifiers table.
@@ -182,7 +185,7 @@ namespace DataAggregator
                 pm_tr.MatchExistingPMIDLinks();
 
                 // New, unmatched combinations of PMID and studies
-                // may have POMIDs completely new to the system, or 
+                // may have PMIDs completely new to the system, or 
                 // neew PMID - study combinations for existing PMIDs
 
                 pm_tr.IdentifyNewPMIDLinks();

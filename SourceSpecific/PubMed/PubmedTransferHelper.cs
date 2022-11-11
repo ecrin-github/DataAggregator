@@ -4,7 +4,7 @@ using Npgsql;
 using PostgreSQLCopyHelper;
 using System;
 using System.Collections.Generic;
-using Serilog;
+
 
 namespace DataAggregator
 {
@@ -13,14 +13,14 @@ namespace DataAggregator
         private string _connString;
         private string _schema_name;
         DBUtilities db;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
 
-        public PubmedTransferHelper(string schema_name, string connString, ILogger logger)
+        public PubmedTransferHelper(string schema_name, string connString, LoggingHelper loggingHelper)
         {
             _schema_name = schema_name;
             _connString = connString;
-            _logger = logger;
-            db = new DBUtilities(connString, _logger);
+            _loggingHelper = loggingHelper;
+            db = new DBUtilities(connString, _loggingHelper);
         }
 
         // Tables and functions used for the PMIDs collected from DB Sources
@@ -456,12 +456,12 @@ namespace DataAggregator
                          parent_study_source_id, 
                          parent_study_sd_sid, datetime_of_data_fetch)
                          SELECT  
-                         source_id, trim(sd_oid), 11, 
+                         source_id, trim(sd_oid), 12, 
                          parent_study_source_id, 
                          parent_study_sd_sid, datetime_of_data_fetch
                          FROM nk.temp_pmids t ";
             int res = db.Update_UsingTempTable("nk.temp_pmids", "nk.temp_object_ids", sql_string, " where ");
-            _logger.Information(res.ToString() + " PMID-study references passed to temp object table");
+            _loggingHelper.LogLine(res.ToString() + " PMID-study references passed to temp object table");
         }
 
 
@@ -479,7 +479,7 @@ namespace DataAggregator
                     and t.parent_study_sd_sid = si.sd_sid ";
 
             int res = db.Update_UsingTempTable("nk.temp_object_ids", "nk.temp_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " parent studies matched in temp PMID table");
+            _loggingHelper.LogLine(res.ToString() + " parent studies matched in temp PMID table");
 
             // Some pubmed entries are not matched as the ids in the pubmed bank
             // data are still non-standard, or refer to obsolete ids (about 2500 in total)
@@ -487,7 +487,7 @@ namespace DataAggregator
             sql_string = @"DELETE from nk.temp_object_ids t
                        where t.parent_study_id is null;";
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " PMID records with non-matched studies deleted from total");
+            _loggingHelper.LogLine(res.ToString() + " PMID records with non-matched studies deleted from total");
 
             // Then convert sd_sid and source to the preferred version - all equivalent
             // studies therefore have the same study id / source data / is_study_preferred value
@@ -505,7 +505,7 @@ namespace DataAggregator
                     and si.is_preferred = true ";
 
             res = db.Update_UsingTempTable("nk.temp_object_ids", "nk.temp_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " PMID records updated with preferred study data");
+            _loggingHelper.LogLine(res.ToString() + " PMID records updated with preferred study data");
         }
 
 
@@ -522,7 +522,7 @@ namespace DataAggregator
                         parent_study_sd_sid, parent_study_id, is_preferred_study
                         FROM nk.temp_object_ids ";
             int res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " distinct study-PMID links found");
+            _loggingHelper.LogLine(res.ToString() + " distinct study-PMID links found");
 
             // Update with latest datetime_of_data_fetch for each study- PMID combination
             // object_id, title, is_preferred_object, match_status all null at present
@@ -537,7 +537,7 @@ namespace DataAggregator
                         WHERE dp.parent_study_id = mx.parent_study_id
                         and dp.sd_oid = mx.sd_oid ";
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " record updated with latest date of data fetch");
+            _loggingHelper.LogLine(res.ToString() + " record updated with latest date of data fetch");
         }
 
 
@@ -553,7 +553,7 @@ namespace DataAggregator
             and t.sd_oid = doi.sd_oid ";
 
             db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
-            _logger.Information("Existing objects matched in temp table");
+            _loggingHelper.LogLine("Existing objects matched in temp table");
 
             // update the matched records in the data object identifier table
             // in effect with the updated date time of data fetch
@@ -566,7 +566,7 @@ namespace DataAggregator
             and doi.sd_oid = t.sd_oid ";
 
             int res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "data_object_identifiers", sql_string, " and ");
-            _logger.Information(res.ToString() + " existing PMID objects matched in identifiers table");
+            _loggingHelper.LogLine(res.ToString() + " existing PMID objects matched in identifiers table");
 
             // delete the matched records from the temp table
             sql_string = @"DELETE from nk.distinct_temp_object_ids
@@ -590,7 +590,7 @@ namespace DataAggregator
             where t.sd_oid = pt.sd_oid ";
 
             int res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " new PMID-study combinations updated with article titles");
+            _loggingHelper.LogLine(res.ToString() + " new PMID-study combinations updated with article titles");
 
             // There are still currently a few PMIDs that do not match any entry in the Pubmed table
             // (still not sure why) indicates that they need to be downloaded and imported, or 
@@ -600,7 +600,7 @@ namespace DataAggregator
             where title is null";
 
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " records deleted from PMID-study combinations as PMID cannot be found in pubmed data");
+            _loggingHelper.LogLine(res.ToString() + " records deleted from PMID-study combinations as PMID cannot be found in pubmed data");
 
             // identify and label completely new PMIDs first. 
             // This identifies PMIDs that are completely new to the system
@@ -623,7 +623,7 @@ namespace DataAggregator
             and t.match_status = 0 ";
 
             res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " new PMID-study combinations found with completely new PMIDs");
+            _loggingHelper.LogLine(res.ToString() + " new PMID-study combinations found with completely new PMIDs");
 
             // Then identify records where the PMID exists but the link with that study 
             // is not yet in the data_object_identifiers table
@@ -648,7 +648,7 @@ namespace DataAggregator
             and t.id = n.id ";
 
             res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " new PMID-study combinations found for existing PMIDs");
+            _loggingHelper.LogLine(res.ToString() + " new PMID-study combinations found for existing PMIDs");
 
         }
 
@@ -666,7 +666,7 @@ namespace DataAggregator
              and t.match_status = 2 ";
 
              int res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
-             _logger.Information(res.ToString() + " new PMID-study combinations updated");
+             _loggingHelper.LogLine(res.ToString() + " new PMID-study combinations updated");
 
              sql_string = @"Insert into nk.data_object_ids
              (object_id, source_id, sd_oid, object_type_id, title, is_preferred_object,
@@ -679,7 +679,7 @@ namespace DataAggregator
              where t.match_status = 2 ";
 
              res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.data_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " new PMID-study combinations added");
+            _loggingHelper.LogLine(res.ToString() + " new PMID-study combinations added");
 
         }
 
@@ -700,7 +700,7 @@ namespace DataAggregator
              and t.match_status = 3 ";
 
             int res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " objects set as 'preferred' for new PMIDs");
+            _loggingHelper.LogLine(res.ToString() + " objects set as 'preferred' for new PMIDs");
 
             // Put the remaining study-PMID combinations as non-preferred
 
@@ -710,7 +710,7 @@ namespace DataAggregator
             and t.match_status = 3 ";
 
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " objects set as 'non-preferred' for new PMIDs");
+            _loggingHelper.LogLine(res.ToString() + " objects set as 'non-preferred' for new PMIDs");
 
             // add in the preferred new PMID records
 
@@ -728,7 +728,7 @@ namespace DataAggregator
              and is_preferred_object = true";
 
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " new 'preferred' PMID-study combinations added for new PMIDs");
+            _loggingHelper.LogLine(res.ToString() + " new 'preferred' PMID-study combinations added for new PMIDs");
 
             // Update newly added records with object ids
 
@@ -740,7 +740,7 @@ namespace DataAggregator
             and is_preferred_object = true;";
 
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " object ids created for new PMIDs and applied to 'preferred' objects");
+            _loggingHelper.LogLine(res.ToString() + " object ids created for new PMIDs and applied to 'preferred' objects");
 
             // Update remaining study-PMID combinations with new object id
             // At this stage only the 'preferred' study-PMID links are in the doi table
@@ -753,7 +753,7 @@ namespace DataAggregator
              and t.is_preferred_object = false ";
 
             res = db.Update_UsingTempTable("nk.distinct_temp_object_ids", "nk.distinct_temp_object_ids", sql_string, " and ");
-            _logger.Information(res.ToString() + " object ids applied to new PMIDs and 'non-preferred' objects");
+            _loggingHelper.LogLine(res.ToString() + " object ids applied to new PMIDs and 'non-preferred' objects");
 
             // Add remaining matching study-PMIDs records
 
@@ -771,7 +771,7 @@ namespace DataAggregator
              and is_preferred_object = false ";
 
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " new 'non-preferred' PMID-study combinations added");
+            _loggingHelper.LogLine(res.ToString() + " new 'non-preferred' PMID-study combinations added");
         }
 
 

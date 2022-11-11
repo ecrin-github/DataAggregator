@@ -2,19 +2,19 @@
 using Npgsql;
 using PostgreSQLCopyHelper;
 using System.Collections.Generic;
-using Serilog;
+
 
 namespace DataAggregator
 {
     public class LinksDataHelper
     {
         string _connString;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
 
-        public LinksDataHelper(string mdr_connString, ILogger logger)
+        public LinksDataHelper(string mdr_connString, LoggingHelper loggingHelper)
         {
             _connString = mdr_connString;
-            _logger = logger;
+            _loggingHelper = loggingHelper;
         }
 
 
@@ -377,7 +377,7 @@ namespace DataAggregator
                           WHERE r1.preference_rating < r2.preference_rating";
 
                 int res2 = conn.Execute(sql_string);
-                _logger.Information((res1 + res2).ToString() + " total study-study links found in source data");
+                _loggingHelper.LogLine((res1 + res2).ToString() + " total study-study links found in source data");
             }
         }
 
@@ -399,7 +399,7 @@ namespace DataAggregator
 
                 sql_string = @"SELECT COUNT(*) FROM nk.temp_distinct_links";
                 int res =  conn.ExecuteScalar<int>(sql_string);
-                _logger.Information(res.ToString() + " distinct study-study links found");
+                _loggingHelper.LogLine(res.ToString() + " distinct study-study links found");
 
                 sql_string = @"DROP TABLE IF EXISTS nk.temp_study_links_collector;
                 DROP TABLE IF EXISTS nk.temp_study_links_sorted;";
@@ -443,7 +443,7 @@ namespace DataAggregator
             {
                 string sql_string = @"SELECT COUNT(*) FROM nk.temp_id_checker";
                 int res = conn.ExecuteScalar<int>(sql_string);
-                _logger.Information(source_id.ToString() + ": " + res.ToString() + " sd_sids found");
+                _loggingHelper.LogLine(source_id.ToString() + ": " + res.ToString() + " sd_sids found");
             }
         }
 
@@ -464,7 +464,7 @@ namespace DataAggregator
                            where t.sd_sid = invalids.sd_sid";
 
                 int res1 = conn.Execute(sql_string);
-                _logger.Information(res1.ToString() + " set to invalid on sd_sid");
+                _loggingHelper.LogLine(res1.ToString() + " set to invalid on sd_sid");
 
                 sql_string = @"UPDATE nk.temp_distinct_links t
                            SET valid = false 
@@ -478,7 +478,7 @@ namespace DataAggregator
                            where t.preferred_sd_sid = invalids.preferred_sd_sid";
 
                 int res2 = conn.Execute(sql_string);
-                _logger.Information(res2.ToString() + " set to invalid on preferred_sd_sid");
+                _loggingHelper.LogLine(res2.ToString() + " set to invalid on preferred_sd_sid");
             }
         }
 
@@ -491,7 +491,7 @@ namespace DataAggregator
                     FROM nk.temp_distinct_links
                     WHERE valid = false";
                 int res = conn.Execute(sql_string);
-                _logger.Information(res.ToString() + " study-study links deleted because of an invalid study id");
+                _loggingHelper.LogLine(res.ToString() + " study-study links deleted because of an invalid study id");
 
                 sql_string = @"DROP TABLE IF EXISTS nk.temp_id_checker;";
                 conn.Execute(sql_string);
@@ -501,7 +501,7 @@ namespace DataAggregator
 
                 sql_string = @"SELECT COUNT(*) FROM nk.temp_distinct_links";
                 res = conn.ExecuteScalar<int>(sql_string);
-                _logger.Information(res.ToString() + " distinct study-study links remaining");
+                _loggingHelper.LogLine(res.ToString() + " distinct study-study links remaining");
             }
         }
 
@@ -661,7 +661,7 @@ namespace DataAggregator
                              where complex = 0;";
 
                 int res1 = conn.Execute(sql_string);
-                _logger.Information(res1.ToString() + " relationship records added as part of 1 to n study relationships");
+                _loggingHelper.LogLine(res1.ToString() + " relationship records added as part of 1 to n study relationships");
 
                 sql_string = @"INSERT INTO nk.linked_study_groups
                              (source_id, sd_sid, relationship_id,
@@ -675,7 +675,7 @@ namespace DataAggregator
                              where complex = 0;";
 
                 int res2 = conn.Execute(sql_string);
-                _logger.Information(res2.ToString() + " relationship records added as part of n to 1 study relationships");
+                _loggingHelper.LogLine(res2.ToString() + " relationship records added as part of n to 1 study relationships");
 
             }
         }
@@ -873,7 +873,7 @@ namespace DataAggregator
 
                 conn.Open();
                 CopyHelpers.complex_links_helper.SaveAll(conn, links);
-                _logger.Information(links.Count.ToString() + " relationship records added as part of n to n study relationships");
+                _loggingHelper.LogLine(links.Count.ToString() + " relationship records added as part of n to n study relationships");
 
             }
         }
@@ -901,7 +901,7 @@ namespace DataAggregator
                                and k.source_id = g.member_source_id
                                and g.source_side = 'R';";
                 int res2 = conn.Execute(sql_string);
-                _logger.Information((res1 + res2).ToString() + " study-study links extracted as grouped (1 to n, n to n) records");
+                _loggingHelper.LogLine((res1 + res2).ToString() + " study-study links extracted as grouped (1 to n, n to n) records");
 
                 sql_string = @"DROP TABLE IF EXISTS nk.temp_grouping_studies;
                 DROP TABLE IF EXISTS nk.temp_list_studies;
@@ -911,7 +911,7 @@ namespace DataAggregator
 
                 sql_string = @"SELECT COUNT(*) FROM nk.temp_distinct_links";
                 int res = conn.ExecuteScalar<int>(sql_string);
-                _logger.Information(res.ToString() + " distinct study-study links remaining");
+                _loggingHelper.LogLine(res.ToString() + " distinct study-study links remaining");
 
             }
         }
@@ -1025,7 +1025,7 @@ namespace DataAggregator
                      SELECT distinct new_source_id, new_sd_sid, new_preferred_sd_sid, new_preferred_source from
                      nk.temp_new_links;";
                 int res = conn.Execute(sql_string);
-                _logger.Information(res.ToString() + " new study-study links added to complete linkage chains");
+                _loggingHelper.LogLine(res.ToString() + " new study-study links added to complete linkage chains");
 
                 // drop the temp tables 
                 sql_string = @"DROP TABLE IF EXISTS nk.temp_missing_links;
@@ -1061,7 +1061,7 @@ namespace DataAggregator
                           and t1.preferred_sd_sid = t2.sd_sid";
 
                     match_number = conn.ExecuteScalar<int>(sql_string);
-                    _logger.Information(match_number.ToString() + " cascading study-study links found, to 'telescope'");
+                    _loggingHelper.LogLine(match_number.ToString() + " cascading study-study links found, to 'telescope'");
 
 
                     if (match_number > 0)
@@ -1105,7 +1105,7 @@ namespace DataAggregator
                 sql_string = @"SELECT COUNT(*) FROM nk.temp_distinct_links";
                 int res2 = conn.ExecuteScalar<int>(sql_string);
                 int diff = res1 - res2;
-                _logger.Information(res2.ToString() + " records now in temp distinct links table, having dropped " + diff.ToString());
+                _loggingHelper.LogLine(res2.ToString() + " records now in temp distinct links table, having dropped " + diff.ToString());
             }
         }
         
@@ -1123,7 +1123,7 @@ namespace DataAggregator
                       from nk.temp_distinct_links";
 
                 int res = conn.Execute(sql_string);
-                _logger.Information(res.ToString() + " study-study links transfered to final table");
+                _loggingHelper.LogLine(res.ToString() + " study-study links transfered to final table");
 
             }
         }
@@ -1144,7 +1144,7 @@ namespace DataAggregator
                       and ssk.preferred_source_id = s.source_id;";
 
                 int res = conn.Execute(sql_string);
-                _logger.Information(res.ToString() + " study Ids updated using preferred Id");
+                _loggingHelper.LogLine(res.ToString() + " study Ids updated using preferred Id");
 
                 // then any non-preferred studies that have been added 
                 // previously, with a new preferred side
@@ -1157,7 +1157,7 @@ namespace DataAggregator
                       and ssk.study_id is null;";
 
                 res = conn.Execute(sql_string);
-                _logger.Information(res.ToString() + " study Ids updated using non-preferred Id");
+                _loggingHelper.LogLine(res.ToString() + " study Ids updated using non-preferred Id");
             }
         }
 

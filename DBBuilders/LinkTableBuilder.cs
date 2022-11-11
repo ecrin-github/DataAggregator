@@ -24,7 +24,7 @@ namespace DataAggregator
 
 /*
     // One off builds
-    // DO NOT run in code - included here only for info - will reset  ECRIN Identifiers for studies and objects
+    // DO NOT run in code - included here only for info - will reset ECRIN Identifiers for studies and objects
     // Should be run - rarely if at all  - from Postgres Admin
     DROP TABLE IF EXISTS nk.study_ids;
     CREATE TABLE nk.study_ids(

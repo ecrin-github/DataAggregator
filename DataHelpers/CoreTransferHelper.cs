@@ -1,5 +1,5 @@
 ﻿using Npgsql;
-using Serilog;
+
 
 namespace DataAggregator
 {
@@ -7,14 +7,14 @@ namespace DataAggregator
     {
         string _connString;
         DBUtilities db;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
 
 
-        public CoreTransferHelper(string connString, ILogger logger)
+        public CoreTransferHelper(string connString, LoggingHelper loggingHelper)
         {
-            _logger = logger;
+            _loggingHelper = loggingHelper;
             _connString = connString;
-            db = new DBUtilities(_connString, _logger);
+            db = new DBUtilities(_connString, _loggingHelper);
         }
 
         public int LoadCoreStudyData()
@@ -108,6 +108,32 @@ namespace DataAggregator
                     FROM st.study_features";
 
             return db.ExecuteCoreTransferSQL(sql_string, " where ", "st.study_features");
+        }
+
+
+        public int LoadCoreStudyCountries()
+        {
+            string sql_string = @"INSERT INTO core.study_countries(id, study_id, 
+                    country_id, country_name, status_id)
+                    SELECT id, study_id,
+                    country_id, country_name, status_id
+                    FROM st.study_countries";
+
+            return db.ExecuteCoreTransferSQL(sql_string, " where ", "st.study_countries");
+        }
+
+
+        public int LoadCoreStudyLocations()
+        {
+            string sql_string = @"INSERT INTO core.study_locations(id, study_id, 
+                    facility_org_id, facility, facility_ror_id, city_id,
+                    city_name, country_id, country_name, status_id )
+                    SELECT id, study_id,
+                    facility_org_id, facility, facility_ror_id, city_id,
+                    city_name, country_id, country_name, status_id 
+                    FROM st.study_locations";
+
+            return db.ExecuteCoreTransferSQL(sql_string, " where ", "st.study_locations");
         }
 
 
@@ -314,17 +340,15 @@ namespace DataAggregator
                 CREATE table nk.temp_study_provenance
                      as
                      select s.study_id, 
-                     'Data retrieved from ' || string_agg(d.repo_name || ' at ' || to_char(s.datetime_of_data_fetch, 'HH24:MI, dd Mon yyyy'), ', ' ORDER BY s.datetime_of_data_fetch) as provenance
+                     'Data retrieved from ' || string_agg(d.r_name || ' at ' || to_char(s.datetime_of_data_fetch, 'HH24:MI, dd Mon yyyy'), ', ' ORDER BY s.datetime_of_data_fetch) as provenance
                      from nk.study_ids s
                      inner join
-                        (select t.id,
+                        (select id,
                           case 
-                            when p.uses_who_harvest = true then t.default_name || ' (via WHO ICTRP)'
-                            else t.default_name
-                          end as repo_name 
-                         from context_ctx.data_sources t
-                         inner join mon_sf.source_parameters p
-                         on t.id = p.id) d
+                            when uses_who_harvest = true then repo_name || ' (via WHO ICTRP)'
+                            else repo_name
+                          end as r_name 
+                         from mon_sf.source_parameters) d
                      on s.source_id = d.id
                      group by study_id ";
             db.ExecuteSQL(sql_string);
@@ -347,36 +371,34 @@ namespace DataAggregator
                 create table nk.temp_object_provenance
                      as
                      select s.object_id, 
-                     'Data retrieved from ' || string_agg(d.repo_name || ' at ' || to_char(s.datetime_of_data_fetch, 'HH24:MI, dd Mon yyyy'), ', ' ORDER BY s.datetime_of_data_fetch) as provenance
+                     'Data retrieved from ' || string_agg(d.r_name || ' at ' || to_char(s.datetime_of_data_fetch, 'HH24:MI, dd Mon yyyy'), ', ' ORDER BY s.datetime_of_data_fetch) as provenance
                      from nk.data_object_ids s
                      inner join
-                        (select t.id,
+                        (select id,
                           case 
-                            when p.uses_who_harvest = true then t.default_name || ' (via WHO ICTRP)'
-                            else t.default_name
-                          end as repo_name 
-                         from context_ctx.data_sources t
-                         inner join mon_sf.source_parameters p
-                         on t.id = p.id) d
+                            when uses_who_harvest = true then repo_name || ' (via WHO ICTRP)'
+                            else repo_name
+                          end as r_name 
+                         from mon_sf.source_parameters) d
                     on s.source_id = d.id
                     where s.source_id <> 100135
                     group by object_id ";
             db.ExecuteSQL(sql_string);
 
             // PubMed objects need a different approach
-            sql_string = @"create table nk.temp_pubmed_object_provenance
-                     as select s.sd_oid,
+
+            sql_string = @"DROP TABLE IF EXISTS nk.temp_pubmed_object_provenance;
+                 create table nk.temp_pubmed_object_provenance
+                     as 
+                     select s.sd_oid,
                      'Data retrieved from Pubmed at ' || TO_CHAR(max(s.datetime_of_data_fetch), 'HH24:MI, dd Mon yyyy') as provenance
                      from nk.data_object_ids s
-                     inner
-                     join
-                  (select t.id,
-                         t.default_name as repo_name
-                         from context_ctx.data_sources t
-                         ) d
-                    on s.source_id = d.id
-                    where s.source_id = 100135
-                    group by s.sd_oid ";
+                     inner join
+                         (select id, repo_name
+                         from mon_sf.source_parameters) d
+                     on s.source_id = d.id
+                     where s.source_id = 100135
+                     group by s.sd_oid ";
             db.ExecuteSQL(sql_string);
 
             // update non pubmed objects

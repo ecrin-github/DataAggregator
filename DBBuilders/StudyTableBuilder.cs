@@ -168,5 +168,44 @@ namespace DataAggregator
             ExecuteSQL(sql_string);
         }
 
+
+        public void create_table_study_locations()
+        {
+            string sql_string = @"DROP TABLE IF EXISTS st.study_locations;
+            CREATE TABLE st.study_locations(
+                id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 20000001 INCREMENT BY 1) PRIMARY KEY
+              , study_id               INT             NOT NULL
+              , facility_org_id        INT             NULL
+              , facility               VARCHAR         NULL
+              , facility_ror_id        VARCHAR         NULL
+              , city_id                INT             NULL
+              , city_name              VARCHAR         NULL
+              , country_id             INT             NULL
+              , country_name           VARCHAR         NULL
+              , status_id              INT             NULL
+              , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
+            );
+            CREATE INDEX study_locations_study_id ON st.study_locations(study_id);";
+
+            ExecuteSQL(sql_string);
+        }
+
+
+        public void create_table_study_countries()
+        {
+            string sql_string = @"DROP TABLE IF EXISTS st.study_countries;
+            CREATE TABLE st.study_countries(
+                id                     INT             GENERATED ALWAYS AS IDENTITY (START WITH 20000001 INCREMENT BY 1) PRIMARY KEY
+              , study_id               INT             NOT NULL
+              , country_id             INT             NULL
+              , country_name           VARCHAR         NULL
+              , status_id              INT             NULL
+              , aggregated_on          TIMESTAMPTZ     NOT NULL DEFAULT Now()
+            );
+            CREATE INDEX study_countries_study_id ON st.study_countries(study_id);";
+
+            ExecuteSQL(sql_string);
+        }
+
     }
 }

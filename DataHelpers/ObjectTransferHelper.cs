@@ -2,7 +2,7 @@
 using Npgsql;
 using PostgreSQLCopyHelper;
 using System.Collections.Generic;
-using Serilog;
+
 
 namespace DataAggregator
 {
@@ -11,16 +11,16 @@ namespace DataAggregator
 
         string _connString;
         DBUtilities db;
-        ILogger _logger;
+        LoggingHelper _loggingHelper;
         int num_to_check;
 
         int status1number, status2number, status3number;
 
-        public ObjectDataTransferrer(string connString, ILogger logger)
+        public ObjectDataTransferrer(string connString, LoggingHelper loggingHelper)
         {
             _connString = connString;
-            _logger = logger;
-            db = new DBUtilities(connString, _logger);
+            _loggingHelper = loggingHelper;
+            db = new DBUtilities(connString, _loggingHelper);
         }
 
         public void SetUpTempObjectIdsTables()
@@ -119,7 +119,7 @@ namespace DataAggregator
                     and t.sd_oid = doi.sd_oid ";
 
             int res = db.Update_UsingTempTable("nk.temp_object_ids", "nk.temp_object_ids", sql_string, " and ");
-            _logger.Information("Existing objects matched in temp table");
+            _loggingHelper.LogLine("Existing objects matched in temp table");
 
             // also update the data_object_identifiers table
             // Indicates has been matched and updates the 
@@ -133,7 +133,7 @@ namespace DataAggregator
             and t.sd_oid = doi.sd_oid ";
 
             status1number = db.Update_UsingTempTable("nk.temp_object_ids", "data_object_identifiers", sql_string, " and ");
-            _logger.Information(status1number.ToString() + " existing objects matched in identifiers table");
+            _loggingHelper.LogLine(status1number.ToString() + " existing objects matched in identifiers table");
         }
 
 
@@ -152,7 +152,7 @@ namespace DataAggregator
                         and t.parent_study_source_id = " + source_id.ToString();
 
             int res = db.ExecuteSQL(sql_string);
-            _logger.Information("Objects pdated with parent study details");
+            _loggingHelper.LogLine("Objects pdated with parent study details");
 
             // Drop those object records that cannot be matched
             // N.B. study linked records - Pubmed objects do not 
@@ -161,7 +161,7 @@ namespace DataAggregator
             sql_string = @"DELETE FROM nk.temp_object_ids
                             WHERE parent_study_id is null;";
             res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " objects dropped because of a missing matching study");
+            _loggingHelper.LogLine(res.ToString() + " objects dropped because of a missing matching study");
         }
 
 
@@ -181,7 +181,7 @@ namespace DataAggregator
                             where match_status = 0 ";
 
             db.Update_UsingTempTable("nk.temp_object_ids", "data_object_identifiers", sql_string, " and ");
-            _logger.Information("Non-matched objects inserted into object identifiers table");
+            _loggingHelper.LogLine("Non-matched objects inserted into object identifiers table");
 
             // For study based data, if the study is 'preferred' it is the first time
             // that it and related data objects can be added to the database, so
@@ -195,7 +195,7 @@ namespace DataAggregator
                         AND is_preferred_study = true;";
 
             int res1 = db.ExecuteSQL(sql_string);
-            _logger.Information(res1.ToString() + " new objects identified for addition from preferred studies");
+            _loggingHelper.LogLine(res1.ToString() + " new objects identified for addition from preferred studies");
 
             // For data objects from 'non-preferred' studies, there may be duplicate 
             // data objects already in the system, but that does not apply to registry
@@ -220,7 +220,7 @@ namespace DataAggregator
                 res2 += db.ExecuteSQL(sql_string);
             }
 
-            _logger.Information(res2.ToString() + " new 'always added' objects identified from non-preferred studies");
+            _loggingHelper.LogLine(res2.ToString() + " new 'always added' objects identified from non-preferred studies");
             status3number = res1 + res2;
         }
 
@@ -276,7 +276,7 @@ namespace DataAggregator
             and doi.id = dup.id;";
 
             status2number = db.ExecuteSQL(sql_string);
-            _logger.Information(status2number.ToString() + " objects from 'non-preferred' studies identified as duplicates using type and title");
+            _loggingHelper.LogLine(status2number.ToString() + " objects from 'non-preferred' studies identified as duplicates using type and title");
 
         }
 
@@ -324,7 +324,7 @@ namespace DataAggregator
             and doi.id = dup.id;";
 
             int res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " objects from 'non-preferred' studies identified as duplicates using url");
+            _loggingHelper.LogLine(res.ToString() + " objects from 'non-preferred' studies identified as duplicates using url");
             status2number += res;
 
              // tidy up temp tables
@@ -347,7 +347,7 @@ namespace DataAggregator
             AND source_id = " + source_id.ToString();
 
             int res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " remaining objects from 'non-preferred' studies identified as new objects");
+            _loggingHelper.LogLine(res.ToString() + " remaining objects from 'non-preferred' studies identified as new objects");
             status3number += res;
         }
 
@@ -355,7 +355,7 @@ namespace DataAggregator
         public void FillObjectsToAddTables(int source_id)
         {
             int total_objects = status1number + status2number + status3number;
-            _logger.Information(total_objects.ToString() + " total objects found");
+            _loggingHelper.LogLine(total_objects.ToString() + " total objects found");
             
             string sql_string = @"INSERT INTO nk.temp_objects_to_add
                             (object_id, sd_oid)
@@ -365,7 +365,7 @@ namespace DataAggregator
                             source_id = " + source_id.ToString();
             
             int res = db.ExecuteSQL(sql_string);
-            _logger.Information(res.ToString() + " objects to be added");
+            _loggingHelper.LogLine(res.ToString() + " objects to be added");
 
             sql_string = @"INSERT INTO nk.temp_objects_to_check
                             (object_id, sd_oid)
@@ -378,8 +378,8 @@ namespace DataAggregator
             num_to_check = res;
             if (num_to_check > 0)
             {
-                _logger.Information(res.ToString() + " objects identifies as likely duplicates");
-                _logger.Information("will not be added (but attributes may be checked)");
+                _loggingHelper.LogLine(res.ToString() + " objects identifies as likely duplicates");
+                _loggingHelper.LogLine("will not be added (but attributes may be checked)");
             }
         }
 
@@ -405,14 +405,14 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "data_objects", "new objects");
-            _logger.Information("Transferred " + res.ToString() + " data object records");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " data object records");
             return res;
         }
 
     
         public void LoadObjectDatasets(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string sql_string = @"INSERT INTO ob.object_datasets(object_id, 
             record_keys_type_id, record_keys_details, 
@@ -431,13 +431,13 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_datasets", "new objects");
-            _logger.Information("Transferred " + res.ToString() + " object datasets");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " object datasets");
         }
 
 
         public void LoadObjectInstances(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string destination_field_list = @"object_id,  
             instance_type_id, repository_org_id, repository_org,
@@ -458,7 +458,7 @@ namespace DataAggregator
             on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_instances", "new objects");
-            _logger.Information("Transferred " + res.ToString() + " object instances, from 'preferred' objects");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " object instances, from 'preferred' objects");
 
             if (num_to_check > 0)
             {
@@ -500,14 +500,14 @@ namespace DataAggregator
                            WHERE e.object_id is null ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "object_instances", "existing objects");
-                _logger.Information("Transferred " + res.ToString() + " object instances, from 'non-preferred'  objects");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " object instances, from 'non-preferred'  objects");
             }
         }
 
 
         public void LoadObjectTitles(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string destination_field_list = @"object_id, 
             title_type_id, title_text, lang_code,
@@ -524,7 +524,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_titles", "new objects");
-            _logger.Information("Transferred " + res.ToString() + " object titles, from 'preferred' objects");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " object titles, from 'preferred' objects");
 
             if (num_to_check > 0)
             {
@@ -575,7 +575,7 @@ namespace DataAggregator
                                WHERE e.object_id is null ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "object_titles", "existing objects");
-                _logger.Information("Transferred " + res.ToString() + " object titles, from 'non-preferred' objects");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " object titles, from 'non-preferred' objects");
 
             }
         }
@@ -583,7 +583,7 @@ namespace DataAggregator
 
         public void LoadObjectDates(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string destination_field_list = @"object_id, 
             date_type_id, date_is_range, date_as_string, start_year, 
@@ -600,7 +600,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_dates", "new objects");
-            _logger.Information("Transferred " + res.ToString() + " object dates, from 'preferred' objects");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " object dates, from 'preferred' objects");
 
             if (num_to_check > 0)
             {
@@ -637,7 +637,7 @@ namespace DataAggregator
                                WHERE e.object_id is null ";
 
                 res = db.ExecuteTransferSQL(sql_string, schema_name, "object_dates", "existing objects");
-                _logger.Information("Transferred " + res.ToString() + " object dates, from 'non-preferred' objects");
+                _loggingHelper.LogLine("Transferred " + res.ToString() + " object dates, from 'non-preferred' objects");
 
 
 
@@ -647,7 +647,7 @@ namespace DataAggregator
 
         public void LoadObjectContributors(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string sql_string = @"INSERT INTO ob.object_contributors(object_id, 
             contrib_type_id, is_individual, 
@@ -664,13 +664,13 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_contributors", "new objects");
-            _logger.Information("Transferred " + res.ToString() + " object contributors, from 'preferred' objects");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " object contributors, from 'preferred' objects");
         }
 
 
         public void LoadObjectTopics(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string sql_string = @"INSERT INTO ob.object_topics(object_id, 
             topic_type_id, mesh_coded, mesh_code, mesh_value, 
@@ -683,13 +683,13 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_topics", "new objects");
-            _logger.Information("Transferred " + res.ToString() + " object topics, from 'preferred' objects");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " object topics, from 'preferred' objects");
         }
 
 
         public void LoadObjectDescriptions(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string sql_string = @"INSERT INTO ob.object_descriptions(object_id, 
             description_type_id, label, description_text, lang_code)
@@ -700,13 +700,13 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_descriptions", "new objects");
-            _logger.Information("Transferred " + res.ToString() + " object descriptions, from 'preferred' objects");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " object descriptions, from 'preferred' objects");
         }
 
 
         public void LoadObjectIdentifiers(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string sql_string = @"INSERT INTO ob.object_identifiers(object_id,  
             identifier_value, identifier_type_id, 
@@ -721,14 +721,14 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_identifiers", "new objects");
-            _logger.Information("Transferred " + res.ToString() + " object identifiers, from 'preferred' objects");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " object identifiers, from 'preferred' objects");
         }
 
 
 
         public void LoadObjectRelationships(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string sql_string = @"INSERT INTO ob.object_relationships(object_id,  
             relationship_type_id)
@@ -741,14 +741,14 @@ namespace DataAggregator
             // NEED TO DO UPDATE OF TARGET SEPARATELY
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_relationships", "new objects");
-            _logger.Information("Transferred " + res.ToString() + " object relationships, from 'preferred' objects");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " object relationships, from 'preferred' objects");
         }
 
 
 
         public void LoadObjectRights(string schema_name)
         {
-            _logger.Information("");
+            _loggingHelper.LogLine("");
 
             string sql_string = @"INSERT INTO ob.object_rights(object_id,  
             rights_name, rights_uri, comments)
@@ -759,7 +759,7 @@ namespace DataAggregator
                     on s.sd_oid = t.sd_oid ";
 
             int res = db.ExecuteTransferSQL(sql_string, schema_name, "object_rights", "new objects");
-            _logger.Information("Transferred " + res.ToString() + " object rights, from 'preferred' objects");
+            _loggingHelper.LogLine("Transferred " + res.ToString() + " object rights, from 'preferred' objects");
         }
 
 
