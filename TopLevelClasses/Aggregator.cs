@@ -213,15 +213,17 @@ namespace DataAggregator
                     // if tables are to have further data appended add an integer
                     // offset that represents the records to skip (default = 0)
 
-                    _logging_helper.LogHeader("Creating JSON study data");
-                    jh.CreateJSONStudyData(opts.also_do_files);
-                    _logging_helper.LogHeader("Creating JSON object data");
-                    jh.CreateJSONObjectData(opts.also_do_files);
+                    //_logging_helper.LogHeader("Creating JSON study data");
+                    //jh.CreateJSONStudyData(opts.also_do_files);
+                    jh.LoopThroughOAStudyRecords();
+                    //_logging_helper.LogHeader("Creating JSON object data");
+                    //jh.CreateJSONObjectData(opts.also_do_files);
+                    jh.LoopThroughOAObjectRecords();
                 }
 
                 _mon_repo.DropTempContextFTWs(dest_conn_string);
 
-                _logging_helper.LogHeader("Closing Log");
+                _logging_helper.CloseLog();
                 return 0;
             }
 

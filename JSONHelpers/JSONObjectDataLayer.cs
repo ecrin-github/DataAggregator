@@ -4,7 +4,7 @@ using Npgsql;
 using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
-
+using System.Linq;
 
 namespace DataAggregator
 {
@@ -229,7 +229,7 @@ namespace DataAggregator
 
 
             // data study object link query string
-            object_study_link_query_string = @"select select id,
+            object_study_link_query_string = @"select id,
                 study_id, object_id
                 from core.study_object_links
                 where object_id = ";
@@ -312,7 +312,7 @@ namespace DataAggregator
                 }
                 else
                 {
-                    sql_string = " and is_individual = false";
+                    sql_string += " and is_individual = false";
                 }
                 return Conn.Query<DBObjectContributor>(sql_string);
             }
@@ -395,6 +395,25 @@ namespace DataAggregator
             }
         }
 
+
+        public IEnumerable<int> FetchOAObjectIds()
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = "select object_id from nk.temp_oa_objects";
+                return Conn.Query<int>(sql_string);
+            }
+        }
+
+
+        public string FetchObjectJson(int id)
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = "select json from core.objects_json where id = " + id.ToString();
+                return Conn.Query<string>(sql_string).FirstOrDefault();
+            }
+        }
 
 
         public void StoreJSONObjectInDB(int id, string object_json)

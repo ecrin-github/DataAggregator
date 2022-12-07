@@ -4,7 +4,7 @@ using Npgsql;
 using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
-
+using System.Linq;
 
 namespace DataAggregator
 {
@@ -260,7 +260,7 @@ namespace DataAggregator
                 }
                 else
                 {
-                    sql_string = " and is_individual = false";
+                    sql_string += " and is_individual = false";
                 }
                 return Conn.Query<DBStudyContributor>(sql_string);
             }
@@ -303,6 +303,26 @@ namespace DataAggregator
             {
                 string sql_string = study_object_link_query_string + id.ToString();
                 return Conn.Query<DBStudyObjectLink>(sql_string);
+            }
+        }
+
+
+        public IEnumerable<int> FetchOAStudyIds()
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = "select study_id from nk.temp_oa_studies";
+                return Conn.Query<int>(sql_string);
+            }
+        }
+
+
+        public string FetchStudyJson(int id)
+        {
+            using (NpgsqlConnection Conn = new NpgsqlConnection(_connString))
+            {
+                string sql_string = "select json from core.studies_json where id = " + id.ToString();
+                return Conn.Query<string>(sql_string).FirstOrDefault();
             }
         }
 

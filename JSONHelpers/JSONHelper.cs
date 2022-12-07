@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -67,14 +68,14 @@ namespace DataAggregator
             JSONStudyProcessor processor = new JSONStudyProcessor(repo);
 
             // Do 10,000 ids at a time
-            //int batch = 10000;
-            int batch = 100;  // testing
+            int batch = 10000;
+           // int batch = 100;  // testing
 
             string folder_path = "";
             int k = 0;
             for (int n = min_id; n <= max_id; n+= batch)
             {
-                if (n > min_id + 200) break;  // testing
+                //if (n > min_id + 200) break;  // testing
 
                 if (also_do_files)
                 {
@@ -129,8 +130,8 @@ namespace DataAggregator
             JSONObjectProcessor processor = new JSONObjectProcessor(repo, _loggingHelper);
 
             // Do 10,000 ids at a time
-            //int batch = 10000;
-            int batch = 100;  // testing
+            int batch = 10000;
+            //int batch = 100;  // testing
 
             string folder_path = "";
             int k = offset;
@@ -138,7 +139,7 @@ namespace DataAggregator
             
             for (int n = min_id; n <= max_id; n += batch)
             {
-                if (n > min_id + 200) break;  // testing
+                //if (n > min_id + 200) break;  // testing
 
                 if (also_do_files)
                 {
@@ -187,6 +188,127 @@ namespace DataAggregator
                 }
             }
         }
+
+
+
+        public void LoopThroughOAStudyRecords()
+        {
+            JSONStudyDataLayer repo = new JSONStudyDataLayer(_loggingHelper, connString);
+            _loggingHelper.LogLine("Creating OpenAire JSON study files");
+
+            // set up folder, use date stamp
+
+            string dt_string = DateTime.Now.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
+                              .Replace(":", "").Replace("T", " ");
+            string folder_name = "oa_studies " + dt_string;
+            string folder_path = Path.Combine(repo.StudyJsonFolder, folder_name);
+
+            if (!Directory.Exists(folder_path))
+            {
+                Directory.CreateDirectory(folder_path);
+            }
+            else
+            {
+                // first clear files from folder
+
+                DirectoryInfo di = new DirectoryInfo(folder_path);
+                foreach (FileInfo file in di.EnumerateFiles())
+                {
+                    file.Delete();
+                }
+            }
+
+            // get batch of all ids, as an integer array
+
+            IEnumerable<int> id_numbers = repo.FetchOAStudyIds();
+            int k = 0, n = 0;
+            foreach (int id in id_numbers)
+            {
+                // obtain the relevant json from the
+
+                var linear_json = repo.FetchStudyJson(id);
+                var st = JsonConvert.DeserializeObject(linear_json, typeof(JSONStudy));
+                if (st != null)
+                {
+                    // prettify it and store as file
+
+                    var formatted_json = JsonConvert.SerializeObject(st, Formatting.Indented);
+                    string file_name = "study " + id.ToString() + ".json";
+                    string full_path = Path.Combine(folder_path, file_name);
+                    File.WriteAllText(full_path, formatted_json);
+                    n++;
+                }
+                k++;
+                if (k % 200 == 0) _loggingHelper.LogLine(k.ToString() + " records processed");
+            }
+
+            _loggingHelper.LogLine(n.ToString() + " study files created in total");
+        }
+
+
+        public void LoopThroughOAObjectRecords()
+        {
+            JSONObjectDataLayer repo = new JSONObjectDataLayer(_loggingHelper, connString);
+            _loggingHelper.LogLine("");
+            _loggingHelper.LogLine("Creating OpenAire JSON object files");
+
+            // set up folder, use date stamp
+
+            string dt_string = DateTime.Now.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
+                              .Replace(":", "").Replace("T", " ");
+            string folder_name = "oa_objects " + dt_string;
+            string folder_path = Path.Combine(repo.ObjectJsonFolder, folder_name);
+
+            if (!Directory.Exists(folder_path))
+            {
+                Directory.CreateDirectory(folder_path);
+            }
+            else
+            {
+                // first clear files from folder
+
+                DirectoryInfo di = new DirectoryInfo(folder_path);
+                foreach (FileInfo file in di.EnumerateFiles())
+                {
+                    file.Delete();
+                }
+            }
+
+            // get batch of all ids, as an integer array
+
+            IEnumerable<int> id_numbers = repo.FetchOAObjectIds();
+            int k = 0, n = 0;
+            foreach (int id in id_numbers)
+            {
+                // obtain the relevant json from the
+
+                var linear_json = repo.FetchObjectJson(id);
+                if (linear_json != null)
+                {
+                    var st = JsonConvert.DeserializeObject(linear_json, typeof(JSONDataObject));
+                    if (st != null)
+                    {
+                        // prettify it and store as file
+
+                        var formatted_json = JsonConvert.SerializeObject(st, Formatting.Indented);
+                        string file_name = "object " + id.ToString() + ".json";
+                        string full_path = Path.Combine(folder_path, file_name);
+                        File.WriteAllText(full_path, formatted_json);
+                        n++;
+                    }
+                }
+                else
+                {
+                    // pause - only seems to happen once with this sample
+                }
+                k++;
+                if (k % 200 == 0) _loggingHelper.LogLine(k.ToString() + " records processed");
+            }
+
+            _loggingHelper.LogLine(n.ToString() + " object files created in total");
+        }
+
+
 
         /*
         public void UpdateJSONStudyData(bool also_do_files, int offset = 0)

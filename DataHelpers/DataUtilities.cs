@@ -271,7 +271,7 @@ namespace DataAggregator
             try
             {
                 int transferred = 0;
-                int rec_batch = 50000;
+                int rec_batch = 20000;
                 for (int r = min_id; r <= max_id; r += rec_batch)
                 {
                     string batch_sql_string = sql_string + " where s.id >= " + r.ToString() + " and s.id < " + (r + rec_batch).ToString();
@@ -298,7 +298,7 @@ namespace DataAggregator
             try
             {
                 int transferred = 0;
-                int rec_batch = 50000;
+                int rec_batch = 20000;
                 for (int r = min_id; r <= max_id; r += rec_batch)
                 {
                     string batch_sql_string = sql_string + " where s.study_id >= " + r.ToString() + " and s.study_id < " + (r + rec_batch).ToString();
@@ -323,7 +323,8 @@ namespace DataAggregator
 
         public int TransferSearchDataByStudy(string sql_string, string data_type, int min_id, int max_id)
         {
-            // usesd study id to go through records becasue records n=must be grouped by study
+            // uses study id to go through records becasue records n=must be grouped by study
+
             try
             {
                 int transferred = 0;

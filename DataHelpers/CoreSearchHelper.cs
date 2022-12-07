@@ -368,8 +368,7 @@ namespace DataAggregator
             return db.SearchStudyUpdateSQL(sql_string, "temp_titles_by_study",
                                            min_studies_id, max_studies_id);
         }
-
-          
+               
 
 
         public int TransferTitleDataByStudy()
